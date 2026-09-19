@@ -253,7 +253,6 @@ export function HomeScreen(props: HomeScreenProps) {
   const queuedThreadKeys = useQueuedThreadKeys();
   const openSwipeableRef = useRef<SwipeableMethods | null>(null);
   const insets = useSafeAreaInsets();
-  const columnMetrics = useNativeColumnLayoutMetrics();
   const screenMetrics = useNativeLayoutMetrics();
   const contentSideInsets = NATIVE_WORKSPACE_COLUMNS_SUPPORTED
     ? (columnMetrics ?? screenMetrics)?.safeArea

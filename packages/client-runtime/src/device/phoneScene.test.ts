@@ -1,4 +1,4 @@
-import { PerspectiveCamera, Texture, Vector3 } from "three";
+import { Box3, PerspectiveCamera, Texture, Vector3 } from "three";
 import { describe, expect, it } from "vite-plus/test";
 import { createPhoneScene, phoneDisplayLayout } from "./phoneScene.ts";
 
@@ -85,4 +85,25 @@ describe("3D phone input", () => {
       texture.dispose();
     },
   );
+});
+
+it("attaches the rear camera plate to the back and seats its lenses on the housing", () => {
+  const texture = new Texture();
+  const phone = createPhoneScene(texture, phoneDisplayLayout(null, 900, 1950));
+  phone.root.updateMatrixWorld(true);
+  const back = new Box3().setFromObject(phone.root.getObjectByName("device-back")!);
+  const plate = new Box3().setFromObject(phone.root.getObjectByName("camera-plate")!);
+  expect(plate.min.z).toBeLessThan(back.min.z);
+  expect(plate.max.z).toBeGreaterThanOrEqual(back.min.z);
+  const assembly = phone.root.getObjectByName("rear-camera")!;
+  const rings = assembly.children.filter((part) => part.name === "camera-ring");
+  const lenses = assembly.children.filter((part) => part.name === "camera-lens");
+  for (const [index, ring] of rings.entries()) {
+    const ringBounds = new Box3().setFromObject(ring);
+    expect(ringBounds.intersectsBox(plate)).toBe(true);
+    const lensBounds = new Box3().setFromObject(lenses[index]!);
+    expect(Math.abs(lensBounds.max.z - ringBounds.min.z)).toBeLessThan(0.001);
+  }
+  phone.dispose();
+  texture.dispose();
 });

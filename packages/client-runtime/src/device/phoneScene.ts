@@ -116,6 +116,7 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
     new ShapeGeometry(roundedPath(width - 0.012, height - 0.012, 0.14), 16),
     backMaterial,
   );
+  back.name = "device-back";
   back.rotation.y = Math.PI;
   back.position.z = -0.075;
   orientation.add(back);
@@ -147,6 +148,14 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
     button.position.set(x!, y!, -0.01);
     orientation.add(button);
   }
+  // Rear components share a surface-relative coordinate system, with outward positive Z.
+  const rearCamera = new Group();
+  rearCamera.name = "rear-camera";
+  rearCamera.position.set(width / 2 - 0.25, height / 2 - 0.29, back.position.z + 0.001);
+  rearCamera.rotation.y = Math.PI;
+  orientation.add(rearCamera);
+  const plateFront = 0.025 + 0.007;
+  const ringDepth = 0.025;
   const cameraPlate = new Mesh(
     new ExtrudeGeometry(roundedPath(0.39, 0.44, 0.095), {
       depth: 0.025,
@@ -157,26 +166,25 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
     }),
     backMaterial,
   );
-  cameraPlate.position.set(-width / 2 + 0.25, height / 2 - 0.29, -0.1);
-  cameraPlate.rotation.y = Math.PI;
-  orientation.add(cameraPlate);
+  cameraPlate.name = "camera-plate";
+  rearCamera.add(cameraPlate);
   for (const [x, y] of [
     [-0.08, 0.095],
     [0.08, -0.095],
   ]) {
     const ring = new Mesh(new CylinderGeometry(0.082, 0.082, 0.025, 32), metal);
     ring.rotation.x = Math.PI / 2;
-    ring.position.set(cameraPlate.position.x + x!, cameraPlate.position.y + y!, -0.143);
-    orientation.add(ring);
+    ring.name = "camera-ring";
+    ring.position.set(x!, y!, plateFront + ringDepth / 2 - 0.003);
+    rearCamera.add(ring);
     const lens = new Mesh(new CircleGeometry(0.068, 32), lensMaterial);
-    lens.rotation.y = Math.PI;
-    lens.position.set(ring.position.x, ring.position.y, -0.158);
-    orientation.add(lens);
+    lens.name = "camera-lens";
+    lens.position.set(x!, y!, ring.position.z + ringDepth / 2 + 0.0005);
+    rearCamera.add(lens);
   }
   const flash = new Mesh(new CircleGeometry(0.022, 20), new MeshBasicMaterial({ color: 0xf2ead6 }));
-  flash.position.set(cameraPlate.position.x + 0.085, cameraPlate.position.y + 0.11, -0.139);
-  flash.rotation.y = Math.PI;
-  orientation.add(flash);
+  flash.position.set(0.085, 0.11, plateFront + 0.0005);
+  rearCamera.add(flash);
 
   const raycaster = new Raycaster();
   const pointer = new Vector2();

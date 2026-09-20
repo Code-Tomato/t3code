@@ -55,10 +55,18 @@ export function useDeviceControls(options: {
 
   useEffect(() => {
     if (!access || !visible) return;
-    return subscribeDeviceForeground(
+    let active = true;
+    const unsubscribe = subscribeDeviceForeground(
       { access, platform: device.platform, deviceId: device.id },
-      setForeground,
+      (app) => {
+        if (active) setForeground(app);
+      },
     );
+    return () => {
+      active = false;
+      unsubscribe();
+      setForeground(undefined);
+    };
   }, [access, device.id, device.platform, visible]);
 
   const available = detail !== null && visible;

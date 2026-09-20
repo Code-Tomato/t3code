@@ -1,20 +1,23 @@
 import { EnvironmentId, type DeviceDetail, type DeviceSummary } from "@t3tools/contracts";
+import type { DeviceHubAccess } from "@t3tools/client-runtime/device/hub-access";
 import { act, useEffect } from "react";
 import { create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { useDeviceControls, type DeviceControls } from "./useDeviceControls";
 
 type Result = { _tag: "Success"; value: DeviceDetail } | { _tag: "Failure"; cause: unknown };
-const { read, action } = vi.hoisted(() => ({
+const { read, action, subscribe } = vi.hoisted(() => ({
   read: vi.fn<() => Promise<Result>>(),
   action: vi.fn<() => Promise<Result>>(),
+  subscribe:
+    vi.fn<(_target: unknown, onChange: (app: { id: string } | null) => void) => () => void>(),
 }));
 vi.mock("~/state/device", () => ({ deviceEnvironment: { detail: "detail", action: "action" } }));
 vi.mock("~/state/use-atom-command", () => ({
   useAtomCommand: (command: string) => (command === "detail" ? read : action),
 }));
 vi.mock("~/state/query", () => ({ formatEnvironmentQueryError: () => "Device action failed" }));
-vi.mock("./deviceHubApi", () => ({ subscribeDeviceForeground: vi.fn(() => () => {}) }));
+vi.mock("./deviceHubApi", () => ({ subscribeDeviceForeground: subscribe }));
 
 const device: DeviceSummary = {
   hostId: "remote",
@@ -44,11 +47,11 @@ function deferred() {
 }
 let renderer: ReactTestRenderer | undefined;
 let controls: DeviceControls;
-function Probe({ visible }: { visible: boolean }) {
+function Probe({ visible, access = null }: { visible: boolean; access?: DeviceHubAccess | null }) {
   const next = useDeviceControls({
     environmentId: EnvironmentId.make("environment"),
     device,
-    access: null,
+    access,
     visible,
   });
   useEffect(() => {
@@ -60,6 +63,8 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   read.mockReset();
   action.mockReset();
+  subscribe.mockReset();
+  subscribe.mockReturnValue(() => {});
   read.mockResolvedValue(snapshot("light"));
 });
 afterEach(async () => {
@@ -128,3 +133,41 @@ it("does not let an older refresh overwrite a newer confirmed action", async () 
   });
   expect(controls.detail?.settings.appearance).toBe("dark");
 });
+
+it.each(["hidden", "access renewed"] as const)(
+  "uses the detail snapshot until a new foreground event after the subscription is %s",
+  async (restart) => {
+    const access: DeviceHubAccess = {
+      httpBase: "https://remote.test/api/device-hub",
+      wsBase: "wss://remote.test/api/device-hub",
+      query: {},
+      credentials: false,
+    };
+    const detail = snapshot("light");
+    if (detail._tag !== "Success") throw new Error("Expected a successful snapshot");
+    read.mockResolvedValue({
+      ...detail,
+      value: { ...detail.value, foregroundApp: { id: "snapshot.app" } },
+    });
+    await act(async () => {
+      renderer = create(<Probe visible access={access} />);
+    });
+    const oldEvent = subscribe.mock.calls[0]![1];
+    await act(async () => oldEvent({ id: "previous.live.app" }));
+    expect(controls.foregroundApp?.id).toBe("previous.live.app");
+    if (restart === "hidden") {
+      await act(async () => renderer!.update(<Probe visible={false} access={access} />));
+      await act(async () => renderer!.update(<Probe visible access={access} />));
+    } else {
+      await act(async () =>
+        renderer!.update(<Probe visible access={{ ...access, query: { ticket: "renewed" } }} />),
+      );
+    }
+    expect(controls.foregroundApp?.id).toBe("snapshot.app");
+    await act(async () => oldEvent({ id: "late.previous.app" }));
+    expect(controls.foregroundApp?.id).toBe("snapshot.app");
+    const newEvent = subscribe.mock.calls[1]![1];
+    await act(async () => newEvent({ id: "current.live.app" }));
+    expect(controls.foregroundApp?.id).toBe("current.live.app");
+  },
+);

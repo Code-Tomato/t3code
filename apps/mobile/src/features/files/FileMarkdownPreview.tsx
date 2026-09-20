@@ -162,13 +162,11 @@ export function FileMarkdownPreview(props: {
             />
           );
         }
-        const preview = props.threadId
-          ? resolveMarkdownMediaPreview(image.href, {
-              environmentId: props.environmentId,
-              threadId: props.threadId,
-              workspaceRoot: markdownDirectory,
-            })
-          : null;
+        const preview = resolveMarkdownMediaPreview(image.href, {
+          environmentId: props.environmentId,
+          threadId: props.threadId,
+          workspaceRoot: markdownDirectory,
+        });
         return preview?.kind === "video" ? (
           <ThreadMarkdownVideo source={preview.source} thumbnailVisible />
         ) : (
@@ -196,7 +194,6 @@ export function FileMarkdownPreview(props: {
   });
   const onImagePress = useCallback(
     (href: string) => {
-      if (props.captured) return;
       const direct = resolveMobileMarkdownMediaSource(href, {
         threadId: props.threadId ?? undefined,
         workspaceRoot: markdownDirectory,
@@ -210,6 +207,7 @@ export function FileMarkdownPreview(props: {
         });
         return;
       }
+      if (props.captured) return;
       if (!props.threadId) {
         if (direct?.access === "environment" && direct.kind === "image") {
           setExpandedFile({

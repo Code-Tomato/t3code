@@ -279,6 +279,10 @@
       "types": "./src/device/phoneInteraction.ts",
       "default": "./src/device/phoneInteraction.ts"
     },
+    "./device/shape-profile": {
+      "types": "./src/device/shapeProfile.ts",
+      "default": "./src/device/shapeProfile.ts"
+    },
     "./device/screenshot": {
       "types": "./src/device/screenshot.ts",
       "default": "./src/device/screenshot.ts"

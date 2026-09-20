@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { cn } from "~/lib/utils";
 import { refreshDeviceHubAccess, useDeviceHubAccess } from "~/state/device";
 import { createCanvasFrameSink } from "@t3tools/client-runtime/device/frame";
+import { resolveDeviceShape } from "@t3tools/client-runtime/device/shape-profile";
 import { Button } from "~/components/ui/button";
 import { DevicePhoneViewport } from "./DevicePhoneViewport";
 import { DeviceLoadingView } from "./DeviceLoadingView";
@@ -297,6 +298,11 @@ export function DeviceStreamView(props: {
   });
   const contentOffset =
     props.renderControls && controlsLayout === "rail" ? -DEVICE_CONTROLS_RAIL_WIDTH / 2 : 0;
+  const profile = resolveDeviceShape({
+    platform: props.platform,
+    name: props.deviceName ?? "",
+    portraitAspect: Math.min(aspect, 1 / aspect),
+  });
 
   return (
     <div
@@ -406,6 +412,7 @@ export function DeviceStreamView(props: {
         </div>
         {showPhone ? (
           <DevicePhoneViewport
+            profile={profile}
             contentOffset={contentOffset}
             source={canvasRef}
             onFrameListener={onFrameListener}

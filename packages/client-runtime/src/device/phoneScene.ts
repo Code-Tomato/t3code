@@ -18,9 +18,9 @@ import {
   type Texture,
 } from "three";
 import type { DeviceScreenSize } from "./stream.ts";
+import { IOS_PHONE_SHAPE, type DeviceShapeProfile } from "./shapeProfile.ts";
 
 const SCREEN_HEIGHT = 2.2;
-const BORDER = 0.055;
 
 function roundedPath(width: number, height: number, radius: number, path = new Shape()) {
   const x = -width / 2;
@@ -63,15 +63,20 @@ export function phoneDisplayLayout(
   };
 }
 
-/** An original procedural phone body. It makes no claim to reproduce a particular hardware model. */
-export function createPhoneScene(texture: Texture, layout: ReturnType<typeof phoneDisplayLayout>) {
+/** An original procedural device body. It makes no claim to reproduce a particular hardware model. */
+export function createPhoneScene(
+  texture: Texture,
+  layout: ReturnType<typeof phoneDisplayLayout>,
+  profile: DeviceShapeProfile = IOS_PHONE_SHAPE,
+) {
   const { aspect, rawLandscape, rotation } = layout;
   const root = new Group();
   const orientation = new Group();
   root.add(orientation);
   const screenWidth = SCREEN_HEIGHT * aspect;
-  const width = screenWidth + BORDER * 2;
-  const height = SCREEN_HEIGHT + BORDER * 2;
+  const width = screenWidth + profile.bezel * 2;
+  const height = SCREEN_HEIGHT + profile.bezel * 2;
+  const backZ = 0.01 - profile.depth;
   const metal = new MeshStandardMaterial({ color: 0xb5bcc7, metalness: 0.88, roughness: 0.27 });
   const glass = new MeshPhysicalMaterial({
     color: 0x141820,
@@ -80,7 +85,7 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
     clearcoat: 1,
   });
   const backMaterial = new MeshStandardMaterial({
-    color: 0x424b5d,
+    color: profile.backColor,
     metalness: 0.45,
     roughness: 0.32,
   });
@@ -93,8 +98,8 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
   const materials = [metal, glass, backMaterial, lensMaterial];
 
   const body = new Mesh(
-    new ExtrudeGeometry(roundedPath(width, height, 0.15), {
-      depth: 0.085,
+    new ExtrudeGeometry(roundedPath(width, height, profile.bodyRadius), {
+      depth: profile.depth,
       bevelEnabled: true,
       bevelSize: 0.012,
       bevelThickness: 0.012,
@@ -104,24 +109,27 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
     }),
     metal,
   );
-  body.position.z = -0.06;
+  body.position.z = 0.025 - profile.depth;
   orientation.add(body);
   const face = new Mesh(
-    new ShapeGeometry(roundedPath(width - 0.014, height - 0.014, 0.14), 16),
+    new ShapeGeometry(roundedPath(width - 0.014, height - 0.014, profile.bodyRadius - 0.01), 16),
     glass,
   );
   face.position.z = 0.04;
   orientation.add(face);
   const back = new Mesh(
-    new ShapeGeometry(roundedPath(width - 0.012, height - 0.012, 0.14), 16),
+    new ShapeGeometry(roundedPath(width - 0.012, height - 0.012, profile.bodyRadius - 0.01), 16),
     backMaterial,
   );
   back.name = "device-back";
   back.rotation.y = Math.PI;
-  back.position.z = -0.075;
+  back.position.z = backZ;
   orientation.add(back);
 
-  const screenGeometry = new ShapeGeometry(roundedPath(screenWidth, SCREEN_HEIGHT, 0.105), 20);
+  const screenGeometry = new ShapeGeometry(
+    roundedPath(screenWidth, SCREEN_HEIGHT, profile.screenRadius),
+    20,
+  );
   const position = screenGeometry.getAttribute("position");
   const uv = screenGeometry.getAttribute("uv");
   for (let i = 0; i < position.count; i++) {
@@ -139,52 +147,71 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
   display.position.z = 0.043;
   orientation.add(display);
 
-  for (const [x, y, length] of [
-    [width / 2 + 0.015, 0.35, 0.3],
-    [-width / 2 - 0.015, 0.48, 0.18],
-    [-width / 2 - 0.015, 0.22, 0.18],
-  ]) {
-    const button = new Mesh(new BoxGeometry(0.026, length, 0.055), metal);
-    button.position.set(x!, y!, -0.01);
+  for (const { edge, offset, length } of profile.buttons) {
+    const button = new Mesh(
+      new BoxGeometry(
+        edge === "top" ? length : 0.026,
+        edge === "top" ? 0.026 : length,
+        profile.depth * 0.65,
+      ),
+      metal,
+    );
+    button.position.set(
+      edge === "top" ? offset : (edge === "left" ? -1 : 1) * (width / 2 + 0.015),
+      edge === "top" ? height / 2 + 0.015 : offset,
+      (0.025 + backZ) / 2,
+    );
     orientation.add(button);
   }
   // Rear components share a surface-relative coordinate system, with outward positive Z.
   const rearCamera = new Group();
   rearCamera.name = "rear-camera";
-  rearCamera.position.set(width / 2 - 0.25, height / 2 - 0.29, back.position.z + 0.001);
+  rearCamera.position.set(
+    width / 2 - profile.camera.insetX,
+    height / 2 - profile.camera.insetY,
+    back.position.z + 0.001,
+  );
   rearCamera.rotation.y = Math.PI;
   orientation.add(rearCamera);
   const plateFront = 0.025 + 0.007;
   const ringDepth = 0.025;
   const cameraPlate = new Mesh(
-    new ExtrudeGeometry(roundedPath(0.39, 0.44, 0.095), {
-      depth: 0.025,
-      bevelEnabled: true,
-      bevelSize: 0.009,
-      bevelThickness: 0.007,
-      bevelSegments: 2,
-    }),
+    new ExtrudeGeometry(
+      roundedPath(
+        profile.camera.width,
+        profile.camera.height,
+        Math.min(profile.camera.width, profile.camera.height) / 4,
+      ),
+      {
+        depth: 0.025,
+        bevelEnabled: true,
+        bevelSize: 0.009,
+        bevelThickness: 0.007,
+        bevelSegments: 2,
+      },
+    ),
     backMaterial,
   );
   cameraPlate.name = "camera-plate";
   rearCamera.add(cameraPlate);
-  for (const [x, y] of [
-    [-0.08, 0.095],
-    [0.08, -0.095],
-  ]) {
-    const ring = new Mesh(new CylinderGeometry(0.082, 0.082, 0.025, 32), metal);
+  for (const [x, y] of profile.camera.lenses) {
+    const radius = profile.camera.lensRadius;
+    const ring = new Mesh(new CylinderGeometry(radius + 0.014, radius + 0.014, 0.025, 32), metal);
     ring.rotation.x = Math.PI / 2;
     ring.name = "camera-ring";
-    ring.position.set(x!, y!, plateFront + ringDepth / 2 - 0.003);
+    ring.position.set(x, y, plateFront + ringDepth / 2 - 0.003);
     rearCamera.add(ring);
-    const lens = new Mesh(new CircleGeometry(0.068, 32), lensMaterial);
+    const lens = new Mesh(new CircleGeometry(radius, 32), lensMaterial);
     lens.name = "camera-lens";
-    lens.position.set(x!, y!, ring.position.z + ringDepth / 2 + 0.0005);
+    lens.position.set(x, y, ring.position.z + ringDepth / 2 + 0.0005);
     rearCamera.add(lens);
   }
-  const flash = new Mesh(new CircleGeometry(0.022, 20), new MeshBasicMaterial({ color: 0xf2ead6 }));
-  flash.position.set(0.085, 0.11, plateFront + 0.0005);
-  rearCamera.add(flash);
+  const flashMaterial = new MeshBasicMaterial({ color: 0xf2ead6 });
+  if (profile.camera.flash) {
+    const flash = new Mesh(new CircleGeometry(0.022, 20), flashMaterial);
+    flash.position.set(profile.camera.flash[0], profile.camera.flash[1], plateFront + 0.0005);
+    rearCamera.add(flash);
+  }
 
   const raycaster = new Raycaster();
   const pointer = new Vector2();
@@ -224,7 +251,7 @@ export function createPhoneScene(texture: Texture, layout: ReturnType<typeof pho
       });
       for (const material of materials) material.dispose();
       screenMaterial.dispose();
-      flash.material.dispose();
+      flashMaterial.dispose();
     },
   };
 }

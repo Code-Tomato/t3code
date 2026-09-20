@@ -12,10 +12,11 @@ import { createPhoneScene, phoneDisplayLayout } from "./phoneScene.ts";
 import { createRenderScheduler } from "./renderScheduler.ts";
 import { createPhonePose } from "./phonePose.ts";
 import type { DeviceScreenSize } from "./stream.ts";
+import { IOS_PHONE_SHAPE, type DeviceShapeProfile } from "./shapeProfile.ts";
 
 export interface PhoneViewer {
   readonly frameUpdated: () => void;
-  readonly setScreen: (screen: DeviceScreenSize | null) => void;
+  readonly setScreen: (screen: DeviceScreenSize | null, profile?: DeviceShapeProfile) => void;
   readonly resize: (width: number, height: number, pixelRatio: number) => void;
   readonly screenPoint: (
     x: number,
@@ -33,6 +34,7 @@ export function createPhoneViewer(options: {
   readonly canvas: HTMLCanvasElement;
   readonly source: HTMLCanvasElement;
   readonly onUnavailable: () => void;
+  readonly profile?: DeviceShapeProfile;
 }): PhoneViewer {
   const renderer = new WebGLRenderer({
     canvas: options.canvas,
@@ -66,7 +68,8 @@ export function createPhoneViewer(options: {
 
   let screen: DeviceScreenSize | null = null;
   let layout = phoneDisplayLayout(screen, options.source.width, options.source.height);
-  let phone = createPhoneScene(texture, layout);
+  let profile = options.profile ?? IOS_PHONE_SHAPE;
+  let phone = createPhoneScene(texture, layout, profile);
   scene.add(phone.root);
   let disposed = false;
   const pose = createPhonePose();
@@ -107,12 +110,13 @@ export function createPhoneViewer(options: {
       options.onUnavailable();
     }
   });
-  const updateLayout = () => {
+  const updateLayout = (nextProfile = profile) => {
     const next = phoneDisplayLayout(screen, options.source.width, options.source.height);
     const resized =
       textureWidth !== options.source.width || textureHeight !== options.source.height;
     if (
       resized ||
+      nextProfile !== profile ||
       next.aspect !== layout.aspect ||
       next.rawLandscape !== layout.rawLandscape ||
       next.rotation !== layout.rotation
@@ -127,7 +131,8 @@ export function createPhoneViewer(options: {
         textureHeight = options.source.height;
       }
       layout = next;
-      phone = createPhoneScene(texture, layout);
+      profile = nextProfile;
+      phone = createPhoneScene(texture, layout, profile);
       scene.add(phone.root);
       fit();
     }
@@ -146,10 +151,10 @@ export function createPhoneViewer(options: {
       texture.needsUpdate = true;
       scheduler.invalidate();
     },
-    setScreen(next) {
+    setScreen(next, nextProfile = profile) {
       if (disposed) return;
       screen = next;
-      updateLayout();
+      updateLayout(nextProfile);
       scheduler.invalidate();
     },
     resize(width, height, pixelRatio) {

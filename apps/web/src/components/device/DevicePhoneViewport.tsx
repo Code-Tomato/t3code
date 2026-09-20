@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import type { PhoneViewer } from "@t3tools/client-runtime/device/phone-viewer";
+import type { DeviceShapeProfile } from "@t3tools/client-runtime/device/shape-profile";
 import { createPhoneInteraction } from "@t3tools/client-runtime/device/phone-interaction";
 import type { DeviceScreenSize, DeviceStreamClient } from "@t3tools/client-runtime/device/stream";
 import { bindPhoneTrackpad } from "./phoneTrackpad";
@@ -9,6 +10,7 @@ const loadPhoneViewer = () => import("@t3tools/client-runtime/device/phone-viewe
 /** Web shell for the framework-independent viewer. The decoded screen and input connection remain owned by DeviceStreamView. */
 export function DevicePhoneViewport(props: {
   readonly contentOffset: number;
+  readonly profile: DeviceShapeProfile;
   readonly source: RefObject<HTMLCanvasElement | null>;
   readonly onFrameListener: (listener: (() => void) | null) => void;
   readonly onResetReady: (reset: (() => void) | null) => void;
@@ -22,13 +24,15 @@ export function DevicePhoneViewport(props: {
   const viewerRef = useRef<PhoneViewer | null>(null);
   const interactionRef = useRef<ReturnType<typeof createPhoneInteraction> | null>(null);
   const screenRef = useRef(props.screen);
+  const profileRef = useRef(props.profile);
   const { source, onFrameListener, client, onInputCancel, onResetReady, onUnavailable } = props;
 
   useEffect(() => {
     screenRef.current = props.screen;
+    profileRef.current = props.profile;
     interactionRef.current?.end();
-    viewerRef.current?.setScreen(props.screen);
-  }, [props.screen]);
+    viewerRef.current?.setScreen(props.screen, props.profile);
+  }, [props.screen, props.profile]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -52,7 +56,12 @@ export function DevicePhoneViewport(props: {
     void loadPhoneViewer()
       .then(({ createPhoneViewer }) => {
         if (disposed) return;
-        const viewer = createPhoneViewer({ canvas, source: decoded, onUnavailable });
+        const viewer = createPhoneViewer({
+          canvas,
+          source: decoded,
+          onUnavailable,
+          profile: profileRef.current,
+        });
         viewerRef.current = viewer;
         onResetReady(viewer.resetPose);
         viewer.setScreen(screenRef.current);
@@ -105,7 +114,7 @@ export function DevicePhoneViewport(props: {
         />
         <canvas
           ref={canvasRef}
-          aria-label="Interactive 3D phone. Drag the screen to interact. Drag outside it or swipe with two fingers to turn. Pinch to zoom."
+          aria-label="Interactive 3D device. Drag the screen to interact. Drag outside it or swipe with two fingers to turn. Pinch to zoom."
           className="size-full touch-none"
           onPointerDown={(event) => {
             if (event.button !== 0) return;

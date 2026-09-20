@@ -62,6 +62,7 @@ vi.mock("three", async () => {
 });
 
 import { createPhoneViewer } from "./phoneViewer.ts";
+import { IOS_TABLET_SHAPE } from "./shapeProfile.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -138,4 +139,25 @@ it("ignores redundant and invalid sizes and combines a DPR change into one alloc
   draw();
   expect(state.allocations).toBe(allocations + 1);
   expect(state.disposed).toBe(true);
+});
+
+it("changes device shape without replacing the renderer, decoded source or pose", () => {
+  const { viewer, draw, source, state } = fixture();
+  viewer.orbit(0.1, 0.05);
+  draw();
+  const previous = state.frames.at(-1)!;
+  const allocations = state.allocations;
+  viewer.setScreen(null, IOS_TABLET_SHAPE);
+  draw();
+  expect(state.frames.at(-1)?.phone).not.toBe(previous.phone);
+  expect(state.frames.at(-1)?.yaw).toBe(previous.yaw);
+  expect(state.frames.at(-1)?.scene).toBe(previous.scene);
+  expect(state.allocations).toBe(allocations);
+  expect(source.width).toBe(1206);
+  expect(gpu.instances).toHaveLength(1);
+  const tablet = state.frames.at(-1)?.phone;
+  viewer.frameUpdated();
+  draw();
+  expect(state.frames.at(-1)?.phone).toBe(tablet);
+  viewer.dispose();
 });

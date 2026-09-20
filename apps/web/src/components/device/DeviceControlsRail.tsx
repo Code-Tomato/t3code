@@ -285,22 +285,31 @@ function RailButton(props: {
   onClick: () => void;
   children: ReactNode;
 }) {
+  const button = (
+    <Button
+      size="icon-sm"
+      variant={props.pressed ? "secondary" : "ghost"}
+      aria-label={props.label}
+      aria-pressed={props.pressed}
+      disabled={props.disabled}
+      onClick={props.onClick}
+    >
+      {props.children}
+    </Button>
+  );
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            size="icon-sm"
-            variant={props.pressed ? "secondary" : "ghost"}
-            aria-label={props.label}
-            aria-pressed={props.pressed}
-            disabled={props.disabled}
-            onClick={props.onClick}
-          />
-        }
-      >
-        {props.children}
-      </TooltipTrigger>
+      {props.disabled && props.description ? (
+        <TooltipTrigger
+          render={
+            <span className="inline-flex" tabIndex={0} role="group" aria-label={props.label} />
+          }
+        >
+          {button}
+        </TooltipTrigger>
+      ) : (
+        <TooltipTrigger render={button} />
+      )}
       <TooltipPopup side={props.tooltipSide}>{props.description ?? props.label}</TooltipPopup>
     </Tooltip>
   );

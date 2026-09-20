@@ -1,9 +1,21 @@
-import { useMemo } from "react";
-import { Platform, View } from "react-native";
-import { EnrichedMarkdownText, type MarkdownStyle } from "react-native-enriched-markdown";
+import { useCallback, useMemo, useState } from "react";
+import { ActionSheetIOS, Platform, View } from "react-native";
+import {
+  EnrichedMarkdownText,
+  type DocumentAssetsEvent,
+  type MarkdownStyle,
+  type MarkdownMediaAsset,
+} from "react-native-enriched-markdown";
 import type { SelectableMarkdownTextProps } from "@t3tools/mobile-markdown-text/types";
 
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
+import { AndroidAnchoredMenu } from "../components/AndroidAnchoredMenu";
+import { useEnrichedLinkVariants } from "./useEnrichedLinkVariants";
+import { copyTextWithHaptic } from "../lib/copyTextWithHaptic";
+import {
+  ENRICHED_INLINE_FILE_LINK_REGEX,
+  enrichedSkillLinkRegex,
+} from "../lib/enrichedLinkPresentation";
 
 function enrichedStyle(
   style: SelectableMarkdownTextProps["textStyle"],
@@ -112,41 +124,153 @@ function enrichedStyle(
   };
 }
 
-// The Enriched-only spike leaves attachment renderers and chip decorations to
-// future app integrations; every Markdown block goes through this native view.
 export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
+  const { renderImage, resolveImageSource } = props;
   const { themeAppearance } = useAppearancePreferences();
+  const [documentAssets, setDocumentAssets] = useState<DocumentAssetsEvent["assets"]>([]);
+  const onDocumentAssets = useCallback(({ assets }: DocumentAssetsEvent) => {
+    setDocumentAssets((previous) =>
+      previous.length === assets.length &&
+      previous.every((asset, index) => {
+        const next = assets[index]!;
+        return (
+          asset.id === next.id &&
+          asset.kind === next.kind &&
+          asset.url === next.url &&
+          asset.altText === next.altText &&
+          asset.title === next.title &&
+          asset.placement === next.placement &&
+          asset.eligible === next.eligible
+        );
+      })
+        ? previous
+        : assets,
+    );
+  }, []);
+  const linkVariants = useEnrichedLinkVariants(documentAssets, props);
+  const skillLinkRegex = useMemo(() => enrichedSkillLinkRegex(props.skills), [props.skills]);
+  const [activeMenu, setActiveMenu] = useState<{
+    url: string;
+    menu: NonNullable<ReturnType<NonNullable<typeof props.fileContextMenu>>>;
+  } | null>(null);
   const markdownStyle = useMemo(
-    () => enrichedStyle(props.textStyle, themeAppearance === "dark"),
-    [props.textStyle, themeAppearance],
+    () => ({ ...enrichedStyle(props.textStyle, themeAppearance === "dark"), linkVariants }),
+    [props.textStyle, themeAppearance, linkVariants],
   );
+  const renderMedia = useCallback(
+    (asset: MarkdownMediaAsset) =>
+      renderImage?.({
+        href: asset.url,
+        alt: asset.altText || null,
+        title: asset.title || null,
+      }) ?? null,
+    [renderImage],
+  );
+  const resolveNativeImageSource = useCallback(
+    (asset: MarkdownMediaAsset) =>
+      resolveImageSource?.({
+        href: asset.url,
+        alt: asset.altText || null,
+        title: asset.title || null,
+      }) ?? null,
+    [resolveImageSource],
+  );
+  const renderMarkdown = (openAndroidMenu?: () => void) => {
+    const onLinkLongPress = props.fileContextMenu
+      ? ({ url }: { url: string }) => {
+          const menu = props.fileContextMenu?.(url) ?? {
+            title: url,
+            actions: [
+              { id: "enriched-open-link", title: "Open link" },
+              { id: "enriched-copy-link", title: "Copy link" },
+            ],
+          };
+          const actions = menu.actions;
+          if (Platform.OS === "ios") {
+            ActionSheetIOS.showActionSheetWithOptions(
+              {
+                title: menu.title,
+                options: [...actions.map((action) => action.title), "Cancel"],
+                cancelButtonIndex: actions.length,
+                disabledButtonIndices: actions.flatMap((action, index) =>
+                  action.disabled ? [index] : [],
+                ),
+              },
+              (index) => {
+                const action = actions[index];
+                if (action && !action.disabled) performMenuAction(url, action.id);
+              },
+            );
+          } else {
+            setActiveMenu({ url, menu });
+            openAndroidMenu?.();
+          }
+        }
+      : undefined;
 
-  return (
-    <View
-      style={{
-        flexShrink: 1,
-        minWidth: 0,
-        marginTop: props.marginTop,
-        marginBottom: props.marginBottom,
-      }}
-    >
-      <EnrichedMarkdownText
-        markdown={props.markdown}
-        markdownStyle={markdownStyle}
-        containerStyle={{ flexShrink: 1, minWidth: 0 }}
-        flavor="github"
-        selectable
-        selectionColor={props.textStyle.selectionColor}
-        selectionHandleColor={props.textStyle.selectionHandleColor}
-        md4cFlags={{
-          latexMath: false,
-          hardSoftBreaks: props.preserveSoftBreaks ?? false,
-          admonitions: false,
+    return (
+      <View
+        style={{
+          flexShrink: 1,
+          minWidth: 0,
+          marginTop: props.marginTop,
+          marginBottom: props.marginBottom,
         }}
-        enableTaskListItemToggle={false}
-        spoilerOverlay="solid"
-        onLinkPress={props.onLinkPress ? ({ url }) => props.onLinkPress?.(url) : undefined}
-      />
-    </View>
+      >
+        <EnrichedMarkdownText
+          markdown={props.markdown}
+          markdownStyle={markdownStyle}
+          onDocumentAssets={onDocumentAssets}
+          renderMedia={renderImage ? renderMedia : undefined}
+          resolveImageSource={resolveImageSource ? resolveNativeImageSource : undefined}
+          onImagePress={
+            props.onImagePress || props.onLinkPress
+              ? ({ url }) => (props.onImagePress ?? props.onLinkPress)?.(url)
+              : undefined
+          }
+          linkRegex={skillLinkRegex}
+          inlineCodeLinkRegex={ENRICHED_INLINE_FILE_LINK_REGEX}
+          containerStyle={{ flexShrink: 1, minWidth: 0 }}
+          flavor="github"
+          selectable
+          selectionColor={props.textStyle.selectionColor}
+          selectionHandleColor={props.textStyle.selectionHandleColor}
+          md4cFlags={{
+            latexMath: false,
+            hardSoftBreaks: props.preserveSoftBreaks ?? false,
+            admonitions: false,
+          }}
+          enableTaskListItemToggle={false}
+          spoilerOverlay="solid"
+          onLinkPress={props.onLinkPress ? ({ url }) => props.onLinkPress?.(url) : undefined}
+          onLinkLongPress={onLinkLongPress}
+        />
+      </View>
+    );
+  };
+  const performMenuAction = (url: string, actionId: string) => {
+    if (actionId === "enriched-open-link") props.onLinkPress?.(url);
+    else if (actionId === "enriched-copy-link") copyTextWithHaptic(url);
+    else props.onFileContextMenuAction?.(url, actionId);
+  };
+  return Platform.OS === "android" && props.fileContextMenu ? (
+    <AndroidAnchoredMenu
+      title={activeMenu?.menu.title}
+      actions={
+        activeMenu?.menu.actions.map((action) => ({
+          id: action.id,
+          title: action.title,
+          attributes: { disabled: action.disabled },
+        })) ?? []
+      }
+      onPressAction={({ nativeEvent }) => {
+        if (activeMenu) performMenuAction(activeMenu.url, nativeEvent.event);
+      }}
+      style={{ flexShrink: 1, minWidth: 0 }}
+    >
+      {renderMarkdown}
+    </AndroidAnchoredMenu>
+  ) : (
+    renderMarkdown()
   );
 }

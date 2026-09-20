@@ -446,13 +446,6 @@
       }
     },
     {
-      "name": "react-native-nitro-modules",
-      "generatedNotice": {
-        "licenseId": "MIT",
-        "copyrights": ["Copyright (c) 2024 Marc Rousavy"]
-      }
-    },
-    {
       "name": "boolbase",
       "generatedNotice": {
         "licenseId": "ISC",

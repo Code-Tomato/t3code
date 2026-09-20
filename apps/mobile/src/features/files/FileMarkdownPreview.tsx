@@ -1,5 +1,5 @@
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import { resolveMediaSource } from "@t3tools/client-runtime/media-source";
+import { resolveMobileMarkdownMediaSource } from "../../lib/markdownMediaSource";
 import { getBrowseDirectoryPath } from "@t3tools/client-runtime/state/projects";
 import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
@@ -10,8 +10,14 @@ import { resolveNativeMarkdownTypography } from "../../lib/appearancePreferences
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import {
   ThreadMarkdownImage,
+  ThreadMarkdownImageView,
   ThreadMarkdownImageUnavailable,
 } from "../threads/ThreadMarkdownImage";
+import { ThreadMarkdownVideo } from "../threads/ThreadMarkdownVideo";
+import { resolveMarkdownMediaPreview } from "../../lib/markdownMedia";
+import { normalizeNativeMarkdownUrl } from "@t3tools/mobile-markdown-text/links";
+import { FilePreviewModal, type FilePreviewSource } from "../../components/FilePreviewModal";
+import { useMarkdownImageSource } from "../../native/useMarkdownImageSource";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import {
   SelectableMarkdownText,
@@ -89,6 +95,7 @@ export function FileMarkdownPreview(props: {
   readonly onRefresh?: () => Promise<void> | void;
 }) {
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [expandedFile, setExpandedFile] = useState<FilePreviewSource | null>(null);
   const handlePullToRefresh = useCallback(async () => {
     if (!props.onRefresh) {
       return;
@@ -106,21 +113,67 @@ export function FileMarkdownPreview(props: {
   );
   const renderImage = useCallback<MarkdownImageRenderer>(
     (image) => {
-      const media = resolveMediaSource(image.href, {
+      const media = resolveMobileMarkdownMediaSource(image.href, {
         threadId: props.threadId ?? undefined,
         workspaceRoot: markdownDirectory,
         imageEmbed: true,
       });
       if (media?.access === "direct") {
-        return null;
+        if (media.kind === "video") {
+          return (
+            <ThreadMarkdownVideo
+              source={{
+                type: "media",
+                name: media.name,
+                mimeType: media.mimeType,
+                uri: normalizeNativeMarkdownUrl(media.uri),
+              }}
+              thumbnailVisible
+            />
+          );
+        }
+        return (
+          <ThreadMarkdownImageView
+            uri={normalizeNativeMarkdownUrl(media.uri)}
+            sourceKey={media.uri}
+            unavailable={false}
+            alt={image.alt}
+            format={media.mimeType === "image/svg+xml" ? "svg" : undefined}
+            onPressPreview={setExpandedFile}
+          />
+        );
       }
-      if (
-        props.captured ||
-        media === null ||
-        media.kind !== "image" ||
-        media.access === "unavailable"
-      ) {
+      if (props.captured || media === null || media.access === "unavailable") {
         return <ThreadMarkdownImageUnavailable alt={image.alt} />;
+      }
+      if (media.kind === "video") {
+        if (!props.threadId) {
+          return (
+            <ThreadMarkdownVideo
+              source={{
+                type: "media",
+                name: media.name,
+                mimeType: media.mimeType,
+                environmentId: props.environmentId,
+                resource: media.resource,
+                srcFragment: media.srcFragment,
+              }}
+              thumbnailVisible
+            />
+          );
+        }
+        const preview = props.threadId
+          ? resolveMarkdownMediaPreview(image.href, {
+              environmentId: props.environmentId,
+              threadId: props.threadId,
+              workspaceRoot: markdownDirectory,
+            })
+          : null;
+        return preview?.kind === "video" ? (
+          <ThreadMarkdownVideo source={preview.source} thumbnailVisible />
+        ) : (
+          <ThreadMarkdownImageUnavailable alt={image.alt} />
+        );
       }
       return (
         <ThreadMarkdownImage
@@ -128,13 +181,56 @@ export function FileMarkdownPreview(props: {
           resource={media.resource}
           alt={image.alt}
           srcFragment={media.srcFragment}
-          onPressPreview={() => undefined}
+          onPressPreview={setExpandedFile}
         />
       );
     },
     [markdownDirectory, props.environmentId, props.threadId, props.captured],
   );
   const styles = useMarkdownPreviewStyles();
+  const resolveImageSource = useMarkdownImageSource({
+    environmentId: props.environmentId,
+    threadId: props.threadId,
+    workspaceRoot: markdownDirectory,
+    captured: props.captured,
+  });
+  const onImagePress = useCallback(
+    (href: string) => {
+      if (props.captured) return;
+      const direct = resolveMobileMarkdownMediaSource(href, {
+        threadId: props.threadId ?? undefined,
+        workspaceRoot: markdownDirectory,
+        imageEmbed: true,
+      });
+      if (direct?.access === "direct" && direct.kind === "image") {
+        setExpandedFile({
+          kind: "image",
+          uri: normalizeNativeMarkdownUrl(direct.uri),
+          name: direct.name,
+        });
+        return;
+      }
+      if (!props.threadId) {
+        if (direct?.access === "environment" && direct.kind === "image") {
+          setExpandedFile({
+            kind: "image",
+            name: direct.name,
+            environmentId: props.environmentId,
+            resource: direct.resource,
+            srcFragment: direct.srcFragment,
+          });
+        }
+        return;
+      }
+      const media = resolveMarkdownMediaPreview(href, {
+        environmentId: props.environmentId,
+        threadId: props.threadId,
+        workspaceRoot: markdownDirectory,
+      });
+      if (media?.kind === "image") setExpandedFile(media.source);
+    },
+    [markdownDirectory, props.environmentId, props.threadId, props.captured],
+  );
   const onLinkPress = useCallback((href: string) => {
     void tryOpenExternalUrl(href, "markdown-link");
   }, []);
@@ -157,8 +253,11 @@ export function FileMarkdownPreview(props: {
           markdown={props.markdown}
           onLinkPress={onLinkPress}
           renderImage={renderImage}
+          resolveImageSource={resolveImageSource}
+          onImagePress={onImagePress}
           textStyle={styles.nativeTextStyle}
         />
+        <FilePreviewModal source={expandedFile} onRequestClose={() => setExpandedFile(null)} />
       </View>
     </ScrollView>
   );

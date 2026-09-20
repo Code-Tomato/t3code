@@ -37,9 +37,16 @@ export interface MarkdownImageRequest {
  * App-supplied renderer for markdown images. The module cannot load
  * workspace-relative image paths itself — the host app resolves them (for
  * example through a signed asset URL) and returns the element to show.
- * Returning null falls back to the module's plain remote-URI rendering.
+ * Returning null keeps Enriched's native media rendering.
  */
 export type MarkdownImageRenderer = (image: MarkdownImageRequest) => import("react").ReactNode;
+
+export type MarkdownImageSourceResolver = (
+  image: MarkdownImageRequest,
+) =>
+  | { uri: string; headers?: Record<string, string> }
+  | null
+  | Promise<{ uri: string; headers?: Record<string, string> } | null>;
 
 export interface MarkdownFileContextMenuAction {
   readonly id: string;
@@ -52,6 +59,13 @@ export interface MarkdownFileContextMenu {
   readonly actions: ReadonlyArray<MarkdownFileContextMenuAction>;
 }
 
+export interface MarkdownLinkCustomization {
+  readonly iconTintColor?: string;
+  readonly color?: string;
+  readonly label?: string;
+  readonly icon?: import("react-native").ImageSourcePropType;
+}
+
 export interface SelectableMarkdownTextProps {
   readonly markdown: string;
   readonly textStyle: NativeMarkdownTextStyle;
@@ -60,7 +74,10 @@ export interface SelectableMarkdownTextProps {
   readonly onLinkPress?: (href: string) => void;
   readonly fileContextMenu?: (href: string) => MarkdownFileContextMenu | undefined;
   readonly onFileContextMenuAction?: (href: string, actionId: string) => void;
+  readonly linkCustomization?: (href: string) => MarkdownLinkCustomization | undefined;
   readonly renderImage?: MarkdownImageRenderer;
+  readonly resolveImageSource?: MarkdownImageSourceResolver;
+  readonly onImagePress?: (href: string) => void;
   readonly marginTop?: number;
   readonly marginBottom?: number;
 }

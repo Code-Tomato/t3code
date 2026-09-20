@@ -11,6 +11,8 @@ export type {
   MarkdownFileContextMenuAction,
   MarkdownImageRenderer,
   MarkdownImageRequest,
+  MarkdownImageSourceResolver,
+  MarkdownLinkCustomization,
   NativeMarkdownTextStyle,
   SelectableMarkdownSkill,
 } from "@t3tools/mobile-markdown-text/types";

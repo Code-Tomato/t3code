@@ -21,6 +21,7 @@ import {
   parseComposerContextHref,
   collectComposerContextReferences,
   replaceComposerContextReferences,
+  formatComposerContextReference,
 } from "@t3tools/shared/composerContextReferences";
 import { ComposerContextSheet } from "../../components/ComposerContextSheet";
 import { writeComposerContextClipboard } from "../../lib/composerContextClipboard";
@@ -47,7 +48,6 @@ import { SymbolView, type AppSymbolName } from "../../components/AppSymbol";
 import { HeaderHeightContext } from "@react-navigation/elements";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
-  createContext,
   memo,
   useCallback,
   useContext,
@@ -91,6 +91,8 @@ import {
   SelectableMarkdownText,
   type MarkdownFileContextMenu,
   type MarkdownImageRenderer,
+  type MarkdownLinkCustomization,
+  type MarkdownImageSourceResolver,
   type NativeMarkdownTextStyle,
   type SelectableMarkdownSkill,
 } from "../../native/SelectableMarkdownText";
@@ -98,14 +100,9 @@ import {
 import { AppText as Text } from "../../components/AppText";
 import { VideoPreviewModal, type VideoPreviewSource } from "../../components/VideoPreviewModal";
 import { VideoAttachmentTile } from "../../components/VideoAttachmentTile";
-import { MediaVideoPlayer } from "../../components/MediaVideoPlayer";
+import { ThreadMarkdownVideo, ThreadMediaVisibleContext } from "./ThreadMarkdownVideo";
 import { resolveMarkdownMediaPreview } from "../../lib/markdownMedia";
-import {
-  attachmentVideoPreviewSource,
-  mediaVideoPreviewUri,
-  mediaVideoThumbnailKey,
-  type MediaVideoPreviewSource,
-} from "../../lib/videoPreviewSource";
+import { attachmentVideoPreviewSource } from "../../lib/videoPreviewSource";
 import { CopyTextButton } from "../../components/CopyTextButton";
 import { parseReviewCommentMessageSegments } from "../review/reviewCommentSelection";
 import {
@@ -123,6 +120,9 @@ import {
 import { resolveNativeMarkdownTypography } from "../../lib/appearancePreferences";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { PierreEntryIcon } from "../../components/PierreEntryIcon";
+import { markdownFileIconSource } from "@t3tools/mobile-markdown-text/file-icons";
+import { enrichedContextLinkPresentation } from "../../lib/enrichedLinkPresentation";
+import { useMarkdownImageSource } from "../../native/useMarkdownImageSource";
 import {
   normalizeNativeMarkdownUrl,
   resolveMarkdownLinkPresentation,
@@ -153,12 +153,7 @@ import {
 } from "./thread-work-log";
 import { appendPendingThreadMessages, type PendingThreadFeedEntry } from "./pending-thread-feed";
 import type { QueuedThreadMessage } from "../../state/thread-outbox-model";
-import {
-  assetEnvironment,
-  useAssetUrl,
-  useAssetUrlState,
-  useRefreshAssetUrl,
-} from "../../state/assets";
+import { assetEnvironment, useAssetUrl, useRefreshAssetUrl } from "../../state/assets";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { usePreparedConnection } from "../../state/session";
 import { useThreadSelection } from "../../state/use-thread-selection";
@@ -537,7 +532,6 @@ function MessageAttachmentUnknown(props: { readonly name: string }) {
   );
 }
 
-const ThreadMediaVisibleContext = createContext(false);
 // LegendList only computes hook visibility when the list has a viewability config.
 const THREAD_MEDIA_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
 
@@ -547,37 +541,6 @@ function ThreadMediaVisibility(props: { readonly children: ReactNode }) {
     useCallback((token) => setVisible(token.sizeVisible > 0), []),
   );
   return <ThreadMediaVisibleContext value={visible}>{props.children}</ThreadMediaVisibleContext>;
-}
-
-function ThreadMarkdownVideo(props: { readonly source: MediaVideoPreviewSource }) {
-  const { source } = props;
-  const visible = useContext(ThreadMediaVisibleContext);
-  const thumbnailKey = mediaVideoThumbnailKey(source);
-  const asset = useAssetUrlState(
-    "environmentId" in source ? source.environmentId : null,
-    "resource" in source ? source.resource : null,
-  );
-  const refreshAssetUrl = useRefreshAssetUrl(
-    "environmentId" in source ? source.environmentId : null,
-    "resource" in source ? source.resource : null,
-  );
-  const uri = mediaVideoPreviewUri(source, asset._tag === "Success" ? asset.url : null);
-  return (
-    <MediaVideoPlayer
-      key={thumbnailKey}
-      uri={uri}
-      resolvePlaybackUri={
-        "resource" in source
-          ? async () => mediaVideoPreviewUri(source, await refreshAssetUrl())
-          : undefined
-      }
-      name={source.name}
-      thumbnailKey={thumbnailKey}
-      thumbnailVisible={visible}
-      unavailable={"resource" in source && asset._tag === "Failure"}
-      actionsSource={source.actionsSource}
-    />
-  );
 }
 
 interface MarkdownStyleSets {
@@ -651,9 +614,12 @@ function ArtifactTemplateCard(props: {
 
 /** Tap opens a link; long-press on a native file chip shows its menu. Built once per feed. */
 interface MarkdownLinkHandlers {
+  readonly resolveImageSource?: MarkdownImageSourceResolver;
+  readonly onImagePress?: (href: string) => void;
   readonly onLinkPress: (href: string) => void;
   readonly fileContextMenu: (href: string) => MarkdownFileContextMenu | undefined;
   readonly onFileContextMenuAction: (href: string, actionId: string) => void;
+  readonly linkCustomization?: (href: string) => MarkdownLinkCustomization | undefined;
 }
 
 const AssistantMarkdownContent = memo(function AssistantMarkdownContent(props: {
@@ -1266,7 +1232,55 @@ function UserMessageContent(props: UserMessageContentProps) {
       <UserMessageMarkdownContent
         {...props}
         text={text}
-        linkHandlers={{ ...props.linkHandlers, onLinkPress }}
+        linkHandlers={{
+          ...props.linkHandlers,
+          onLinkPress,
+          fileContextMenu: (href) => {
+            const reference = parseComposerContextHref(href);
+            if (!reference) return props.linkHandlers.fileContextMenu(href);
+            const record = props.context?.records.find(
+              (item) => item.contextId === reference.contextId,
+            );
+            return {
+              title: record?.label ?? "Context unavailable",
+              actions: [
+                { id: "open-context", title: "Open context" },
+                { id: "copy-context", title: "Copy context", disabled: !record },
+              ],
+            };
+          },
+          onFileContextMenuAction: (href, actionId) => {
+            const reference = parseComposerContextHref(href);
+            if (!reference) return props.linkHandlers.onFileContextMenuAction(href, actionId);
+            if (actionId === "open-context") return onLinkPress(href);
+            const record = props.context?.records.find(
+              (item) => item.contextId === reference.contextId,
+            );
+            if (actionId === "copy-context" && record) {
+              void writeComposerContextClipboard(
+                formatComposerContextReference({
+                  ...reference,
+                  label: record.label,
+                }),
+                {
+                  version: 1,
+                  source: { environmentId: props.environmentId },
+                  records: [record],
+                },
+              )
+                .then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success))
+                .catch(() => {
+                  Alert.alert("Could not copy context", "Try copying this context again.");
+                });
+            }
+          },
+          linkCustomization: (href) => {
+            const presentation = enrichedContextLinkPresentation(href, props.context?.records);
+            return presentation
+              ? { color: presentation.color, icon: markdownFileIconSource(presentation.icon) }
+              : props.linkHandlers.linkCustomization?.(href);
+          },
+        }}
       />
       {selected ? (
         <ComposerContextSheet
@@ -1580,9 +1594,29 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     },
     [props.environmentId, props.threadId, props.workspaceRoot, navigation],
   );
+  const resolveImageSource = useMarkdownImageSource({
+    environmentId: props.environmentId,
+    threadId: props.threadId,
+    workspaceRoot: props.workspaceRoot ?? null,
+  });
+  const onMarkdownImagePress = useCallback(
+    (href: string) => {
+      const media = resolveMarkdownMediaPreview(href, {
+        environmentId: props.environmentId,
+        threadId: props.threadId,
+        workspaceRoot: props.workspaceRoot,
+      });
+      if (media?.kind === "image") setExpandedFile(media.source);
+      else if (media?.kind === "video") setExpandedVideo(media.source);
+      else onMarkdownLinkPress(href);
+    },
+    [onMarkdownLinkPress, props.environmentId, props.threadId, props.workspaceRoot],
+  );
   const markdownLinkHandlers = useMemo<MarkdownLinkHandlers>(
     () => ({
       onLinkPress: onMarkdownLinkPress,
+      onImagePress: onMarkdownImagePress,
+      resolveImageSource,
       fileContextMenu: (href) => {
         const target = resolveFileChipTarget(href, props.workspaceRoot);
         return target ? fileChipMenu(target) : undefined;
@@ -1606,7 +1640,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         }
       },
     }),
-    [onMarkdownLinkPress, props.workspaceRoot, shareFileChip],
+    [
+      onMarkdownLinkPress,
+      onMarkdownImagePress,
+      props.workspaceRoot,
+      resolveImageSource,
+      shareFileChip,
+    ],
   );
   const renderMarkdownImage = useCallback<MarkdownImageRenderer>(
     (image) => {
@@ -1629,6 +1669,11 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         return (
           <ThreadMarkdownImageView
             uri={normalizeNativeMarkdownUrl(imageSource.uri)}
+            format={
+              /^(?:data:image\/svg\+xml[,;])|\.svg(?:$|[?#])/i.test(imageSource.uri)
+                ? "svg"
+                : undefined
+            }
             sourceKey={imageSource.uri}
             unavailable={false}
             alt={image.alt}

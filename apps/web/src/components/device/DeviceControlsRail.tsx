@@ -292,7 +292,6 @@ function RailButton(props: {
           <Button
             size="icon-sm"
             variant={props.pressed ? "secondary" : "ghost"}
-            className="rounded-full"
             aria-label={props.label}
             aria-pressed={props.pressed}
             disabled={props.disabled}

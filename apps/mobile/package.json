@@ -112,10 +112,10 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-enriched-markdown": "1.1.0-nightly-20260918-bb2b0942a",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-image-viewing": "^0.2.2",
     "react-native-keyboard-controller": "1.21.13",
-    "react-native-nitro-markdown": "^0.5.0",
     "react-native-nitro-modules": "0.35.9",
     "react-native-reanimated": "4.5.5",
     "react-native-safe-area-context": "~5.7.0",
@@ -137,8 +137,9 @@
     "tailwindcss": "^4.0.0",
     "typescript": "catalog:"
   },
-  "overrides": {
-    "react-native-nitro-markdown": "file:deps/react-native-nitro-markdown-0.5.0.tgz"
+  "enriched-markdown": {
+    "enableMath": false,
+    "enableVideo": false
   },
   "expo": {
     "install": {

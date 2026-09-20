@@ -18,6 +18,7 @@ allowBuilds:
   msw: false
   node-pty: true
   sharp: true
+  react-native-enriched-markdown: true
   utf-8-validate: false
   workerd: false
 
@@ -192,6 +193,7 @@ patchedDependencies:
   expo-notifications@57.0.15: patches/expo-notifications@57.0.15.patch
   expo-sharing@57.0.17: patches/expo-sharing@57.0.17.patch
   expo-widgets@57.0.15: patches/expo-widgets@57.0.15.patch
+  react-native-enriched-markdown@1.1.0-nightly-20260918-bb2b0942a: patches/react-native-enriched-markdown@1.1.0-nightly-20260918-bb2b0942a.patch
   react-native-gesture-handler@2.32.0: patches/react-native-gesture-handler@2.32.0.patch
   react-native-keyboard-controller@1.21.13: patches/react-native-keyboard-controller@1.21.13.patch
   react-native-nitro-modules@0.35.9: patches/react-native-nitro-modules@0.35.9.patch

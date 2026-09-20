@@ -1,6 +1,10 @@
-import type { SelectableMarkdownTextProps } from "@t3tools/mobile-markdown-text/renderer";
+import { useMemo } from "react";
+import { Platform } from "react-native";
+import type { SelectableMarkdownTextProps } from "@t3tools/mobile-markdown-text/types";
 
-type MobileSelectableMarkdownTextProps = Omit<SelectableMarkdownTextProps, "highlightCode">;
+import { MobileEnrichedMarkdownText } from "./EnrichedMarkdownText";
+import { themeColorWithAlpha } from "../lib/mobileTheme";
+import { useUniwindTheme } from "../lib/useUniwindTheme";
 
 export type {
   MarkdownFileContextMenu,
@@ -11,10 +15,16 @@ export type {
   SelectableMarkdownSkill,
 } from "@t3tools/mobile-markdown-text/types";
 
-export function hasNativeSelectableMarkdownText(): boolean {
-  return false;
-}
-
-export function SelectableMarkdownText(_props: MobileSelectableMarkdownTextProps) {
-  return null;
+export function SelectableMarkdownText(props: SelectableMarkdownTextProps) {
+  const theme = useUniwindTheme();
+  const selectionColor = themeColorWithAlpha(theme["--color-focus"], 0.32);
+  const selectionHandleColor = theme["--color-focus"];
+  const textStyle = useMemo(
+    () =>
+      Platform.OS === "android"
+        ? { selectionColor, selectionHandleColor, ...props.textStyle }
+        : props.textStyle,
+    [props.textStyle, selectionColor, selectionHandleColor],
+  );
+  return <MobileEnrichedMarkdownText {...props} textStyle={textStyle} />;
 }

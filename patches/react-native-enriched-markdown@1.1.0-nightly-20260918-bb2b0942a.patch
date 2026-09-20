@@ -1,0 +1,112 @@
+diff --git a/cpp/md4c/md4c.h b/cpp/md4c/md4c.h
+index cf965d8cc17cb2724c8d194f5cbd5784298f1e5c..d42080a9262b13a808b50c29794802c473fe1911 100644
+--- a/cpp/md4c/md4c.h
++++ b/cpp/md4c/md4c.h
+@@ -26,6 +26,9 @@
+ #ifndef MD4C_H
+ #define MD4C_H
+ 
++/* Isolate the embedded parser from other libraries linking their own MD4C. */
++#define md_parse enrm_md_parse
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+diff --git a/ios/input/ENRMInputParser.mm b/ios/input/ENRMInputParser.mm
+index f82e72b3b838e40d886cf1eb5037b0a406730afe..ca3ae2df35e0e6bbdf2bc57cee0db2a89fbefff9 100644
+--- a/ios/input/ENRMInputParser.mm
++++ b/ios/input/ENRMInputParser.mm
+@@ -1,7 +1,7 @@
+ #import "ENRMInputParser.h"
+ #import "ENRMFormattingRange.h"
+ #import "ENRMInputRemend.h"
+-#include "md4c.h"
++#include "../../cpp/md4c/md4c.h"
+ #include <algorithm>
+ #include <string>
+ #include <vector>
+diff --git a/ios/parser/MarkdownParserBridge.mm b/ios/parser/MarkdownParserBridge.mm
+index e700fcee063a5def59cf0a966f69221d627e24fe..9ad621a13b79951fc9f206bf5f2d33544dafc89c 100644
+--- a/ios/parser/MarkdownParserBridge.mm
++++ b/ios/parser/MarkdownParserBridge.mm
+@@ -1,5 +1,6 @@
+ #import "ENRMMarkdownParser.h"
+-#include "MD4CParser.hpp"
++// Resolve our core explicitly; CocoaPods header maps can contain other MD4C parsers.
++#include "../../cpp/parser/MD4CParser.hpp"
+ #import "MarkdownASTNode.h"
+ #include "MarkdownASTNode.hpp"
+ #import <React/RCTLog.h>
+diff --git a/ios/renderer/BaselineShiftTextAttributes.h b/ios/renderer/BaselineShiftTextAttributes.h
+index e862a564c4af827fa4ec85ee09a3657e7496d568..b56208c4311e57b3ec7fb1e7a4eda2fe196906cb 100644
+--- a/ios/renderer/BaselineShiftTextAttributes.h
++++ b/ios/renderer/BaselineShiftTextAttributes.h
+@@ -2,5 +2,7 @@
+ #import "ENRMUIKit.h"
+ #import <Foundation/Foundation.h>
+ 
++extern NSString *const ENRMScriptAttributeName;
++
+ void ENRMApplyBaselineShift(NSMutableAttributedString *output, NSRange range, CGFloat fontScale,
+                             CGFloat baselineOffsetScale);
+diff --git a/ios/renderer/BaselineShiftTextAttributes.m b/ios/renderer/BaselineShiftTextAttributes.m
+index da1d4b40332e83a1f88935632eb835be8876702b..c9d44b48fbd544c963bd7168d4e627a8755063d7 100644
+--- a/ios/renderer/BaselineShiftTextAttributes.m
++++ b/ios/renderer/BaselineShiftTextAttributes.m
+@@ -1,5 +1,7 @@
+ #import "BaselineShiftTextAttributes.h"
+ 
++NSString *const ENRMScriptAttributeName = @"ENRMScript";
++
+ void ENRMApplyBaselineShift(NSMutableAttributedString *output, NSRange range, CGFloat fontScale,
+                             CGFloat baselineOffsetScale)
+ {
+diff --git a/ios/renderer/SubscriptRenderer.m b/ios/renderer/SubscriptRenderer.m
+index f697216589db39e72cef5ed5f3f85ad2d5e009a1..d88f5e15ed79440ace831efe531f47e00d0cbfb2 100644
+--- a/ios/renderer/SubscriptRenderer.m
++++ b/ios/renderer/SubscriptRenderer.m
+@@ -18,6 +18,7 @@
+   if (range.length == 0)
+     return;
+ 
++  [output addAttribute:ENRMScriptAttributeName value:@"subscript" range:range];
+   ENRMApplyBaselineShift(output, range, _config.subscriptFontScale, -_config.subscriptBaselineOffsetScale);
+ }
+ 
+diff --git a/ios/renderer/SuperscriptRenderer.m b/ios/renderer/SuperscriptRenderer.m
+index edba7364733ea7bb312176893387b7906c34353c..308b8de0ecfec3ce5a0b5961bbeafc3bf2f99b56 100644
+--- a/ios/renderer/SuperscriptRenderer.m
++++ b/ios/renderer/SuperscriptRenderer.m
+@@ -18,6 +18,7 @@
+   if (range.length == 0)
+     return;
+ 
++  [output addAttribute:ENRMScriptAttributeName value:@"superscript" range:range];
+   ENRMApplyBaselineShift(output, range, _config.superscriptFontScale, _config.superscriptBaselineOffsetScale);
+ }
+ 
+diff --git a/ios/utils/MarkdownExtractor.m b/ios/utils/MarkdownExtractor.m
+index eb4482c6cdf842dfbd952b8c6cdb9ce836579b53..c6dcd1f6e0807f3561830ff3fa88fde8b204d7a8 100644
+--- a/ios/utils/MarkdownExtractor.m
++++ b/ios/utils/MarkdownExtractor.m
+@@ -1,4 +1,5 @@
+ #import "MarkdownExtractor.h"
++#import "BaselineShiftTextAttributes.h"
+ #import "BlockquoteBorder.h"
+ #import "ENRMFeatureFlags.h"
+ #import "ENRMImageAttachment.h"
+@@ -300,9 +301,11 @@ NSString *_Nullable extractMarkdownFromAttributedString(NSAttributedString *attr
+                         BOOL isStrikethrough = (strikethroughStyle != nil && [strikethroughStyle integerValue] != 0);
+                         NSNumber *underlineStyle = attrs[NSUnderlineStyleAttributeName];
+                         BOOL isUnderline = (underlineStyle != nil && [underlineStyle integerValue] != 0);
+-                        NSNumber *baselineOffset = attrs[NSBaselineOffsetAttributeName];
+-                        BOOL isSuperscript = baselineOffset != nil && [baselineOffset doubleValue] > 0;
+-                        BOOL isSubscript = baselineOffset != nil && [baselineOffset doubleValue] < 0;
++                        // Line-height alignment also shifts baselines. Only semantic script spans
++                        // should produce superscript/subscript Markdown on the clipboard.
++                        NSString *script = attrs[ENRMScriptAttributeName];
++                        BOOL isSuperscript = [script isEqualToString:@"superscript"];
++                        BOOL isSubscript = [script isEqualToString:@"subscript"];
+ 
+                         BOOL isHighlight = [attrs[HighlightAttributeName] boolValue];
+                         NSString *linkURL = attrs[NSLinkAttributeName];

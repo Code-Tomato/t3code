@@ -8,5 +8,5 @@ The upstream project is Copyright (c) 2024-25 Bluesky PBC and licensed under
 the MIT License included in this directory.
 
 T3 Code has substantially modified and renamed the implementation, integrated
-its markdown renderer, and owns the resulting module going forward. This is not
+its source-file preview text primitive, and owns the resulting module going forward. This is not
 an upstream package dependency or a compatibility fork.

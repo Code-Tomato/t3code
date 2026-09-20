@@ -23,9 +23,8 @@
     "./file-icons": "./src/markdownFileIcons.ts",
     "./link-icons": "./src/markdownLinkIcons.ts",
     "./links": "./src/markdownLinks.ts",
-    "./markdown": "./src/nativeMarkdownText.ts",
+    "./markdown": "./src/composerChipPresentation.ts",
     "./primitive": "./src/MarkdownTextPrimitive.tsx",
-    "./renderer": "./src/SelectableMarkdownText.tsx",
     "./types": "./src/SelectableMarkdownText.types.ts"
   },
   "peerDependencies": {
@@ -37,8 +36,7 @@
     "expo-haptics": "*",
     "expo-symbols": "*",
     "react": "*",
-    "react-native": "*",
-    "react-native-nitro-markdown": "*"
+    "react-native": "*"
   },
   "codegenConfig": {
     "name": "T3MarkdownTextSpec",

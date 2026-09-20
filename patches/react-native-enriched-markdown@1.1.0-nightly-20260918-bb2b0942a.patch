@@ -4122,14 +4122,15 @@ index 0000000000000000000000000000000000000000..344ee92b158abc55e2b3db6b70e34e20
 +#endif
 diff --git a/ios/attachments/ENRMLinkPillAttachment.m b/ios/attachments/ENRMLinkPillAttachment.m
 new file mode 100644
-index 0000000000000000000000000000000000000000..9e1a6ccca25b049c7db2a9006663fdc5d28213a4
+index 0000000000000000000000000000000000000000..c16deed6aa45f04c3539d7d2cfbf60583de409c9
 --- /dev/null
 +++ b/ios/attachments/ENRMLinkPillAttachment.m
-@@ -0,0 +1,241 @@
+@@ -0,0 +1,281 @@
 +#import "ENRMLinkPillAttachment.h"
 +#import "ENRMLinkPillIconCache.h"
 +#import "ENRMLinkPillTextStorage.h"
 +#import "StyleConfig.h"
++#import <objc/runtime.h>
 +
 +#if !TARGET_OS_OSX
 +
@@ -4169,11 +4170,30 @@ index 0000000000000000000000000000000000000000..9e1a6ccca25b049c7db2a9006663fdc5
 +  return MAX(1, MIN(natural, limit));
 +}
 +
++- (BOOL)startsAttachmentInTextContainer:(NSTextContainer *)container characterIndex:(NSUInteger)index
++{
++  NSTextStorage *storage = container.layoutManager.textStorage;
++  if (!storage)
++    return YES;
++  if (index >= storage.length)
++    return NO;
++  NSRange range;
++  id attachment = [storage attribute:NSAttachmentAttributeName
++                             atIndex:index
++               longestEffectiveRange:&range
++                             inRange:NSMakeRange(0, storage.length)];
++  return attachment == self && index == range.location;
++}
++
 +- (CGRect)attachmentBoundsForTextContainer:(NSTextContainer *)container
 +                      proposedLineFragment:(CGRect)lineFragment
 +                             glyphPosition:(CGPoint)position
 +                            characterIndex:(NSUInteger)characterIndex
 +{
++  // TextKit can query attachments directly, bypassing the glyph delegate for
++  // attachment characters. Only the first source character owns the pill box.
++  if (![self startsAttachmentInTextContainer:container characterIndex:characterIndex])
++    return CGRectZero;
 +  // Use the full container width, not the remainder of the current line. TextKit then moves
 +  // the whole attachment to the next line if it doesn't fit the remainder.
 +  NSParagraphStyle *paragraph = [container.layoutManager.textStorage attribute:NSParagraphStyleAttributeName
@@ -4188,6 +4208,9 @@ index 0000000000000000000000000000000000000000..9e1a6ccca25b049c7db2a9006663fdc5
 +
 +- (UIImage *)imageForBounds:(CGRect)bounds textContainer:(NSTextContainer *)container characterIndex:(NSUInteger)index
 +{
++  if (bounds.size.width <= 0 || bounds.size.height <= 0 ||
++      ![self startsAttachmentInTextContainer:container characterIndex:index])
++    return nil;
 +  CGSize size = bounds.size;
 +  UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
 +  format.opaque = NO;
@@ -4235,6 +4258,15 @@ index 0000000000000000000000000000000000000000..9e1a6ccca25b049c7db2a9006663fdc5
 +}
 +@end
 +
++@interface ENRMPillGlyphTail : NSObject
++@property (nonatomic) NSUInteger glyphEnd;
++@property (nonatomic) NSUInteger characterIndex;
++@end
++@implementation ENRMPillGlyphTail
++@end
++
++static char ENRMPillGlyphTailKey;
++
 +@implementation ENRMLinkPillLayoutDelegate
 ++ (instancetype)shared
 +{
@@ -4252,6 +4284,18 @@ index 0000000000000000000000000000000000000000..9e1a6ccca25b049c7db2a9006663fdc5
 +              forGlyphRange:(NSRange)glyphRange
 +{
 +  NSUInteger count = glyphRange.length;
++  if (count == 0)
++    return 0;
++  ENRMPillGlyphTail *tail = objc_getAssociatedObject(manager, &ENRMPillGlyphTailKey);
++  BOOL continuesFirstCharacter = tail && tail.glyphEnd == glyphRange.location && tail.characterIndex == indexes[0];
++  if (!tail) {
++    tail = [ENRMPillGlyphTail new];
++    objc_setAssociatedObject(manager, &ENRMPillGlyphTailKey, tail, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++  }
++  // Remember only the immediately preceding callback. Querying surrounding glyphs
++  // during generation can recurse into this delegate before those glyphs exist.
++  tail.glyphEnd = NSMaxRange(glyphRange);
++  tail.characterIndex = indexes[count - 1];
 +  NSMutableData *glyphData = [NSMutableData dataWithBytes:glyphs length:count * sizeof(CGGlyph)];
 +  NSMutableData *propertyData = [NSMutableData dataWithBytes:properties length:count * sizeof(NSGlyphProperty)];
 +  CGGlyph *replacement = glyphData.mutableBytes;
@@ -4269,12 +4313,8 @@ index 0000000000000000000000000000000000000000..9e1a6ccca25b049c7db2a9006663fdc5
 +      continue;
 +    changed = YES;
 +    // A character can have multiple glyphs, even across font/callback boundaries.
-+    // The preceding glyph is outside this callback's range and is already generated.
 +    BOOL startsAttachment = indexes[i] == range.location;
-+    BOOL continuesCharacter =
-+        startsAttachment && (i > 0 ? indexes[i - 1] == indexes[i]
-+                                   : glyphRange.location > 0 &&
-+                                         [manager characterIndexForGlyphAtIndex:glyphRange.location - 1] == indexes[i]);
++    BOOL continuesCharacter = startsAttachment && (i > 0 ? indexes[i - 1] == indexes[i] : continuesFirstCharacter);
 +    if (startsAttachment && !continuesCharacter) {
 +      // TextKit's attachment glyph exists only in the glyph buffer, never in text storage.
 +      replacement[i] = 0xFFFC;

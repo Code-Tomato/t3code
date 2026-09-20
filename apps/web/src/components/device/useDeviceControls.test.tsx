@@ -161,6 +161,23 @@ it("keeps actions disabled when settings cannot be confirmed after a detached co
   expect(controls.error).toBeNull();
 });
 
+it("disables stale settings after a failed reopen read and recovers on a successful read", async () => {
+  await mount();
+  await act(async () => renderer!.update(<Probe visible={false} />));
+  read.mockResolvedValueOnce({ _tag: "Failure", cause: "offline" });
+  await act(async () => renderer!.update(<Probe visible />));
+  expect(controls.detail).toBeNull();
+  expect(controls.disabled).toBe(true);
+  expect(controls.error).toBe("Device action failed");
+  await act(async () => controls.act({ type: "setAppearance", value: "dark" }));
+  expect(action).not.toHaveBeenCalled();
+  await act(async () => renderer!.update(<Probe visible={false} />));
+  await act(async () => renderer!.update(<Probe visible />));
+  expect(controls.detail?.settings.appearance).toBe("light");
+  expect(controls.disabled).toBe(false);
+  expect(controls.error).toBeNull();
+});
+
 it("does not let an older refresh overwrite a newer confirmed action", async () => {
   await mount();
   await act(async () => renderer!.update(<Probe visible={false} />));

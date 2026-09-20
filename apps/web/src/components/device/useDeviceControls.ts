@@ -51,7 +51,10 @@ export function useDeviceControls(options: {
       if (result._tag === "Success") {
         setDetail(result.value);
         setError(null);
-      } else setError(formatEnvironmentQueryError(result.cause));
+      } else {
+        setDetail(null);
+        setError(formatEnvironmentQueryError(result.cause));
+      }
     });
     return () => {
       visibleRead.current = null;

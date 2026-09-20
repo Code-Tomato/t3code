@@ -523,6 +523,7 @@ import {
   resolveServerConfigVersionMismatch,
   resolveServerSelfUpdateCapability,
   serverUpdateGuidance,
+  shouldSuppressUnavailableBanner,
   supportsDesktopAppUpdate,
   supportsServerUpdateThreadContinuation,
 } from "../versionSkew";
@@ -2710,9 +2711,13 @@ export default function ChatView(props: ChatViewProps) {
     // While an update runs, transient connect blips are expected (the server
     // restarts) and the update banner already shows progress. Hard failure
     // phases still surface so the Reconnect action stays reachable.
-    const suppressUnavailableBanner =
-      environmentReconnecting &&
-      (updateRunning || (!reconnectingThroughVersionSkew && !reconnectWarningGraceElapsed));
+    const suppressUnavailableBanner = shouldSuppressUnavailableBanner({
+      environmentReconnecting,
+      updateRunning,
+      showServerUpdateBanners,
+      reconnectingThroughVersionSkew,
+      reconnectWarningGraceElapsed,
+    });
     if (activeEnvironmentUnavailableState && unavailableConnection && !suppressUnavailableBanner) {
       if (reconnectingThroughVersionSkew) {
         items.push({

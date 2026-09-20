@@ -17,13 +17,7 @@ import {
 import { useAtomValue } from "@effect/atom-react";
 import { useFocusEffect } from "@react-navigation/native";
 import { use, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  ScrollView,
-  View,
-  type ScrollViewProps,
-} from "react-native";
+import { ActivityIndicator, Platform, ScrollView, View, type ScrollViewProps } from "react-native";
 import { ScrollViewMarker } from "react-native-screens";
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -223,11 +217,7 @@ function HomeScrollView(props: ComponentProps<typeof ScrollView>) {
   return (
     <ScrollViewMarker
       style={{ flex: 1 }}
-      scrollEdgeEffects={{
-        ...nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version),
-        // Retain the existing sidebar fade on iOS 26; iOS 27 uses the native bar material.
-        top: Number.parseInt(String(Platform.Version), 10) >= 27 ? "automatic" : "soft",
-      }}
+      scrollEdgeEffects={nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version)}
     >
       <ScrollView
         {...props}

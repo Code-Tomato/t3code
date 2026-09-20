@@ -35,6 +35,7 @@ export function useDeviceControls(options: {
   // until settlement rather than allowing a reopened panel to race the previous command.
   const busy = useRef(false);
   const generation = useRef(0);
+  const visibleRead = useRef<Parameters<typeof readDetail>[0] | null>(null);
   const target = useMemo(
     () => ({ hostId: device.hostId, deviceId: device.id }),
     [device.hostId, device.id],
@@ -43,7 +44,9 @@ export function useDeviceControls(options: {
   useEffect(() => {
     const revision = ++generation.current;
     if (!visible) return;
-    void readDetail({ environmentId, input: target }).then((result) => {
+    const request = { environmentId, input: target };
+    visibleRead.current = request;
+    void readDetail(request).then((result) => {
       if (generation.current !== revision) return;
       if (result._tag === "Success") {
         setDetail(result.value);
@@ -51,6 +54,7 @@ export function useDeviceControls(options: {
       } else setError(formatEnvironmentQueryError(result.cause));
     });
     return () => {
+      visibleRead.current = null;
       generation.current++;
     };
   }, [environmentId, readDetail, target, visible]);
@@ -84,7 +88,23 @@ export function useDeviceControls(options: {
       input: { ...target, ...body } as DeviceActionInput,
     })
       .then((result) => {
-        if (generation.current !== revision) return;
+        if (generation.current !== revision) {
+          const request = visibleRead.current;
+          if (!request) return;
+          // Reopening can read settings before the host command finishes. Confirm them again
+          // after it settles, keeping actions serialized through this refresh.
+          const refreshRevision = ++generation.current;
+          return readDetail(request).then((refreshed) => {
+            if (generation.current !== refreshRevision) return;
+            if (refreshed._tag === "Success") {
+              setDetail(refreshed.value);
+              setError(null);
+            } else {
+              setDetail(null);
+              setError(formatEnvironmentQueryError(refreshed.cause));
+            }
+          });
+        }
         if (result._tag === "Success") setDetail(result.value);
         else setError(formatEnvironmentQueryError(result.cause));
       })

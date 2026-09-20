@@ -115,16 +115,50 @@ it("serializes host actions across hide/reopen and discards detached results", a
   await act(async () => controls.act({ type: "setAppearance", value: "light" }));
   expect(action).toHaveBeenCalledOnce();
   expect(controls.disabled).toBe(true);
+  const confirmed = deferred();
+  read.mockReturnValueOnce(confirmed.promise);
   await act(async () => {
     response.resolve(snapshot("dark"));
-    await pending;
+    await response.promise;
   });
   expect(controls.detail?.settings.appearance).toBe("light");
+  expect(controls.disabled).toBe(true);
+  await act(async () => {
+    confirmed.resolve(snapshot("dark"));
+    await pending;
+  });
+  expect(controls.detail?.settings.appearance).toBe("dark");
   expect(controls.disabled).toBe(false);
   action.mockResolvedValueOnce(snapshot("dark"));
   await act(async () => controls.act({ type: "setAppearance", value: "dark" }));
   expect(action).toHaveBeenCalledTimes(2);
   expect(controls.detail?.settings.appearance).toBe("dark");
+});
+
+it("keeps actions disabled when settings cannot be confirmed after a detached command", async () => {
+  await mount();
+  const response = deferred();
+  action.mockReturnValueOnce(response.promise);
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = controls.act({ type: "setAppearance", value: "dark" });
+  });
+  await act(async () => renderer!.update(<Probe visible={false} />));
+  await act(async () => renderer!.update(<Probe visible />));
+  read.mockResolvedValueOnce({ _tag: "Failure", cause: "offline" });
+  await act(async () => {
+    response.resolve(snapshot("dark"));
+    await pending;
+  });
+  expect(controls.detail).toBeNull();
+  expect(controls.disabled).toBe(true);
+  expect(controls.error).toBe("Device action failed");
+  await act(async () => controls.act({ type: "setAppearance", value: "light" }));
+  expect(action).toHaveBeenCalledOnce();
+  await act(async () => renderer!.update(<Probe visible={false} />));
+  await act(async () => renderer!.update(<Probe visible />));
+  expect(controls.disabled).toBe(false);
+  expect(controls.error).toBeNull();
 });
 
 it("does not let an older refresh overwrite a newer confirmed action", async () => {

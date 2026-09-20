@@ -3,6 +3,7 @@ import {
   CircleGeometry,
   CylinderGeometry,
   ExtrudeGeometry,
+  Float32BufferAttribute,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -15,6 +16,7 @@ import {
   Vector2,
   Vector3,
   type Camera,
+  type BufferGeometry,
   type Texture,
 } from "three";
 import type { DeviceScreenSize } from "./stream.ts";
@@ -69,7 +71,7 @@ export function createPhoneScene(
   layout: ReturnType<typeof phoneDisplayLayout>,
   profile: DeviceShapeProfile = IOS_PHONE_SHAPE,
 ) {
-  const { aspect, rawLandscape, rotation } = layout;
+  const { aspect } = layout;
   const root = new Group();
   const orientation = new Group();
   root.add(orientation);
@@ -130,18 +132,7 @@ export function createPhoneScene(
     roundedPath(screenWidth, SCREEN_HEIGHT, profile.screenRadius),
     20,
   );
-  const position = screenGeometry.getAttribute("position");
-  const uv = screenGeometry.getAttribute("uv");
-  for (let i = 0; i < position.count; i++) {
-    const u = (position.getX(i) + screenWidth / 2) / screenWidth;
-    const v = (position.getY(i) + SCREEN_HEIGHT / 2) / SCREEN_HEIGHT;
-    // Landscape framebuffers already contain the OS rotation. Rotate their UVs back onto the portrait body.
-    uv.setXY(
-      i,
-      rawLandscape ? (rotation > 0 ? 1 - v : v) : u,
-      rawLandscape ? (rotation > 0 ? u : 1 - u) : v,
-    );
-  }
+  updateDisplayUv(screenGeometry, screenWidth, SCREEN_HEIGHT, layout);
   const screenMaterial = new MeshBasicMaterial({ map: texture, toneMapped: false });
   const display = new Mesh(screenGeometry, screenMaterial);
   display.position.z = 0.043;
@@ -213,37 +204,24 @@ export function createPhoneScene(
     rearCamera.add(flash);
   }
 
-  const raycaster = new Raycaster();
-  const pointer = new Vector2();
-  const local = new Vector3();
-  const plane = new Plane(new Vector3(0, 0, 1), -display.position.z);
+  let activeLayout = layout;
+  const screenPoint = createDisplayProjection(
+    display,
+    orientation,
+    screenWidth,
+    SCREEN_HEIGHT,
+    () => activeLayout,
+  );
   return {
     root,
     orientation,
     width,
     height,
-    /** New touches must hit the visible display. Captured drags project onto its plane and clamp at the edge. */
-    screenPoint(x: number, y: number, camera: Camera, captured = false) {
-      root.updateMatrixWorld(true);
-      camera.updateMatrixWorld(true);
-      pointer.set(x * 2 - 1, 1 - y * 2);
-      raycaster.setFromCamera(pointer, camera);
-      if (!captured) {
-        const hit = raycaster.intersectObject(display, false)[0];
-        if (!hit) return null;
-        local.copy(hit.point);
-        orientation.worldToLocal(local);
-      } else {
-        const ray = raycaster.ray.clone().applyMatrix4(orientation.matrixWorld.clone().invert());
-        if (!ray.intersectPlane(plane, local)) return null;
-      }
-      const u = Math.min(1, Math.max(0, (local.x + screenWidth / 2) / screenWidth));
-      const v = Math.min(1, Math.max(0, (local.y + SCREEN_HEIGHT / 2) / SCREEN_HEIGHT));
-      // Return displayed coordinates; the transport performs the raw iOS orientation mapping once.
-      if (rotation === -Math.PI / 2) return { x: v, y: u };
-      if (rotation === Math.PI / 2) return { x: 1 - v, y: 1 - u };
-      if (rotation === Math.PI) return { x: 1 - u, y: v };
-      return { x: u, y: 1 - v };
+    screenPoint,
+    setDisplay(nextTexture: Texture, nextLayout: PhoneDisplayLayout) {
+      activeLayout = nextLayout;
+      screenMaterial.map = nextTexture;
+      updateDisplayUv(screenGeometry, screenWidth, SCREEN_HEIGHT, activeLayout);
     },
     dispose() {
       root.traverse((object) => {
@@ -253,5 +231,72 @@ export function createPhoneScene(
       screenMaterial.dispose();
       flashMaterial.dispose();
     },
+  };
+}
+
+export type PhoneDisplayLayout = ReturnType<typeof phoneDisplayLayout>;
+
+/** Canonical portrait geometry maps to raw framebuffer coordinates in every OS orientation. */
+export function updateDisplayUv(
+  geometry: BufferGeometry,
+  width: number,
+  height: number,
+  layout: PhoneDisplayLayout,
+) {
+  const position = geometry.getAttribute("position");
+  if (!geometry.hasAttribute("uv")) {
+    geometry.setAttribute(
+      "uv",
+      new Float32BufferAttribute(new Float32Array(position.count * 2), 2),
+    );
+  }
+  const uv = geometry.getAttribute("uv");
+  for (let i = 0; i < position.count; i++) {
+    const u = (position.getX(i) + width / 2) / width;
+    const v = (position.getY(i) + height / 2) / height;
+    uv.setXY(
+      i,
+      layout.rawLandscape ? (layout.rotation > 0 ? 1 - v : v) : u,
+      layout.rawLandscape ? (layout.rotation > 0 ? u : 1 - u) : v,
+    );
+  }
+  uv.needsUpdate = true;
+}
+
+/** New touches hit only the front display; captured drags project onto its plane and clamp. */
+export function createDisplayProjection(
+  display: Mesh,
+  orientation: Group,
+  width: number,
+  height: number,
+  getLayout: () => PhoneDisplayLayout,
+) {
+  const raycaster = new Raycaster();
+  const pointer = new Vector2();
+  const local = new Vector3();
+  display.geometry.computeBoundingBox();
+  const z = display.position.z + (display.geometry.boundingBox?.max.z ?? 0);
+  const plane = new Plane(new Vector3(0, 0, 1), -z);
+  return (x: number, y: number, camera: Camera, captured = false) => {
+    orientation.updateWorldMatrix(true, true);
+    camera.updateMatrixWorld(true);
+    pointer.set(x * 2 - 1, 1 - y * 2);
+    raycaster.setFromCamera(pointer, camera);
+    if (!captured) {
+      const hit = raycaster.intersectObject(display, false)[0];
+      if (!hit) return null;
+      local.copy(hit.point);
+      orientation.worldToLocal(local);
+    } else {
+      const ray = raycaster.ray.clone().applyMatrix4(orientation.matrixWorld.clone().invert());
+      if (!ray.intersectPlane(plane, local)) return null;
+    }
+    const u = Math.min(1, Math.max(0, (local.x + width / 2) / width));
+    const v = Math.min(1, Math.max(0, (local.y + height / 2) / height));
+    const { rotation } = getLayout();
+    if (rotation === -Math.PI / 2) return { x: v, y: u };
+    if (rotation === Math.PI / 2) return { x: 1 - v, y: 1 - u };
+    if (rotation === Math.PI) return { x: 1 - u, y: v };
+    return { x: u, y: 1 - v };
   };
 }

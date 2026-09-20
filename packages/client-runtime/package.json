@@ -286,6 +286,10 @@
     "./device/screenshot": {
       "types": "./src/device/screenshot.ts",
       "default": "./src/device/screenshot.ts"
+    },
+    "./device/model": {
+      "types": "./src/device/model.ts",
+      "default": "./src/device/model.ts"
     }
   },
   "scripts": {

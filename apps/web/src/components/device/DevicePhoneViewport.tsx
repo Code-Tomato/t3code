@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import type { PhoneViewer } from "@t3tools/client-runtime/device/phone-viewer";
+import type { DeviceModelSource } from "@t3tools/client-runtime/device/model";
 import type { DeviceShapeProfile } from "@t3tools/client-runtime/device/shape-profile";
 import { createPhoneInteraction } from "@t3tools/client-runtime/device/phone-interaction";
 import type { DeviceScreenSize, DeviceStreamClient } from "@t3tools/client-runtime/device/stream";
@@ -11,6 +12,7 @@ const loadPhoneViewer = () => import("@t3tools/client-runtime/device/phone-viewe
 export function DevicePhoneViewport(props: {
   readonly contentOffset: number;
   readonly profile: DeviceShapeProfile;
+  readonly model: DeviceModelSource | null;
   readonly source: RefObject<HTMLCanvasElement | null>;
   readonly onFrameListener: (listener: (() => void) | null) => void;
   readonly onResetReady: (reset: (() => void) | null) => void;
@@ -25,14 +27,17 @@ export function DevicePhoneViewport(props: {
   const interactionRef = useRef<ReturnType<typeof createPhoneInteraction> | null>(null);
   const screenRef = useRef(props.screen);
   const profileRef = useRef(props.profile);
+  const modelRef = useRef(props.model);
   const { source, onFrameListener, client, onInputCancel, onResetReady, onUnavailable } = props;
 
   useEffect(() => {
     screenRef.current = props.screen;
     profileRef.current = props.profile;
+    modelRef.current = props.model;
     interactionRef.current?.end();
+    viewerRef.current?.setModel(props.model);
     viewerRef.current?.setScreen(props.screen, props.profile);
-  }, [props.screen, props.profile]);
+  }, [props.screen, props.profile, props.model]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -60,7 +65,10 @@ export function DevicePhoneViewport(props: {
           canvas,
           source: decoded,
           onUnavailable,
+          onModelError: (cause) =>
+            console.warn("Using procedural device body because its model could not load", cause),
           profile: profileRef.current,
+          model: modelRef.current,
         });
         viewerRef.current = viewer;
         onResetReady(viewer.resetPose);

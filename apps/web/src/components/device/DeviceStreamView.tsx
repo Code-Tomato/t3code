@@ -6,6 +6,7 @@ import { refreshDeviceHubAccess, useDeviceHubAccess } from "~/state/device";
 import { createCanvasFrameSink } from "@t3tools/client-runtime/device/frame";
 import { resolveDeviceShape } from "@t3tools/client-runtime/device/shape-profile";
 import { Button } from "~/components/ui/button";
+import { deviceModel } from "./deviceModels";
 import { DevicePhoneViewport } from "./DevicePhoneViewport";
 import { DeviceLoadingView } from "./DeviceLoadingView";
 import { DEVICE_CONTROLS_RAIL_WIDTH, deviceControlsLayout } from "./deviceControlsLayout";
@@ -413,6 +414,7 @@ export function DeviceStreamView(props: {
         {showPhone ? (
           <DevicePhoneViewport
             profile={profile}
+            model={deviceModel(props.platform, props.deviceName ?? "")}
             contentOffset={contentOffset}
             source={canvasRef}
             onFrameListener={onFrameListener}

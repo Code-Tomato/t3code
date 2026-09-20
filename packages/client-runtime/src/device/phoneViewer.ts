@@ -8,6 +8,8 @@ import {
   SRGBColorSpace,
   WebGLRenderer,
 } from "three";
+import { createDeviceModelSlot, type DeviceModelSource } from "./model.ts";
+import { createImportedPhoneScene, loadDeviceModel } from "./modelScene.ts";
 import { createPhoneScene, phoneDisplayLayout } from "./phoneScene.ts";
 import { createRenderScheduler } from "./renderScheduler.ts";
 import { createPhonePose } from "./phonePose.ts";
@@ -15,6 +17,7 @@ import type { DeviceScreenSize } from "./stream.ts";
 import { IOS_PHONE_SHAPE, type DeviceShapeProfile } from "./shapeProfile.ts";
 
 export interface PhoneViewer {
+  readonly setModel: (source: DeviceModelSource | null) => void;
   readonly frameUpdated: () => void;
   readonly setScreen: (screen: DeviceScreenSize | null, profile?: DeviceShapeProfile) => void;
   readonly resize: (width: number, height: number, pixelRatio: number) => void;
@@ -34,7 +37,9 @@ export function createPhoneViewer(options: {
   readonly canvas: HTMLCanvasElement;
   readonly source: HTMLCanvasElement;
   readonly onUnavailable: () => void;
+  readonly onModelError?: (cause: unknown) => void;
   readonly profile?: DeviceShapeProfile;
+  readonly model?: DeviceModelSource | null;
 }): PhoneViewer {
   const renderer = new WebGLRenderer({
     canvas: options.canvas,
@@ -69,6 +74,7 @@ export function createPhoneViewer(options: {
   let screen: DeviceScreenSize | null = null;
   let layout = phoneDisplayLayout(screen, options.source.width, options.source.height);
   let profile = options.profile ?? IOS_PHONE_SHAPE;
+  let imported: Awaited<ReturnType<typeof loadDeviceModel>> | null = null;
   let phone = createPhoneScene(texture, layout, profile);
   scene.add(phone.root);
   let disposed = false;
@@ -121,30 +127,59 @@ export function createPhoneViewer(options: {
       next.rawLandscape !== layout.rawLandscape ||
       next.rotation !== layout.rotation
     ) {
-      scene.remove(phone.root);
-      phone.dispose();
-      // Three textures retain their uploaded dimensions. Rotation can change the native frame size.
+      // The model and renderer survive framebuffer rotation and native resolution changes.
       if (resized) {
-        texture.dispose();
+        const previous = texture;
         texture = makeTexture();
         textureWidth = options.source.width;
         textureHeight = options.source.height;
+        phone.setDisplay(texture, next);
+        previous.dispose();
+      }
+      if (!imported && (nextProfile !== profile || next.aspect !== layout.aspect)) {
+        scene.remove(phone.root);
+        phone.dispose();
+        phone = createPhoneScene(texture, next, nextProfile);
+        scene.add(phone.root);
+      } else {
+        phone.setDisplay(texture, next);
       }
       layout = next;
       profile = nextProfile;
-      phone = createPhoneScene(texture, layout, profile);
-      scene.add(phone.root);
       fit();
     }
     applyPose();
   };
+  const modelSlot = createDeviceModelSlot({
+    load: loadDeviceModel,
+    onError: options.onModelError,
+    install(model) {
+      // Validate and prepare the next scene before releasing the visible one.
+      const next = disposed
+        ? null
+        : model
+          ? createImportedPhoneScene(model.asset, texture, layout)
+          : createPhoneScene(texture, layout, profile);
+      scene.remove(phone.root);
+      phone.dispose();
+      imported = model;
+      if (!next) return;
+      phone = next;
+      scene.add(phone.root);
+      applyPose();
+      fit();
+      scheduler.invalidate();
+    },
+  });
   const contextLost = (event: Event) => {
     event.preventDefault();
     options.onUnavailable();
   };
   options.canvas.addEventListener("webglcontextlost", contextLost);
   applyPose();
+  modelSlot.set(options.model ?? null);
   return {
+    setModel: modelSlot.set,
     frameUpdated() {
       if (disposed) return;
       updateLayout();
@@ -193,9 +228,11 @@ export function createPhoneViewer(options: {
       if (disposed) return;
       disposed = true;
       scheduler.dispose();
+      const hadImported = imported !== null;
+      modelSlot.dispose();
       options.canvas.removeEventListener("webglcontextlost", contextLost);
       scene.remove(phone.root);
-      phone.dispose();
+      if (!hadImported) phone.dispose();
       texture.dispose();
       renderer.dispose();
       renderer.forceContextLoss();

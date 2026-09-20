@@ -61,12 +61,30 @@ vi.mock("three", async () => {
   };
 });
 
+const models = vi.hoisted(() => ({
+  pending: [] as {
+    signal: AbortSignal;
+    resolve: (model: { asset: import("three").Group; dispose: () => void }) => void;
+  }[],
+}));
+vi.mock("./modelScene.ts", async () => {
+  const actual = await vi.importActual<typeof import("./modelScene.ts")>("./modelScene.ts");
+  return {
+    ...actual,
+    loadDeviceModel: (_source: unknown, signal: AbortSignal) =>
+      new Promise((resolve) => models.pending.push({ signal, resolve })),
+  };
+});
+
+import { BoxGeometry, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from "three";
+import { disposeDeviceModel } from "./modelScene.ts";
 import { createPhoneViewer } from "./phoneViewer.ts";
 import { IOS_TABLET_SHAPE } from "./shapeProfile.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   gpu.instances.length = 0;
+  models.pending.length = 0;
 });
 
 function fixture() {
@@ -160,4 +178,43 @@ it("changes device shape without replacing the renderer, decoded source or pose"
   draw();
   expect(state.frames.at(-1)?.phone).toBe(tablet);
   viewer.dispose();
+});
+
+it("retains the loaded model and pose through rotation and framebuffer resolution changes, then releases it once", async () => {
+  const { viewer, draw, source, state } = fixture();
+  viewer.orbit(0.08, 0.04);
+  viewer.zoomBy(0.2);
+  draw();
+  const yaw = state.frames.at(-1)!.yaw;
+  viewer.setModel({ id: "iphone-18-pro", url: "/pro.glb" });
+  const asset = new Group();
+  const body = new Mesh(new BoxGeometry(1.15, 2.3, 0.1), new MeshBasicMaterial());
+  body.position.z = -0.02;
+  const display = new Mesh(new PlaneGeometry(1, 2.2), new MeshBasicMaterial());
+  display.geometry.translate(0, 0, 0.043);
+  display.name = "device-screen";
+  asset.add(body, display);
+  const release = vi.spyOn(body.geometry, "dispose");
+  const dispose = vi.fn(() => disposeDeviceModel(asset));
+  models.pending[0]!.resolve({ asset, dispose });
+  await Promise.resolve();
+  draw();
+  const loaded = state.frames.at(-1)!.phone;
+  expect(loaded?.getObjectByName("device-screen")).toBe(display);
+  expect(state.frames.at(-1)!.yaw).toBe(yaw);
+  source.width = 2622;
+  source.height = 1206;
+  viewer.setScreen({ width: 2622, height: 1206, orientation: "landscape_left" });
+  viewer.frameUpdated();
+  viewer.resize(700, 400, 1);
+  draw();
+  expect(state.frames.at(-1)!.phone).toBe(loaded);
+  expect(state.frames.at(-1)!.yaw).toBe(yaw);
+  expect(display.material.map?.image).toBe(source);
+  expect(release).not.toHaveBeenCalled();
+  expect(gpu.instances).toHaveLength(1);
+  viewer.dispose();
+  viewer.dispose();
+  expect(dispose).toHaveBeenCalledOnce();
+  expect(release).toHaveBeenCalledOnce();
 });

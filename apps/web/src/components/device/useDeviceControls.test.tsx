@@ -101,7 +101,7 @@ it("serializes rapid actions and retains confirmed settings while pending or aft
   expect(controls.disabled).toBe(false);
 });
 
-it("discards action results from an earlier visible session", async () => {
+it("serializes host actions across hide/reopen and discards detached results", async () => {
   await mount();
   const response = deferred();
   action.mockReturnValueOnce(response.promise);
@@ -112,11 +112,19 @@ it("discards action results from an earlier visible session", async () => {
   await act(async () => renderer!.update(<Probe visible={false} />));
   expect(controls.disabled).toBe(true);
   await act(async () => renderer!.update(<Probe visible />));
+  await act(async () => controls.act({ type: "setAppearance", value: "light" }));
+  expect(action).toHaveBeenCalledOnce();
+  expect(controls.disabled).toBe(true);
   await act(async () => {
     response.resolve(snapshot("dark"));
     await pending;
   });
   expect(controls.detail?.settings.appearance).toBe("light");
+  expect(controls.disabled).toBe(false);
+  action.mockResolvedValueOnce(snapshot("dark"));
+  await act(async () => controls.act({ type: "setAppearance", value: "dark" }));
+  expect(action).toHaveBeenCalledTimes(2);
+  expect(controls.detail?.settings.appearance).toBe("dark");
 });
 
 it("does not let an older refresh overwrite a newer confirmed action", async () => {

@@ -31,6 +31,8 @@ export function useDeviceControls(options: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [foreground, setForeground] = useState<DeviceForegroundInfo | null | undefined>();
+  // Hiding invalidates UI results, but does not cancel host commands. Keep them serialized
+  // until settlement rather than allowing a reopened panel to race the previous command.
   const busy = useRef(false);
   const generation = useRef(0);
   const target = useMemo(

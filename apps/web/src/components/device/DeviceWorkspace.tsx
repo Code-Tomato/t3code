@@ -38,41 +38,43 @@ export function DeviceWorkspace(props: {
       downloadRef.current = null;
     };
   }, [access, props.visible]);
-  const saveScreenshot = async () => {
+  const saveScreenshot = () => {
     if (!access || captureRef.current || !props.visible) return;
     const controller = new AbortController();
     captureRef.current = controller;
     setScreenshotPending(true);
     setScreenshotError(null);
-    try {
-      const image = await captureDeviceScreenshot(
-        { access, platform: props.device.platform, deviceId: props.device.id },
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-      if (downloadRef.current) URL.revokeObjectURL(downloadRef.current);
-      const url = URL.createObjectURL(image);
-      downloadRef.current = url;
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${props.device.name.replace(/[^a-z0-9-]/gi, "-")}-${Date.now()}.png`;
-      document.body.append(link);
-      link.click();
-      link.remove();
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        if (cause instanceof DeviceScreenshotError && cause.status === 401)
-          refreshDeviceHubAccess(props.environmentId);
-        setScreenshotError(
-          cause instanceof Error ? cause.message : "Screenshot capture failed. Try again.",
-        );
-      }
-    } finally {
-      if (captureRef.current === controller) {
-        captureRef.current = null;
-        setScreenshotPending(false);
-      }
-    }
+    return captureDeviceScreenshot(
+      { access, platform: props.device.platform, deviceId: props.device.id },
+      controller.signal,
+    )
+      .then((image) => {
+        if (controller.signal.aborted) return;
+        if (downloadRef.current) URL.revokeObjectURL(downloadRef.current);
+        const url = URL.createObjectURL(image);
+        downloadRef.current = url;
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${props.device.name.replace(/[^a-z0-9-]/gi, "-")}-${Date.now()}.png`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          if (cause instanceof DeviceScreenshotError && cause.status === 401)
+            refreshDeviceHubAccess(props.environmentId);
+          setScreenshotError(
+            cause instanceof Error ? cause.message : "Screenshot capture failed. Try again.",
+          );
+        }
+      })
+      .finally(() => {
+        if (captureRef.current === controller) {
+          captureRef.current = null;
+          setScreenshotPending(false);
+        }
+      });
   };
   return (
     <>

@@ -69,18 +69,19 @@ export function useDeviceControls(options: {
     const revision = ++generation.current;
     setPending(true);
     setError(null);
-    try {
-      const result = await runAction({
-        environmentId,
-        input: { ...target, ...body } as DeviceActionInput,
+    return runAction({
+      environmentId,
+      input: { ...target, ...body } as DeviceActionInput,
+    })
+      .then((result) => {
+        if (generation.current !== revision) return;
+        if (result._tag === "Success") setDetail(result.value);
+        else setError(formatEnvironmentQueryError(result.cause));
+      })
+      .finally(() => {
+        busy.current = false;
+        setPending(false);
       });
-      if (generation.current !== revision) return;
-      if (result._tag === "Success") setDetail(result.value);
-      else setError(formatEnvironmentQueryError(result.cause));
-    } finally {
-      busy.current = false;
-      setPending(false);
-    }
   };
 
   return {

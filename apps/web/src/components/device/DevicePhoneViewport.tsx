@@ -4,6 +4,8 @@ import { createPhoneInteraction } from "@t3tools/client-runtime/device/phone-int
 import type { DeviceScreenSize, DeviceStreamClient } from "@t3tools/client-runtime/device/stream";
 import { bindPhoneTrackpad } from "./phoneTrackpad";
 
+const loadPhoneViewer = () => import("@t3tools/client-runtime/device/phone-viewer");
+
 /** Web shell for the framework-independent viewer. The decoded screen and input connection remain owned by DeviceStreamView. */
 export function DevicePhoneViewport(props: {
   readonly contentOffset: number;
@@ -47,7 +49,7 @@ export function DevicePhoneViewport(props: {
     };
     onInputCancel(blur);
     window.addEventListener("blur", blur);
-    void import("@t3tools/client-runtime/device/phone-viewer")
+    void loadPhoneViewer()
       .then(({ createPhoneViewer }) => {
         if (disposed) return;
         const viewer = createPhoneViewer({ canvas, source: decoded, onUnavailable });

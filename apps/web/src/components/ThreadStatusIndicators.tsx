@@ -51,7 +51,6 @@ export interface PrStatusIndicator {
 export interface TerminalStatusIndicator {
   label: "Terminal process running";
   colorClass: string;
-  pulse: boolean;
 }
 
 export type ThreadPr = VcsStatusResult["pr"];
@@ -371,7 +370,6 @@ export function terminalStatusFromRunningIds(
   return {
     label: "Terminal process running",
     colorClass: "text-teal-600 dark:text-teal-300/90",
-    pulse: true,
   };
 }
 
@@ -562,9 +560,7 @@ export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSumma
               />
             }
           >
-            <TerminalIcon
-              className={`size-3 ${terminalStatus.pulse ? "animate-status-pulse" : ""}`}
-            />
+            <TerminalIcon className="size-3" />
           </TooltipTrigger>
           <TooltipPopup side="top">{terminalStatus.label}</TooltipPopup>
         </Tooltip>

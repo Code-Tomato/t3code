@@ -2,13 +2,10 @@ import { Asset } from "expo-asset";
 import { useEffect, useMemo, useState } from "react";
 import type { ImageSourcePropType } from "react-native";
 import type { MarkdownDocumentAsset, MarkdownStyle } from "react-native-enriched-markdown";
-import { markdownFileIconSource } from "@t3tools/mobile-markdown-text/file-icons";
-import { markdownLinkIconSource } from "@t3tools/mobile-markdown-text/link-icons";
-import {
-  resolveMarkdownLinkIcon,
-  resolveMarkdownLinkPresentation,
-} from "@t3tools/mobile-markdown-text/links";
-import type { SelectableMarkdownTextProps } from "@t3tools/mobile-markdown-text/types";
+import { markdownFileIconSource } from "../lib/markdownFileIcons";
+import { markdownLinkIconSource } from "../lib/markdownLinkIcons";
+import { resolveMarkdownLinkIcon, resolveMarkdownLinkPresentation } from "../lib/markdownLinks";
+import type { SelectableMarkdownTextProps } from "./SelectableMarkdownText.types";
 
 import {
   enrichedContextLinkPresentation,

@@ -1,8 +1,8 @@
 import { resolveMobileMarkdownMediaSource } from "../lib/markdownMediaSource";
 import { resolveAssetUrl } from "@t3tools/client-runtime/state/assets";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import type { MarkdownImageSourceResolver } from "@t3tools/mobile-markdown-text/types";
-import { normalizeNativeMarkdownUrl } from "@t3tools/mobile-markdown-text/links";
+import type { MarkdownImageSourceResolver } from "./SelectableMarkdownText.types";
+import { normalizeNativeMarkdownUrl } from "../lib/markdownLinks";
 import { useCallback } from "react";
 import * as Option from "effect/Option";
 

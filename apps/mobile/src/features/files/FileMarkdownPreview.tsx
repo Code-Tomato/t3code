@@ -15,7 +15,7 @@ import {
 } from "../threads/ThreadMarkdownImage";
 import { ThreadMarkdownVideo } from "../threads/ThreadMarkdownVideo";
 import { resolveMarkdownMediaPreview } from "../../lib/markdownMedia";
-import { normalizeNativeMarkdownUrl } from "@t3tools/mobile-markdown-text/links";
+import { normalizeNativeMarkdownUrl } from "../../lib/markdownLinks";
 import { FilePreviewModal, type FilePreviewSource } from "../../components/FilePreviewModal";
 import { useMarkdownImageSource } from "../../native/useMarkdownImageSource";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";

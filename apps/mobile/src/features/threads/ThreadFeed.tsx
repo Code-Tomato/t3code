@@ -120,13 +120,13 @@ import {
 import { resolveNativeMarkdownTypography } from "../../lib/appearancePreferences";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { PierreEntryIcon } from "../../components/PierreEntryIcon";
-import { markdownFileIconSource } from "@t3tools/mobile-markdown-text/file-icons";
+import { markdownFileIconSource } from "../../lib/markdownFileIcons";
 import { enrichedContextLinkPresentation } from "../../lib/enrichedLinkPresentation";
 import { useMarkdownImageSource } from "../../native/useMarkdownImageSource";
 import {
   normalizeNativeMarkdownUrl,
   resolveMarkdownLinkPresentation,
-} from "@t3tools/mobile-markdown-text/links";
+} from "../../lib/markdownLinks";
 import {
   deriveThreadFeedPresentation,
   deriveUnsettledTurnId,

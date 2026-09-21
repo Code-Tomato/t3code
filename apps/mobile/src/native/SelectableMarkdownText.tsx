@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Platform } from "react-native";
-import type { SelectableMarkdownTextProps } from "@t3tools/mobile-markdown-text/types";
+import type { SelectableMarkdownTextProps } from "./SelectableMarkdownText.types";
 
 import { MobileEnrichedMarkdownText } from "./EnrichedMarkdownText";
 import { themeColorWithAlpha } from "../lib/mobileTheme";
@@ -15,7 +15,7 @@ export type {
   MarkdownLinkCustomization,
   NativeMarkdownTextStyle,
   SelectableMarkdownSkill,
-} from "@t3tools/mobile-markdown-text/types";
+} from "./SelectableMarkdownText.types";
 
 export function SelectableMarkdownText(props: SelectableMarkdownTextProps) {
   const theme = useUniwindTheme();

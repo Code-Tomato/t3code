@@ -6,7 +6,7 @@ import {
   type MarkdownStyle,
   type MarkdownMediaAsset,
 } from "react-native-enriched-markdown";
-import type { SelectableMarkdownTextProps } from "@t3tools/mobile-markdown-text/types";
+import type { SelectableMarkdownTextProps } from "./SelectableMarkdownText.types";
 
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
 import { AndroidAnchoredMenu } from "../components/AndroidAnchoredMenu";

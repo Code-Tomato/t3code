@@ -2,14 +2,14 @@ import { describe, expect, it } from "vite-plus/test";
 
 describe("composerChipSizeSuffix", () => {
   it("labels attachment records with a human size, matching web's chip", async () => {
-    const { composerChipSizeSuffix } = await import("@t3tools/mobile-markdown-text/markdown");
+    const { composerChipSizeSuffix } = await import("./composerChipPresentation");
     expect(composerChipSizeSuffix({ kind: "file", sizeBytes: 1024 })).toBe("1 KB");
     expect(composerChipSizeSuffix({ kind: "file", sizeBytes: 3_700_000 })).toBe("3.5 MB");
     expect(composerChipSizeSuffix({ kind: "image", sizeBytes: 2048 })).toBe("2 KB");
   });
 
   it("adds nothing for records that carry no bytes", async () => {
-    const { composerChipSizeSuffix } = await import("@t3tools/mobile-markdown-text/markdown");
+    const { composerChipSizeSuffix } = await import("./composerChipPresentation");
     // Terminal/review/PR chips have no size to show.
     expect(composerChipSizeSuffix({ kind: "terminal" })).toBe("");
     expect(composerChipSizeSuffix({ kind: "file" })).toBe("");
@@ -19,7 +19,7 @@ describe("composerChipSizeSuffix", () => {
 
 describe("contextChipPresentation image detection", () => {
   it("treats a picture attached through the file picker as an image", async () => {
-    const { contextChipPresentation } = await import("@t3tools/mobile-markdown-text/markdown");
+    const { contextChipPresentation } = await import("./composerChipPresentation");
     // The document picker types every pick as `file`, so the name has to carry the intent.
     expect(
       contextChipPresentation("file", { kind: "file", name: "IMG_4997.PNG", mimeType: "" }),
@@ -34,7 +34,7 @@ describe("contextChipPresentation image detection", () => {
   });
 
   it("leaves genuine documents and videos alone", async () => {
-    const { contextChipPresentation } = await import("@t3tools/mobile-markdown-text/markdown");
+    const { contextChipPresentation } = await import("./composerChipPresentation");
     expect(
       contextChipPresentation("file", { kind: "file", name: "notes.txt", mimeType: "text/plain" }),
     ).toEqual({ accent: "#0090cd", symbol: "doc" });
@@ -46,7 +46,7 @@ describe("contextChipPresentation image detection", () => {
 
 describe("pull request chip status", () => {
   const chip = async (state: string, isDraft = false) => {
-    const { contextChipPresentation } = await import("@t3tools/mobile-markdown-text/markdown");
+    const { contextChipPresentation } = await import("./composerChipPresentation");
     return contextChipPresentation("review-comment", {
       kind: "review-comment",
       sectionId: "pull-request:10978",
@@ -73,7 +73,7 @@ describe("pull request chip status", () => {
   });
 
   it("falls back to the generic pull request chip when the state is unknown", async () => {
-    const { contextChipPresentation } = await import("@t3tools/mobile-markdown-text/markdown");
+    const { contextChipPresentation } = await import("./composerChipPresentation");
     // An older server may send no metadata at all; the chip still has to render.
     expect(
       contextChipPresentation("review-comment", {

@@ -1,7 +1,7 @@
 import type { ComposerContextRecord } from "@t3tools/contracts";
-import { contextChipPresentation } from "@t3tools/mobile-markdown-text/markdown";
-import type { MarkdownFileIcon } from "@t3tools/mobile-markdown-text/links";
-import type { SelectableMarkdownSkill } from "@t3tools/mobile-markdown-text/types";
+import { contextChipPresentation } from "./composerChipPresentation";
+import type { MarkdownFileIcon } from "./markdownLinks";
+import type { SelectableMarkdownSkill } from "../native/SelectableMarkdownText.types";
 import { parseComposerContextHref } from "@t3tools/shared/composerContextReferences";
 
 const CONTEXT_ICONS: Readonly<Record<string, MarkdownFileIcon>> = {

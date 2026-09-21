@@ -153,6 +153,47 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
     url: string;
     menu: NonNullable<ReturnType<NonNullable<typeof props.fileContextMenu>>>;
   } | null>(null);
+  const { fileContextMenu, onLinkPress, onFileContextMenuAction } = props;
+  const performMenuAction = useCallback(
+    (url: string, actionId: string) => {
+      if (actionId === "enriched-open-link") onLinkPress?.(url);
+      else if (actionId === "enriched-copy-link") copyTextWithHaptic(url);
+      else onFileContextMenuAction?.(url, actionId);
+    },
+    [onLinkPress, onFileContextMenuAction],
+  );
+  const linkContextMenus = useMemo(
+    () =>
+      Platform.OS === "ios" && fileContextMenu
+        ? Object.fromEntries(
+            [
+              ...new Set(
+                documentAssets.filter((asset) => asset.kind === "link").map((asset) => asset.url),
+              ),
+            ].map((url) => {
+              const menu = fileContextMenu(url) ?? {
+                title: url,
+                actions: [
+                  { id: "enriched-open-link", title: "Open link" },
+                  { id: "enriched-copy-link", title: "Copy link" },
+                ],
+              };
+              return [
+                url,
+                {
+                  title: menu.title,
+                  items: menu.actions.map((action) => ({
+                    text: action.title,
+                    disabled: "disabled" in action && action.disabled,
+                    onPress: () => performMenuAction(url, action.id),
+                  })),
+                },
+              ];
+            }),
+          )
+        : undefined,
+    [documentAssets, fileContextMenu, performMenuAction],
+  );
   const markdownStyle = useMemo(
     () => ({ ...enrichedStyle(props.textStyle, themeAppearance === "dark"), linkVariants }),
     [props.textStyle, themeAppearance, linkVariants],
@@ -244,15 +285,12 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
           spoilerOverlay="solid"
           onLinkPress={props.onLinkPress ? ({ url }) => props.onLinkPress?.(url) : undefined}
           onLinkLongPress={onLinkLongPress}
+          linkContextMenus={linkContextMenus}
         />
       </View>
     );
   };
-  const performMenuAction = (url: string, actionId: string) => {
-    if (actionId === "enriched-open-link") props.onLinkPress?.(url);
-    else if (actionId === "enriched-copy-link") copyTextWithHaptic(url);
-    else props.onFileContextMenuAction?.(url, actionId);
-  };
+
   return Platform.OS === "android" && props.fileContextMenu ? (
     <AndroidAnchoredMenu
       title={activeMenu?.menu.title}

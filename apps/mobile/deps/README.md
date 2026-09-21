@@ -3,9 +3,11 @@
 The tarball contains the prepared `react-native-enriched-markdown` package based on
 upstream [bb2b0942](https://github.com/software-mansion/enriched-markdown/commit/bb2b0942a55555463fe129899d9c922038f10c41),
 including the prototype's generic API extensions and native fixes. It replaces
-the pnpm patch without changing the library's runtime sources. JS, TypeScript
-declarations, generated native bindings, native sources, and the MIT license are
-included. Enriched's postinstall restores its grammar dependencies as usual.
+the original pnpm patch and includes opt-in per-link context menus on iOS 17+.
+JS, TypeScript declarations, generated native bindings, native sources, and the
+MIT license are included. Enriched's postinstall restores its grammar dependencies
+as usual. T3 supplies menu titles, actions and callbacks in JS through
+`linkContextMenus`; the native package contains no app-specific menu actions.
 
 To inspect the package, extract it with `tar -xzf <tarball>`. The resulting
 `package/` directory contains the sources as well as the built outputs.

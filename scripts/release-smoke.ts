@@ -45,6 +45,13 @@ function copyWorkspaceManifestFixture(targetRoot: string): void {
   if (NodeFS.existsSync(patchesDirectory)) {
     NodeFS.cpSync(patchesDirectory, NodePath.resolve(targetRoot, "patches"), { recursive: true });
   }
+
+  const mobileVendorDirectory = NodePath.resolve(repoRoot, "apps/mobile/vendor");
+  if (NodeFS.existsSync(mobileVendorDirectory)) {
+    NodeFS.cpSync(mobileVendorDirectory, NodePath.resolve(targetRoot, "apps/mobile/vendor"), {
+      recursive: true,
+    });
+  }
 }
 
 function writeMacManifestFixtures(targetRoot: string): { arm64Path: string; x64Path: string } {

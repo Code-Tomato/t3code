@@ -82,11 +82,14 @@ function MenuItem({
   inset,
   density = "default",
   variant = "default",
+  selected = false,
   ...props
 }: MenuPrimitive.Item.Props & {
   inset?: boolean;
   density?: "default" | "touch";
   variant?: "default" | "destructive" | "ghost";
+  /** Marks the item that matches the current value, like a checked radio item. */
+  selected?: boolean;
 }) {
   return (
     <MenuPrimitive.Item
@@ -99,10 +102,12 @@ function MenuItem({
             className: "h-auto min-h-7 w-full sm:text-xs",
           }),
         density === "touch" && "min-h-10 sm:min-h-10",
+        selected && "bg-foreground/[0.08]",
         className,
       )}
       data-density={density}
       data-inset={inset}
+      data-selected={selected || undefined}
       data-slot="menu-item"
       data-variant={variant}
       {...props}

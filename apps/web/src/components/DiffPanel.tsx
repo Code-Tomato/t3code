@@ -659,31 +659,19 @@ export default function DiffPanel({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-60">
             <DropdownMenuItem
-              className={
-                selectedTurnId === null && selectedGitScope === "unstaged"
-                  ? "bg-foreground/[0.08]"
-                  : undefined
-              }
+              selected={selectedTurnId === null && selectedGitScope === "unstaged"}
               onClick={() => selectGitScope("unstaged")}
             >
               <span>Working tree</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={
-                selectedTurnId === null && selectedGitScope === "branch"
-                  ? "bg-foreground/[0.08]"
-                  : undefined
-              }
+              selected={selectedTurnId === null && selectedGitScope === "branch"}
               onClick={() => selectGitScope("branch")}
             >
               <span>Branch changes</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={
-                selectedTurnId !== null && selectedTurn?.turnId === latestTurn?.turnId
-                  ? "bg-foreground/[0.08]"
-                  : undefined
-              }
+              selected={selectedTurnId !== null && selectedTurn?.turnId === latestTurn?.turnId}
               onClick={() => {
                 if (latestTurn) selectTurn(latestTurn.turnId);
               }}
@@ -701,9 +689,7 @@ export default function DiffPanel({
                   return (
                     <DropdownMenuItem
                       key={summary.turnId}
-                      className={
-                        summary.turnId === selectedTurn?.turnId ? "bg-foreground/[0.08]" : undefined
-                      }
+                      selected={summary.turnId === selectedTurn?.turnId}
                       onClick={() => selectTurn(summary.turnId)}
                     >
                       <span>Turn {turnCount}</span>

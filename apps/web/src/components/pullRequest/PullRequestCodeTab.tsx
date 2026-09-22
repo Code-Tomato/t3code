@@ -1077,7 +1077,7 @@ function PullRequestCodeTab({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-80">
               <DropdownMenuItem
-                className={commit === null ? "bg-foreground/[0.08]" : undefined}
+                selected={commit === null}
                 onClick={() => onSelectedCommitChange(null)}
               >
                 <span>All commits</span>
@@ -1085,7 +1085,7 @@ function PullRequestCodeTab({
               {orderedCommits.slice(0, visibleCommitCount).map((entry) => (
                 <DropdownMenuItem
                   key={entry.oid}
-                  className={entry.oid === commit ? "bg-foreground/[0.08]" : undefined}
+                  selected={entry.oid === commit}
                   onClick={() => onSelectedCommitChange(entry.oid)}
                 >
                   {/* Headlines run long, and the abbreviated oid after one is what a reader

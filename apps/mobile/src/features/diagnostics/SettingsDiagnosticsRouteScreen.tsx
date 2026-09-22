@@ -1,7 +1,7 @@
 import { ScreenScrollView as ScrollView } from "../../components/ScreenScrollView";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -19,6 +19,7 @@ import {
 import {
   formatRenderErrorReport,
   getRenderErrorRecords,
+  subscribeToRenderErrors,
   type RenderErrorRecord,
 } from "./render-error-log";
 
@@ -53,9 +54,12 @@ export function SettingsDiagnosticsRouteScreen() {
   );
   const [copied, setCopied] = useState(false);
   const [renderCopied, setRenderCopied] = useState(false);
-  // Render errors live only for the session (in memory, no persistence), and
-  // this screen mounts fresh each time it opens.
-  const [renderRecords] = useState<ReadonlyArray<RenderErrorRecord>>(getRenderErrorRecords);
+  // Session memory, not persisted. Subscribed because another root route can
+  // crash (and record) while this screen stays mounted, e.g. in split view.
+  const renderRecords = useSyncExternalStore<ReadonlyArray<RenderErrorRecord>>(
+    subscribeToRenderErrors,
+    getRenderErrorRecords,
+  );
 
   useEffect(() => {
     if (!Updates.isEnabled) return;

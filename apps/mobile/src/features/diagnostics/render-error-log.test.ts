@@ -6,6 +6,7 @@ import {
   formatRenderErrorReport,
   getRenderErrorRecords,
   recordRenderError,
+  subscribeToRenderErrors,
 } from "./render-error-log";
 
 beforeEach(() => {
@@ -76,6 +77,38 @@ describe("describeRenderError", () => {
     };
     expect(() => describeRenderError(thrown)).not.toThrow();
     expect(describeRenderError(thrown)).toBe("[object Object]");
+  });
+});
+
+describe("subscribeToRenderErrors", () => {
+  it("notifies listeners and hands them a new snapshot on every write", () => {
+    const before = getRenderErrorRecords();
+    let notified = 0;
+    const unsubscribe = subscribeToRenderErrors(() => {
+      notified += 1;
+    });
+
+    recordRenderError(new Error("crash while diagnostics is open"), "screen:Thread");
+    expect(notified).toBe(1);
+    const after = getRenderErrorRecords();
+    expect(after).not.toBe(before);
+    expect(after[0]?.message).toBe("crash while diagnostics is open");
+
+    unsubscribe();
+    recordRenderError(new Error("after unsubscribe"), "screen:Thread");
+    expect(notified).toBe(1);
+  });
+
+  it("notifies on clear so a mounted view cannot show stale rows", () => {
+    recordRenderError(new Error("something"), "screen:Thread");
+    let notified = 0;
+    const unsubscribe = subscribeToRenderErrors(() => {
+      notified += 1;
+    });
+    clearRenderErrorRecords();
+    expect(notified).toBe(1);
+    expect(getRenderErrorRecords()).toHaveLength(0);
+    unsubscribe();
   });
 });
 

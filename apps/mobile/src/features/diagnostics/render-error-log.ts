@@ -24,6 +24,19 @@ export interface RenderErrorRecord {
 
 const MAX_RECORDS = 20;
 let records: RenderErrorRecord[] = [];
+const listeners = new Set<() => void>();
+
+/**
+ * `useSyncExternalStore` pair. The records array is replaced (never mutated)
+ * on every write, so `getRenderErrorRecords` is a stable snapshot getter: the
+ * Diagnostics screen sees a crash recorded by another route while it is open.
+ */
+export function subscribeToRenderErrors(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
 export function describeRenderError(error: unknown): string {
   if (error instanceof Error) {
@@ -68,6 +81,7 @@ export function recordRenderError(
     { timestamp: options.timestamp ?? Date.now(), scope, message, detail },
     ...records,
   ].slice(0, MAX_RECORDS);
+  for (const listener of listeners) listener();
 }
 
 /** Newest first, as stored. */
@@ -77,6 +91,7 @@ export function getRenderErrorRecords(): ReadonlyArray<RenderErrorRecord> {
 
 export function clearRenderErrorRecords(): void {
   records = [];
+  for (const listener of listeners) listener();
 }
 
 /** The report a user pastes into an issue, mirroring the startup crash report. */

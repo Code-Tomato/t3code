@@ -6,23 +6,29 @@ import type { EnvironmentPresentation } from "../connection/presentation.ts";
 import { createEnvironmentPresentationAtomSelector } from "./presentation.ts";
 
 describe("createEnvironmentPresentationAtomSelector", () => {
-  const consulted: EnvironmentId[] = [];
-  const selector = createEnvironmentPresentationAtomSelector({
-    presentationAtom: (environmentId) => {
-      consulted.push(environmentId);
-      return Atom.make<EnvironmentPresentation | null>(null).pipe(
-        Atom.withLabel(`presentation:${environmentId}`),
-      );
-    },
-    platform: "web",
-  });
+  const createFixture = (platform: "mobile" | "web") => {
+    const consulted: EnvironmentId[] = [];
+    const selector = createEnvironmentPresentationAtomSelector({
+      presentationAtom: (environmentId) => {
+        consulted.push(environmentId);
+        return Atom.make<EnvironmentPresentation | null>(null).pipe(
+          Atom.withLabel(`presentation:${environmentId}`),
+        );
+      },
+      platform,
+    });
+    return { consulted, selector };
+  };
 
   it("serves the platform-labeled empty atom without consulting the family", () => {
+    const { consulted, selector } = createFixture("web");
+
     expect(selector(null).label?.[0]).toBe("web-environment-presentation:empty");
     expect(consulted).toEqual([]);
   });
 
   it("delegates to the family atom once an environment is selected", () => {
+    const { consulted, selector } = createFixture("web");
     const environmentId = EnvironmentId.make("environment-a");
 
     expect(selector(environmentId).label?.[0]).toBe("presentation:environment-a");

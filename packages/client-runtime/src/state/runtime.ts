@@ -417,6 +417,9 @@ export async function executeAtomQuery<A, E>(
   );
   return executeAtomCommand(
     () => Effect.runPromiseExit(query, { signal: options.signal }),
+    // Report against the atom's own label when the caller passed none, so
+    // direct executeAtomQuery callers (previously logged as "atom query")
+    // name the actual query in failure and defect lines.
     { ...options, label: options.label ?? atom.label?.[0] ?? "atom query" },
     reporter,
   );

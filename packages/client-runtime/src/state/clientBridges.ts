@@ -2,7 +2,7 @@ import { Atom } from "effect/unstable/reactivity";
 
 import type { EnvironmentRegistry } from "../connection/registry.ts";
 import * as RelayEnvironmentDiscovery from "../relay/discovery.ts";
-import { EnvironmentCacheStore } from "../platform/persistence.ts";
+import type { EnvironmentCacheStore } from "../platform/persistence.ts";
 import { createAttachmentEnvironmentAtoms } from "./attachments.ts";
 import { createFilesystemEnvironmentAtoms } from "./filesystem.ts";
 import { createOrchestrationEnvironmentAtoms } from "./orchestration.ts";

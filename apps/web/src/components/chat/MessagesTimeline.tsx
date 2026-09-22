@@ -118,6 +118,7 @@ import {
   CircleAlertIcon,
   DownloadIcon,
   EyeIcon,
+  FileTextIcon,
   GitForkIcon,
   GlobeIcon,
   type LucideIcon,
@@ -196,6 +197,7 @@ import {
   shouldPreserveAssistantLineBreaks,
   toolGroupAction,
   workEntryDisplayLabel,
+  workEntryReadOutput,
   workEntryIsVisibleInGroup,
   worktreeSetupAgentStarted,
   type StableMessagesTimelineRowsState,
@@ -3583,7 +3585,7 @@ function toolGroupSummaryIconName(
     case "list-prs":
       return "pull-request";
     case "read":
-      return "eye";
+      return "file-text";
     case "edit":
       return "square-pen";
     case "command":
@@ -4468,6 +4470,7 @@ type WorkEntryIconName =
   | "computer"
   | "device"
   | "eye"
+  | "file-text"
   | "globe"
   | "hammer"
   | "message-circle"
@@ -4699,6 +4702,8 @@ function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className
       return <CircleAlertIcon className={className} aria-hidden />;
     case "eye":
       return <EyeIcon className={className} aria-hidden />;
+    case "file-text":
+      return <FileTextIcon className={className} aria-hidden />;
     case "globe":
       return <GlobeIcon className={className} aria-hidden />;
     case "hammer":
@@ -4772,6 +4777,10 @@ function buildToolCallExpandedBody(
     seen.add(text);
     blocks.push(text);
   };
+  if (toolGroupAction(workEntry) === "read") {
+    addBlock(workEntryReadOutput(workEntry, workspaceRoot));
+    return blocks.length > 0 ? blocks.join("\n\n") : null;
+  }
   if (workEntry.itemType === "dynamic_tool" && workEntry.toolData !== undefined) {
     const input =
       workEntry.structuredPayload?.type === "dynamic_tool"
@@ -4828,6 +4837,7 @@ function workEntryIconName(workEntry: TimelineWorkEntry): WorkEntryIconName {
   const toolPresentation = resolveWorkEntryToolPresentation(workEntry);
   if (toolPresentation) return toolPresentation.icon;
   const action = toolGroupAction(workEntry);
+  if (action === "read" && workEntryViewedImagePath(workEntry)) return "eye";
   if (action !== "other") return toolGroupSummaryIconName(action);
 
   switch (workEntry.itemType) {

@@ -633,16 +633,14 @@ function AdaptiveWorkspaceLayoutContent(
               </WorkspaceContentWidthContext>
             </View>
           </View>
-          <RenderErrorBoundary scope="workspace-inspector" subject="The inspector">
-            <WorkspaceInspectorPane
-              renderedInspectorWidth={renderedInspectorWidth}
-              active={workspaceInspector?.active ?? false}
-              panes={panes}
-              renderInspector={workspaceInspector?.render}
-              setAuxiliaryPaneWidth={setAuxiliaryPaneWidth}
-              onClosed={handleWorkspaceInspectorClosed}
-            />
-          </RenderErrorBoundary>
+          <WorkspaceInspectorPane
+            renderedInspectorWidth={renderedInspectorWidth}
+            active={workspaceInspector?.active ?? false}
+            panes={panes}
+            renderInspector={workspaceInspector?.render}
+            setAuxiliaryPaneWidth={setAuxiliaryPaneWidth}
+            onClosed={handleWorkspaceInspectorClosed}
+          />
         </View>
       </AdaptiveWorkspaceContext.Provider>
     </HomeListOptionsProvider>

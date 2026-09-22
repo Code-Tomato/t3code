@@ -8,6 +8,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { constrainAuxiliaryPaneWidth, type WorkspacePaneLayout } from "../../lib/layout";
+import { RenderErrorBoundary } from "../../components/RenderErrorBoundary";
 import { WORKSPACE_PANE_TIMING } from "./workspace-pane-animation";
 import { WorkspacePaneDivider } from "./workspace-pane-divider";
 
@@ -139,7 +140,19 @@ export function WorkspaceInspectorPane(props: {
           style={inspectorStyle}
         >
           <Animated.View className="flex-1" style={inspectorContentStyle}>
-            {props.renderInspector?.()}
+            {/* INSIDE the pane so a content crash swaps only the content: the
+                fixed-width column, reveal animation, and resize divider stay
+                mounted and a fallback never becomes a flex sibling of the
+                column. The renderer identity is the content input — a new
+                inspector (e.g. after a route change) must not inherit the
+                previous renderer's failure. */}
+            <RenderErrorBoundary
+              scope="workspace-inspector"
+              subject="The inspector"
+              resetKeys={[props.renderInspector]}
+            >
+              {props.renderInspector?.()}
+            </RenderErrorBoundary>
           </Animated.View>
         </Animated.View>
       ) : null}

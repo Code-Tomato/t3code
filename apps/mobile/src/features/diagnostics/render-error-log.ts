@@ -45,13 +45,18 @@ export function describeRenderError(error: unknown): string {
   return safeString(error);
 }
 
-// A hostile `toString`/`Symbol.toPrimitive` must not turn error reporting — or
-// the recovery view that renders the message — into a second crash.
+// A hostile `toString`/`Symbol.toPrimitive`/`Symbol.toStringTag` must not turn
+// error reporting — or the recovery view that renders the message — into a
+// second crash, so even the fallback stringify is guarded.
 function safeString(value: unknown): string {
   try {
     return String(value);
   } catch {
-    return Object.prototype.toString.call(value);
+    try {
+      return Object.prototype.toString.call(value);
+    } catch {
+      return "[unstringifiable value]";
+    }
   }
 }
 

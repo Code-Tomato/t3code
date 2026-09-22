@@ -78,6 +78,19 @@ describe("describeRenderError", () => {
     expect(() => describeRenderError(thrown)).not.toThrow();
     expect(describeRenderError(thrown)).toBe("[object Object]");
   });
+
+  it("falls back to a constant when even the fallback stringify rethrows", () => {
+    const hostile = {
+      toString() {
+        throw new Error("nope");
+      },
+      get [Symbol.toStringTag]() {
+        throw new Error("also nope");
+      },
+    };
+    expect(() => describeRenderError(hostile)).not.toThrow();
+    expect(describeRenderError(hostile)).toBe("[unstringifiable value]");
+  });
 });
 
 describe("subscribeToRenderErrors", () => {

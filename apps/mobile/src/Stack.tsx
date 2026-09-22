@@ -817,6 +817,7 @@ function GuardedScreenLayout(props: {
 function ScreenRenderFallback(props: {
   readonly error: unknown;
   readonly retry: () => void;
+  readonly componentStack?: string | undefined;
   readonly routeName?: string | undefined;
 }) {
   // The seam renders OUTSIDE SceneView, so this hook resolves to the root
@@ -834,6 +835,7 @@ function ScreenRenderFallback(props: {
       <RenderFailureView
         error={props.error}
         retry={props.retry}
+        componentStack={props.componentStack}
         onGoHome={() => navigation.dispatch(StackActions.replace("Home"))}
       />
     );
@@ -843,6 +845,7 @@ function ScreenRenderFallback(props: {
       <RenderFailureView
         error={props.error}
         retry={props.retry}
+        componentStack={props.componentStack}
         onOpenSettings={() => navigation.navigate("SettingsSheet")}
       />
     );
@@ -851,6 +854,7 @@ function ScreenRenderFallback(props: {
     <RenderFailureView
       error={props.error}
       retry={props.retry}
+      componentStack={props.componentStack}
       onGoBack={() => navigation.goBack()}
     />
   );

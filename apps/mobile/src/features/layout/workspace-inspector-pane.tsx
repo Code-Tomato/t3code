@@ -23,6 +23,17 @@ import { WorkspacePaneDivider } from "./workspace-pane-divider";
  * Receives the pane layout via props (not the workspace context hook) so this
  * module stays import-cycle-free with AdaptiveWorkspaceLayout.
  */
+/**
+ * Invokes the route's inspector renderer INSIDE the boundary subtree. Calling
+ * `props.renderInspector()` as a children expression would run the callback
+ * during THIS component's render — a throw in the route-supplied callback
+ * escapes any boundary placed at the call site. Rendered as a child, the
+ * callback's frame sits under the boundary where it can be caught.
+ */
+function InspectorRenderer(props: { readonly render?: (() => ReactNode) | undefined }) {
+  return props.render?.() ?? null;
+}
+
 export function WorkspaceInspectorPane(props: {
   readonly renderedInspectorWidth: SharedValue<number>;
   /**
@@ -151,7 +162,7 @@ export function WorkspaceInspectorPane(props: {
               subject="The inspector"
               resetKeys={[props.renderInspector]}
             >
-              {props.renderInspector?.()}
+              <InspectorRenderer render={props.renderInspector} />
             </RenderErrorBoundary>
           </Animated.View>
         </Animated.View>

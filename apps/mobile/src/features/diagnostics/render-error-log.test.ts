@@ -5,6 +5,7 @@ import {
   describeRenderError,
   formatRenderErrorReport,
   getRenderErrorRecords,
+  readErrorStack,
   recordRenderError,
   subscribeToRenderErrors,
 } from "./render-error-log";
@@ -90,6 +91,31 @@ describe("describeRenderError", () => {
     };
     expect(() => describeRenderError(hostile)).not.toThrow();
     expect(describeRenderError(hostile)).toBe("[unstringifiable value]");
+  });
+
+  it("survives Error objects whose message/name/stack getters throw", () => {
+    // All three are read inside componentDidCatch's record path; a throw from
+    // any of them would defeat the recovery it is part of.
+    const hostile = new Error("base");
+    const explode = () => {
+      throw new Error("getter");
+    };
+    Object.defineProperty(hostile, "message", { get: explode });
+    Object.defineProperty(hostile, "name", { get: explode });
+    Object.defineProperty(hostile, "stack", { get: explode });
+
+    expect(() => recordRenderError(hostile, "thread-feed")).not.toThrow();
+    expect(() => readErrorStack(hostile)).not.toThrow();
+    expect(readErrorStack(hostile)).toBeUndefined();
+    const record = getRenderErrorRecords()[0];
+    expect(record?.message).toBe("Error");
+    expect(record?.detail).toBe("Error");
+  });
+
+  it("keeps ordinary Error fields when the getters behave", () => {
+    const error = new Error("plain failure");
+    expect(describeRenderError(error)).toBe("plain failure");
+    expect(readErrorStack(error)).toContain("plain failure");
   });
 });
 

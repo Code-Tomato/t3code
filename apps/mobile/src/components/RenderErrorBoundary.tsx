@@ -5,7 +5,11 @@ import { SymbolView } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { MaterialButton } from "./MaterialButton";
 import { tryCopyTextWithHaptic } from "../lib/copyTextWithHaptic";
-import { describeRenderError, recordRenderError } from "../features/diagnostics/render-error-log";
+import {
+  describeRenderError,
+  readErrorStack,
+  recordRenderError,
+} from "../features/diagnostics/render-error-log";
 import {
   boundaryResetFromProps,
   failedBoundaryState,
@@ -133,7 +137,9 @@ export function RenderFailureView(props: {
   // Safe even for hostile throws (throwing `toString`, primitives, symbols).
   const message = describeRenderError(props.error);
   const copy = async () => {
-    const stack = props.error instanceof Error ? (props.error.stack ?? message) : message;
+    // readErrorStack guards hostile stack getters too — copying must never
+    // itself crash the recovery view.
+    const stack = readErrorStack(props.error) ?? message;
     const detail =
       props.componentStack !== undefined
         ? `${stack}\nComponent stack:\n${props.componentStack}`

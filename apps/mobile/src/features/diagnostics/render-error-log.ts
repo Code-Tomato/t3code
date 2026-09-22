@@ -40,9 +40,31 @@ export function subscribeToRenderErrors(listener: () => void): () => void {
 
 export function describeRenderError(error: unknown): string {
   if (error instanceof Error) {
-    return safeString(error.message) || error.name;
+    // message/name/stack can be throwing getters on hostile or exotic errors,
+    // and this runs inside componentDidCatch — a throw here would defeat the
+    // recovery it is part of, so every property read is guarded.
+    const message = readSafely(() => error.message);
+    if (typeof message === "string" && message.length > 0) return message;
+    const name = readSafely(() => error.name);
+    if (typeof name === "string" && name.length > 0) return name;
+    return "Error";
   }
   return safeString(error);
+}
+
+/** The error's own stack, or undefined when absent or unreadable. */
+export function readErrorStack(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const stack = readSafely(() => error.stack);
+  return typeof stack === "string" ? stack : undefined;
+}
+
+function readSafely<T>(read: () => T): T | undefined {
+  try {
+    return read();
+  } catch {
+    return undefined;
+  }
 }
 
 // A hostile `toString`/`Symbol.toPrimitive`/`Symbol.toStringTag` must not turn
@@ -72,10 +94,10 @@ export function recordRenderError(
   options: { readonly componentStack?: string | undefined; readonly timestamp?: number } = {},
 ): void {
   const message = describeRenderError(error);
-  const stack = error instanceof Error ? error.stack : undefined;
+  const stack = readErrorStack(error);
   const detail = [
     message,
-    stack !== undefined && stack !== null ? stack : "",
+    stack !== undefined ? stack : "",
     options.componentStack !== undefined && options.componentStack !== null
       ? `Component stack:${options.componentStack}`
       : "",

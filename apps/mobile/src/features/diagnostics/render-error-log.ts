@@ -29,6 +29,20 @@ let records: RenderErrorRecord[] = [];
 let nextRecordId = 1;
 const listeners = new Set<() => void>();
 
+// recordRenderError runs inside componentDidCatch: one broken subscriber must
+// not replace the recovery path mid-catch, nor starve the subscribers after
+// it (useSyncExternalStore listeners must all see the change).
+function notifyRenderErrorListeners(): void {
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch {
+      // The log's own write already succeeded; a subscriber's render error
+      // will surface through its own boundary, not through this stack.
+    }
+  }
+}
+
 /**
  * `useSyncExternalStore` pair. The records array is replaced (never mutated)
  * on every write, so `getRenderErrorRecords` is a stable snapshot getter: the
@@ -118,7 +132,7 @@ export function recordRenderError(
     { id: nextRecordId++, timestamp: options.timestamp ?? Date.now(), scope, message, detail },
     ...records,
   ].slice(0, MAX_RECORDS);
-  for (const listener of listeners) listener();
+  notifyRenderErrorListeners();
 }
 
 /** Newest first, as stored. */
@@ -128,7 +142,7 @@ export function getRenderErrorRecords(): ReadonlyArray<RenderErrorRecord> {
 
 export function clearRenderErrorRecords(): void {
   records = [];
-  for (const listener of listeners) listener();
+  notifyRenderErrorListeners();
 }
 
 /** The report a user pastes into an issue, mirroring the startup crash report. */

@@ -1,5 +1,6 @@
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
+import { filesInspectorIdentity } from "../../components/render-error-boundary-model";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -725,7 +726,12 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
   );
   useRegisterWorkspaceInspector(
     fileInspector.supported ? renderWorkspaceInspector : undefined,
-    fileInspector.supported ? `files:${relativePath ?? "tree"}` : undefined,
+    filesInspectorIdentity({
+      environmentId,
+      // Draft-mode screens carry cwd instead of a thread.
+      threadOrWorkspace: threadId ?? cwd,
+      relativePath,
+    }),
   );
 
   const fileMenuActions = useMemo(() => {

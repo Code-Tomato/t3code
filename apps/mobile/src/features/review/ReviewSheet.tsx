@@ -1,5 +1,6 @@
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
+import { reviewInspectorIdentity } from "../../components/render-error-boundary-model";
 import { nativeHeaderScrollEdgeEffects } from "../../native/StackHeader";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import type { ScreenHeaderMenuItem } from "../../components/ScreenHeader.types";
@@ -674,7 +675,9 @@ export function ReviewSheet(props: ReviewSheetProps) {
     NativeReviewDiffView !== null;
   useRegisterWorkspaceInspector(
     showChangedFilesPane ? renderInspector : undefined,
-    showChangedFilesPane ? "review:changed-files" : undefined,
+    // Per-section identity: selecting a healthy section out of a crashed
+    // changed-files inspector must reset the boundary (see tests).
+    showChangedFilesPane ? reviewInspectorIdentity(selectedSection?.id) : undefined,
   );
   // A toggle needs registered content; loading, errors and raw patches have no navigator pane.
   const showChangedFilesToggle = panes.supportsAuxiliaryPane && showChangedFilesPane;

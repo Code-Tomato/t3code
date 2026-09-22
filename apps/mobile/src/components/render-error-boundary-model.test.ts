@@ -3,8 +3,10 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   boundaryResetFromProps,
   failedBoundaryState,
+  filesInspectorIdentity,
   healthyBoundaryState,
   inspectorResetKeys,
+  reviewInspectorIdentity,
   screenFallbackExit,
 } from "./render-error-boundary-model";
 
@@ -74,6 +76,32 @@ describe("inspectorResetKeys", () => {
   it("falls back to the callback when no identity is registered", () => {
     const render = () => null;
     expect(inspectorResetKeys(undefined, render)).toEqual([render]);
+  });
+
+  it("resets a crashed review inspector when a healthy section is selected", () => {
+    const render = () => null;
+    const crashed = inspectorResetKeys(reviewInspectorIdentity("section-a"), render);
+    // Same section, rebuilt callback: still no reset (covered above).
+    expect(inspectorResetKeys(reviewInspectorIdentity("section-a"), () => null)).toEqual(crashed);
+    // Selecting a different, healthy section is new content: the boundary
+    // must not stay failed showing the crashed section's fallback.
+    expect(inspectorResetKeys(reviewInspectorIdentity("section-b"), render)).not.toEqual(crashed);
+    expect(inspectorResetKeys(reviewInspectorIdentity(undefined), render)).not.toEqual(crashed);
+  });
+
+  it("keeps the same relative path in another workspace distinct", () => {
+    const render = () => null;
+    const base = { environmentId: "env1", threadOrWorkspace: "t1", relativePath: "src/a.ts" };
+    expect(inspectorResetKeys(filesInspectorIdentity(base), render)).not.toEqual(
+      inspectorResetKeys(filesInspectorIdentity({ ...base, environmentId: "env2" }), render),
+    );
+    expect(inspectorResetKeys(filesInspectorIdentity(base), render)).not.toEqual(
+      inspectorResetKeys(filesInspectorIdentity({ ...base, threadOrWorkspace: "t2" }), render),
+    );
+    // Same content from any registrant → same identity, no spurious resets.
+    expect(inspectorResetKeys(filesInspectorIdentity(base), render)).toEqual(
+      inspectorResetKeys(filesInspectorIdentity({ ...base }), render),
+    );
   });
 });
 

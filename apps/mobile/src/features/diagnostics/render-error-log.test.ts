@@ -174,6 +174,27 @@ describe("subscribeToRenderErrors", () => {
     expect(getRenderErrorRecords()).toHaveLength(0);
     unsubscribe();
   });
+
+  it("isolates a throwing subscriber on both notify paths", () => {
+    // recordRenderError runs inside componentDidCatch; a throwing subscriber
+    // must not propagate through the catch, and must not starve the
+    // subscribers registered after it.
+    let healthyNotified = 0;
+    const unsubscribeBad = subscribeToRenderErrors(() => {
+      throw new Error("subscriber exploded");
+    });
+    const unsubscribeGood = subscribeToRenderErrors(() => {
+      healthyNotified += 1;
+    });
+
+    expect(() => recordRenderError(new Error("crash"), "screen:Thread")).not.toThrow();
+    expect(healthyNotified).toBe(1);
+    expect(() => clearRenderErrorRecords()).not.toThrow();
+    expect(healthyNotified).toBe(2);
+
+    unsubscribeBad();
+    unsubscribeGood();
+  });
 });
 
 describe("formatRenderErrorReport", () => {

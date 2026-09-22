@@ -13,22 +13,10 @@
     "antigravity": ["gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low"]
   },
   "compatibility": {
-    "codex": [
-      {
-        "ranges": [
-          { "range": ">=0.141.0", "status": "supported" },
-          {
-            "range": "<0.141.0",
-            "status": "unsupported",
-            "message": "This Codex version lacks app-server APIs T3 Code uses, such as stopping background terminals. Update Codex to 0.141 or newer."
-          }
-        ]
-      }
-    ],
     "claudeAgent": [
       {
         "ranges": [
-          { "range": ">=2.1.257", "status": "supported" },
+          { "range": ">=2.1.280", "status": "supported" },
           {
             "range": ">=2.1.111",
             "status": "graceful",

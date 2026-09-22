@@ -108,10 +108,9 @@ describe("evaluateProviderCompatibility", () => {
     const bundled = decode(bundledManifest.compatibility);
     const check = (driver: string, version: string) =>
       evaluateProviderCompatibility({ compatibility: bundled, driver, version })?.status;
-    expect(check("codex", "0.141.0")).toBe("supported");
-    expect(check("codex", "0.140.0")).toBe("unsupported");
-    expect(check("claudeAgent", "2.1.257")).toBe("supported");
-    expect(check("claudeAgent", "2.1.200")).toBe("graceful");
+    expect(check("claudeAgent", "2.1.280")).toBe("supported");
+    expect(check("claudeAgent", "2.1.257")).toBe("graceful");
+    expect(check("codex", "0.100.0")).toBeUndefined();
     expect(check("claudeAgent", "2.1.100")).toBe("unsupported");
   });
 });

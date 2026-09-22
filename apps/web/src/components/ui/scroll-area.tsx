@@ -28,7 +28,9 @@ function ScrollArea({
   scrollFadePadding = true,
   scrollbarGutter = false,
   hideScrollbars = false,
+  alwaysShowScrollbars = false,
   chainVerticalScroll = false,
+  radius = "inherit",
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   scrollFade?: boolean;
@@ -37,11 +39,20 @@ function ScrollArea({
   scrollFadePadding?: boolean;
   scrollbarGutter?: boolean;
   hideScrollbars?: boolean;
+  /** Keep the scrollbar visible instead of revealing it on hover and scroll. */
+  alwaysShowScrollbars?: boolean;
   chainVerticalScroll?: boolean;
+  /** The viewport clips to the parent's radius; "none" for a region flush to an edge. */
+  radius?: "inherit" | "none";
 }) {
   return (
     <ScrollAreaPrimitive.Root
-      className={cn("relative size-full min-h-0 overflow-hidden rounded-[inherit]", className)}
+      className={cn(
+        "relative size-full min-h-0 overflow-hidden",
+        radius === "none" ? "rounded-none" : "rounded-[inherit]",
+        alwaysShowScrollbars && "[&_[data-slot=scroll-area-scrollbar]]:opacity-100",
+        className,
+      )}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport

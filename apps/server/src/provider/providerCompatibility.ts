@@ -23,7 +23,7 @@ const COMPARATOR = /^(\^|>=|>|<=|<|=)?v?\d+(\.\d+){0,2}$/;
 
 /** True when `satisfiesSemverRange` understands every comparator in `range`.
  * Anything else would silently never match, so the manifest rejects it. */
-export function isSupportedSemverRange(range: string): boolean {
+function isSupportedSemverRange(range: string): boolean {
   return range.split("||").every((group) => {
     const comparators = group.trim().split(/\s+/).filter(Boolean);
     return comparators.length > 0 && comparators.every((comparator) => COMPARATOR.test(comparator));

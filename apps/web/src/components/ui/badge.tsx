@@ -10,10 +10,16 @@ const badgeVariants = cva(
   "relative inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-sm border border-transparent font-medium outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 [&_svg:not([class*='opacity-'])]:opacity-80 [&_svg:not([class*='size-'])]:size-3.5 sm:[&_svg:not([class*='size-'])]:size-3 [&_svg]:pointer-events-none [&_svg]:shrink-0 [button&,a&]:cursor-pointer [button&,a&]:pointer-coarse:after:absolute [button&,a&]:pointer-coarse:after:size-full [button&,a&]:pointer-coarse:after:min-h-11 [button&,a&]:pointer-coarse:after:min-w-11",
   {
     defaultVariants: {
+      shape: "default",
       size: "default",
+      tone: "default",
       variant: "default",
     },
     variants: {
+      shape: {
+        default: "",
+        pill: "rounded-full px-[calc(--spacing(2)-1px)]",
+      },
       size: {
         control:
           "h-7 min-w-7 rounded-[var(--control-radius)] px-[calc(--spacing(2)-1px)] text-sm sm:h-6 sm:min-w-6 sm:text-xs",
@@ -34,6 +40,14 @@ const badgeVariants = cva(
         secondary: "bg-secondary text-secondary-foreground [button&,a&]:hover:bg-secondary/90",
         success: "bg-success/8 text-success-foreground dark:bg-success/16",
         warning: "bg-warning/8 text-warning-foreground dark:bg-warning/16",
+        // A code-host label tinted from the --label color the consumer sets in style.
+        label:
+          "bg-[color-mix(in_srgb,var(--label)_8%,transparent)] text-[color-mix(in_srgb,var(--label)_30%,var(--color-foreground))] dark:bg-[color-mix(in_srgb,var(--label)_12%,transparent)] dark:text-[color-mix(in_srgb,var(--label)_45%,var(--color-foreground))]",
+      },
+      // Declared after variant so it wins the merge.
+      tone: {
+        default: "",
+        muted: "font-normal text-muted-foreground",
       },
     },
   },
@@ -42,11 +56,13 @@ const badgeVariants = cva(
 interface BadgeProps extends useRender.ComponentProps<"span"> {
   variant?: VariantProps<typeof badgeVariants>["variant"];
   size?: VariantProps<typeof badgeVariants>["size"];
+  shape?: VariantProps<typeof badgeVariants>["shape"];
+  tone?: VariantProps<typeof badgeVariants>["tone"];
 }
 
-function Badge({ className, variant, size, render, ...props }: BadgeProps) {
+function Badge({ className, variant, size, shape, tone, render, ...props }: BadgeProps) {
   const defaultProps = {
-    className: cn(badgeVariants({ className, size, variant })),
+    className: cn(badgeVariants({ className, shape, size, tone, variant })),
     "data-slot": "badge",
   };
 

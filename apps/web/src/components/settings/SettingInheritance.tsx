@@ -291,7 +291,8 @@ export function SettingInheritance({
                       <span>Overridden by</span>
                       {onClearOverrides ? (
                         <InlineButton
-                          className="font-medium text-foreground underline-offset-2 hover:underline"
+                          tone="default"
+                          underline
                           onClick={() => onClearOverrides(overriding)}
                         >
                           Reset {overriding.length === 1 ? "it" : "all"}
@@ -305,7 +306,9 @@ export function SettingInheritance({
                           className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-2 py-1"
                         >
                           <InlineButton
-                            className="min-w-0 justify-start text-left text-foreground underline-offset-2 hover:underline"
+                            tone="default"
+                            underline
+                            className="min-w-0 justify-start"
                             onClick={project.open}
                           >
                             <span className="truncate">{project.label}</span>

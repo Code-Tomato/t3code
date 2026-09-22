@@ -95,21 +95,47 @@ function Button({ className, variant, size, render, ...props }: ButtonProps) {
 
 export { Button, buttonVariants };
 
+const inlineButtonVariants = cva(
+  "inline-flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-64",
+  {
+    defaultVariants: {
+      size: "inherit",
+      tone: "inherit",
+      underline: false,
+    },
+    variants: {
+      size: {
+        inherit: "",
+        xs: "text-[11px] font-medium",
+      },
+      tone: {
+        inherit: "",
+        default: "text-foreground",
+        muted: "text-muted-foreground hover:text-foreground",
+        subtle: "text-foreground/70 hover:text-foreground",
+        destructive: "text-destructive",
+      },
+      underline: {
+        true: "font-medium underline-offset-2 hover:underline",
+        false: "",
+      },
+    },
+  },
+);
+
 /** An inline action that keeps the geometry of surrounding text or a graph node. */
 export function InlineButton({
   className,
-  underline = false,
+  size,
+  tone,
+  underline,
   ...props
-}: React.ComponentProps<"button"> & { underline?: boolean }) {
+}: React.ComponentProps<"button"> & VariantProps<typeof inlineButtonVariants>) {
   return (
     <button
       type="button"
       data-slot="inline-button"
-      className={cn(
-        "inline-flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-64",
-        underline && "border-b border-transparent hover:border-current",
-        className,
-      )}
+      className={cn(inlineButtonVariants({ size, tone, underline }), className)}
       {...props}
     />
   );

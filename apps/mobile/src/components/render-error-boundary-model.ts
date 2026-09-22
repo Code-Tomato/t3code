@@ -80,24 +80,23 @@ export function inspectorResetKeys(
 }
 
 /**
- * Identity builders for the known registrants. The rule each encodes: the
+ * Identity builder for the known registrants. The rule each encodes: the
  * identity changes exactly when the content the user perceives changes —
  * selecting a healthy section out of a crashed inspector must reset, while
  * unrelated route state churn must not.
+ *
+ * Every inspector's content is workspace-bound (a diff, a file tree, a thread
+ * view), so all three parts ride the key: the route/thread the content
+ * belongs to, the cwd it renders (a thread's worktree can move, and
+ * same-id content recurs across workspaces), and the content selection
+ * itself. Keying on any subset lets a crashed fallback persist over new,
+ * healthy content.
  */
-export function reviewInspectorIdentity(sectionId: string | undefined): string {
-  return `review:changed-files:${sectionId ?? "none"}`;
-}
-
-/**
- * Files content is workspace-scoped: the same relative path in another
- * environment or another thread/worktree is different content, so both the
- * environment and the thread-or-cwd are part of the identity.
- */
-export function filesInspectorIdentity(args: {
-  readonly environmentId: string | null | undefined;
-  readonly threadOrWorkspace: string | null | undefined;
-  readonly relativePath: string | null;
+export function workspaceInspectorContentIdentity(args: {
+  readonly source: "thread" | "review" | "files";
+  readonly workspaceKey: string | null | undefined;
+  readonly cwd: string | null | undefined;
+  readonly contentId: string | null | undefined;
 }): string {
-  return `files:${args.environmentId ?? "none"}:${args.threadOrWorkspace ?? "none"}:${args.relativePath ?? "tree"}`;
+  return `${args.source}:${args.workspaceKey ?? "none"}:${args.cwd ?? "none"}:${args.contentId ?? "none"}`;
 }

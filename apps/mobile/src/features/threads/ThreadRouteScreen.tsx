@@ -48,6 +48,7 @@ import { vcsEnvironment } from "../../state/vcs";
 import { EmptyState } from "../../components/EmptyState";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { scopedThreadKey } from "../../lib/scopedEntities";
+import { workspaceInspectorContentIdentity } from "../../components/render-error-boundary-model";
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "../../native/native-glass";
 import { connectionTone } from "../connection/connectionTone";
 import {
@@ -620,13 +621,20 @@ function ThreadRouteContent(
   // updates (see renderInspectorStack) and must not drive the reset.
   useRegisterWorkspaceInspector(
     activeInspectorRenderer,
+    // Thread key + cwd + mode: the Files/Git inspectors render the thread's
+    // current worktree, and the cwd can move under a stable thread id, so a
+    // crashed inspector must reset when the workspace it shows changes.
     activeInspectorRenderer === undefined
       ? undefined
-      : `thread:${
-          selectedThread === null
-            ? "pending"
-            : scopedThreadKey(selectedThread.environmentId, selectedThread.id)
-        }:${inspectorMode ?? "none"}`,
+      : workspaceInspectorContentIdentity({
+          source: "thread",
+          workspaceKey:
+            selectedThread === null
+              ? null
+              : scopedThreadKey(selectedThread.environmentId, selectedThread.id),
+          cwd: selectedThreadCwd,
+          contentId: inspectorMode,
+        }),
   );
 
   const handleOpenConnectionEditor = useCallback(() => {

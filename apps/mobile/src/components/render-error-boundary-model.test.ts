@@ -3,11 +3,10 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   boundaryResetFromProps,
   failedBoundaryState,
-  filesInspectorIdentity,
   healthyBoundaryState,
   inspectorResetKeys,
-  reviewInspectorIdentity,
   screenFallbackExit,
+  workspaceInspectorContentIdentity,
 } from "./render-error-boundary-model";
 
 describe("failedBoundaryState", () => {
@@ -78,30 +77,79 @@ describe("inspectorResetKeys", () => {
     expect(inspectorResetKeys(undefined, render)).toEqual([render]);
   });
 
-  it("resets a crashed review inspector when a healthy section is selected", () => {
+  it("resets a crashed review inspector on new section, thread, or worktree", () => {
     const render = () => null;
-    const crashed = inspectorResetKeys(reviewInspectorIdentity("section-a"), render);
-    // Same section, rebuilt callback: still no reset (covered above).
-    expect(inspectorResetKeys(reviewInspectorIdentity("section-a"), () => null)).toEqual(crashed);
-    // Selecting a different, healthy section is new content: the boundary
-    // must not stay failed showing the crashed section's fallback.
-    expect(inspectorResetKeys(reviewInspectorIdentity("section-b"), render)).not.toEqual(crashed);
-    expect(inspectorResetKeys(reviewInspectorIdentity(undefined), render)).not.toEqual(crashed);
+    const crashed = inspectorResetKeys(
+      workspaceInspectorContentIdentity({
+        source: "review",
+        workspaceKey: "env1|t1",
+        cwd: "/wt/a",
+        contentId: "section-a",
+      }),
+      render,
+    );
+    // Same content, rebuilt callback: still no reset (covered above).
+    // New section, same section id in another thread, or a moved worktree
+    // are all new content and must clear the crashed fallback.
+    const switched = [{ contentId: "section-b" }, { workspaceKey: "env1|t2" }, { cwd: "/wt/b" }];
+    for (const change of switched) {
+      expect(
+        inspectorResetKeys(
+          workspaceInspectorContentIdentity({
+            source: "review",
+            workspaceKey: "env1|t1",
+            cwd: "/wt/a",
+            contentId: "section-a",
+            ...change,
+          }),
+          render,
+        ),
+      ).not.toEqual(crashed);
+    }
   });
 
-  it("keeps the same relative path in another workspace distinct", () => {
+  it("resets a crashed files inspector when the worktree moves under a stable thread", () => {
     const render = () => null;
-    const base = { environmentId: "env1", threadOrWorkspace: "t1", relativePath: "src/a.ts" };
-    expect(inspectorResetKeys(filesInspectorIdentity(base), render)).not.toEqual(
-      inspectorResetKeys(filesInspectorIdentity({ ...base, environmentId: "env2" }), render),
+    const base = {
+      source: "files" as const,
+      workspaceKey: "env1|t1",
+      cwd: "/wt/a",
+      contentId: "src/a.ts",
+    };
+    const crashed = inspectorResetKeys(workspaceInspectorContentIdentity(base), render);
+    // threadId present but cwd changed: the audited collision.
+    expect(
+      inspectorResetKeys(workspaceInspectorContentIdentity({ ...base, cwd: "/wt/b" }), render),
+    ).not.toEqual(crashed);
+    expect(
+      inspectorResetKeys(
+        workspaceInspectorContentIdentity({ ...base, workspaceKey: "env1|t2" }),
+        render,
+      ),
+    ).not.toEqual(crashed);
+    // Same content → same identity: unrelated callback rebuilds still do not reset.
+    expect(inspectorResetKeys(workspaceInspectorContentIdentity({ ...base }), render)).toEqual(
+      crashed,
     );
-    expect(inspectorResetKeys(filesInspectorIdentity(base), render)).not.toEqual(
-      inspectorResetKeys(filesInspectorIdentity({ ...base, threadOrWorkspace: "t2" }), render),
-    );
-    // Same content from any registrant → same identity, no spurious resets.
-    expect(inspectorResetKeys(filesInspectorIdentity(base), render)).toEqual(
-      inspectorResetKeys(filesInspectorIdentity({ ...base }), render),
-    );
+  });
+
+  it("resets a crashed thread inspector when the inspected cwd changes", () => {
+    const render = () => null;
+    const base = {
+      source: "thread" as const,
+      workspaceKey: "env1|t1",
+      cwd: "/wt/a",
+      contentId: "files",
+    };
+    const crashed = inspectorResetKeys(workspaceInspectorContentIdentity(base), render);
+    // Same thread and mode, worktree moved: workspace-bound content changed.
+    expect(
+      inspectorResetKeys(workspaceInspectorContentIdentity({ ...base, cwd: "/wt/b" }), render),
+    ).not.toEqual(crashed);
+    // Sources stay distinct even with otherwise identical parts.
+    expect(
+      inspectorResetKeys(workspaceInspectorContentIdentity({ ...base, source: "files" }), render),
+    ).not.toEqual(crashed);
   });
 });
 

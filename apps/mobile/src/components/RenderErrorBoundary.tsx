@@ -5,7 +5,7 @@ import { SymbolView } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { MaterialButton } from "./MaterialButton";
 import { tryCopyTextWithHaptic } from "../lib/copyTextWithHaptic";
-import { recordRenderError } from "../features/diagnostics/render-error-log";
+import { describeRenderError, recordRenderError } from "../features/diagnostics/render-error-log";
 import {
   boundaryResetFromProps,
   failedBoundaryState,
@@ -21,6 +21,8 @@ interface RenderErrorBoundaryProps {
   readonly resetKeys?: ReadonlyArray<unknown> | undefined;
   /** Subject noun for the default fallback's headline, e.g. "The conversation". */
   readonly subject?: string;
+  /** Forwarded to a custom `fallback` so it can adapt per route (screen seam). */
+  readonly routeName?: string | undefined;
   /**
    * Recovery UI override, rendered as its own component so it can use hooks
    * (e.g. navigation) even though the boundary itself is a class.
@@ -31,6 +33,10 @@ interface RenderErrorBoundaryProps {
 export interface RenderFallbackProps {
   readonly error: unknown;
   readonly retry: () => void;
+  /** React's component stack when the runtime captured one; feeds "Copy details". */
+  readonly componentStack?: string | undefined;
+  /** Route name for screen-seam fallbacks that pick their exit per route. */
+  readonly routeName?: string | undefined;
 }
 
 type RenderErrorBoundaryState = BoundaryState;
@@ -70,6 +76,11 @@ export class RenderErrorBoundary extends Component<
 
   override componentDidCatch(error: unknown, info: { componentStack?: string }) {
     recordRenderError(error, this.props.scope, { componentStack: info.componentStack });
+    // Keep the component path for the recovery view's "Copy details" too —
+    // in release builds it may be the only component stack anyone ever sees.
+    if (info.componentStack !== undefined) {
+      this.setState({ componentStack: info.componentStack });
+    }
   }
 
   private readonly retry = () => {
@@ -80,13 +91,21 @@ export class RenderErrorBoundary extends Component<
     if (this.state.failed) {
       if (this.props.fallback) {
         const Fallback = this.props.fallback;
-        return <Fallback error={this.state.error} retry={this.retry} />;
+        return (
+          <Fallback
+            error={this.state.error}
+            retry={this.retry}
+            componentStack={this.state.componentStack}
+            routeName={this.props.routeName}
+          />
+        );
       }
       return (
         <RenderFailureView
           subject={this.props.subject}
           error={this.state.error}
           retry={this.retry}
+          componentStack={this.state.componentStack}
         />
       );
     }
@@ -104,14 +123,21 @@ export function RenderFailureView(props: {
   readonly subject?: string;
   readonly error: unknown;
   readonly retry: () => void;
+  readonly componentStack?: string | undefined;
   readonly onGoBack?: (() => void) | undefined;
   /** Escape exit for a cold-launch crash where there is no route to go back to. */
   readonly onOpenSettings?: (() => void) | undefined;
+  /** Escape exit when even Settings is the broken route (replace stack with Home). */
+  readonly onGoHome?: (() => void) | undefined;
 }) {
-  const message =
-    props.error instanceof Error ? props.error.message || props.error.name : String(props.error);
+  // Safe even for hostile throws (throwing `toString`, primitives, symbols).
+  const message = describeRenderError(props.error);
   const copy = async () => {
-    const detail = props.error instanceof Error ? (props.error.stack ?? message) : message;
+    const stack = props.error instanceof Error ? (props.error.stack ?? message) : message;
+    const detail =
+      props.componentStack !== undefined
+        ? `${stack}\nComponent stack:\n${props.componentStack}`
+        : stack;
     await tryCopyTextWithHaptic(detail, { target: "render error details" });
   };
   return (
@@ -150,6 +176,9 @@ export function RenderFailureView(props: {
             tone="text"
             fullWidth
           />
+        ) : null}
+        {props.onGoHome ? (
+          <MaterialButton label="Return home" onPress={props.onGoHome} tone="text" fullWidth />
         ) : null}
       </View>
     </View>

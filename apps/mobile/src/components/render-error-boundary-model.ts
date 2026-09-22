@@ -9,10 +9,12 @@
 export interface BoundaryState {
   readonly failed: boolean;
   readonly error: unknown;
+  /** React's component stack, when the runtime provides one; shown on copy. */
+  readonly componentStack?: string | undefined;
   readonly resetKeys?: ReadonlyArray<unknown> | undefined;
 }
 
-/** Returned by getDerivedStateFromError; omitting `resetKeys` keeps the tracked ones through the merge. */
+/** Returned by getDerivedStateFromError; omitting other keys keeps them through the setState merge. */
 export function failedBoundaryState(error: unknown): Pick<BoundaryState, "failed" | "error"> {
   return { failed: true, error };
 }
@@ -20,7 +22,7 @@ export function failedBoundaryState(error: unknown): Pick<BoundaryState, "failed
 export function healthyBoundaryState(
   resetKeys?: ReadonlyArray<unknown> | undefined,
 ): BoundaryState {
-  return { failed: false, error: undefined, resetKeys };
+  return { failed: false, error: undefined, componentStack: undefined, resetKeys };
 }
 
 /**
@@ -45,10 +47,17 @@ export function boundaryResetFromProps(
  * Which exit the screen-level fallback offers: normally Go back, but when the
  * crashing route is the only route (cold launch on Home), there is no previous
  * route and no back gesture — the fallback must still lead somewhere that can
- * show the recorded diagnostics, so it offers Settings instead.
+ * show the recorded diagnostics, so it offers Settings instead. When the
+ * broken route IS the Settings sheet itself, navigating to it would land back
+ * on the crash, so the only safe exit is replacing the stack with Home.
  */
-export type ScreenFallbackExit = "go-back" | "open-settings";
+export type ScreenFallbackExit = "go-back" | "open-settings" | "go-home";
 
-export function screenFallbackExit(canGoBack: boolean): ScreenFallbackExit {
-  return canGoBack ? "go-back" : "open-settings";
+export function screenFallbackExit(args: {
+  readonly canGoBack: boolean;
+  readonly routeName: string;
+}): ScreenFallbackExit {
+  if (args.canGoBack) return "go-back";
+  if (args.routeName === "SettingsSheet") return "go-home";
+  return "open-settings";
 }

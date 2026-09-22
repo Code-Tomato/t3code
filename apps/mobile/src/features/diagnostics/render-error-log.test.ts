@@ -66,6 +66,17 @@ describe("describeRenderError", () => {
     const thrown = { toString: () => "custom" };
     expect(describeRenderError(thrown)).toBe("custom");
   });
+
+  it("survives hostile throws whose toString rethrows", () => {
+    // Reporting and the recovery view must never become the second crash.
+    const thrown = {
+      toString() {
+        throw new Error("nope");
+      },
+    };
+    expect(() => describeRenderError(thrown)).not.toThrow();
+    expect(describeRenderError(thrown)).toBe("[object Object]");
+  });
 });
 
 describe("formatRenderErrorReport", () => {

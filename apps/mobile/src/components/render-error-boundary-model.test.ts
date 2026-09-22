@@ -50,12 +50,19 @@ describe("boundaryResetFromProps", () => {
 
 describe("screenFallbackExit", () => {
   it("offers Go back when a previous route exists", () => {
-    expect(screenFallbackExit(true)).toBe("go-back");
+    expect(screenFallbackExit({ canGoBack: true, routeName: "SettingsSheet" })).toBe("go-back");
+    expect(screenFallbackExit({ canGoBack: true, routeName: "Home" })).toBe("go-back");
   });
 
   it("offers Settings when the crashing route is the only route", () => {
     // Cold launch straight into a broken Home: no back gesture, and the
     // Settings sheet is outside the failed subtree and always reachable.
-    expect(screenFallbackExit(false)).toBe("open-settings");
+    expect(screenFallbackExit({ canGoBack: false, routeName: "Home" })).toBe("open-settings");
+  });
+
+  it("offers Home when the Settings sheet itself is the cold-launch crash", () => {
+    // "Open settings" on a broken, already-focused SettingsSheet navigates to
+    // the broken route — the exit must replace the stack with Home instead.
+    expect(screenFallbackExit({ canGoBack: false, routeName: "SettingsSheet" })).toBe("go-home");
   });
 });

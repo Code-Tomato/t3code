@@ -802,6 +802,7 @@ function GuardedScreenLayout(props: {
   return (
     <RenderErrorBoundary
       scope={`screen:${props.route.name}`}
+      routeName={props.route.name}
       // In split view the Thread route stays mounted while a sidebar selection
       // swaps its params; new params are new input and must not inherit a
       // previous thread's failure state.
@@ -813,13 +814,31 @@ function GuardedScreenLayout(props: {
   );
 }
 
-function ScreenRenderFallback(props: { readonly error: unknown; readonly retry: () => void }) {
+function ScreenRenderFallback(props: {
+  readonly error: unknown;
+  readonly retry: () => void;
+  readonly routeName?: string | undefined;
+}) {
+  // The seam renders OUTSIDE SceneView, so this hook resolves to the root
+  // navigation container — exactly the stack-level goBack/navigate/popToTop
+  // the recovery exits need, and it is unaffected by the failed subtree.
   const navigation = useNavigation();
-  // The navigation container is outside the failed subtree, so navigating out
-  // still works even when the screen content cannot render. On a cold-launch
-  // crash there is no previous route to go back to; Settings (and its
-  // Diagnostics tab, where the caught errors are listed) is always reachable.
-  if (screenFallbackExit(navigation.canGoBack()) === "open-settings") {
+  const exit = screenFallbackExit({
+    canGoBack: navigation.canGoBack(),
+    routeName: props.routeName ?? "",
+  });
+  if (exit === "go-home") {
+    // Replace, not pop: on a single-route cold launch the broken sheet must
+    // unmount, or its fallback would stay on screen behind Home.
+    return (
+      <RenderFailureView
+        error={props.error}
+        retry={props.retry}
+        onGoHome={() => navigation.dispatch(StackActions.replace("Home"))}
+      />
+    );
+  }
+  if (exit === "open-settings") {
     return (
       <RenderFailureView
         error={props.error}

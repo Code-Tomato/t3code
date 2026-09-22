@@ -27,9 +27,19 @@ let records: RenderErrorRecord[] = [];
 
 export function describeRenderError(error: unknown): string {
   if (error instanceof Error) {
-    return error.message.trim().length > 0 ? error.message : error.name;
+    return safeString(error.message) || error.name;
   }
-  return String(error);
+  return safeString(error);
+}
+
+// A hostile `toString`/`Symbol.toPrimitive` must not turn error reporting — or
+// the recovery view that renders the message — into a second crash.
+function safeString(value: unknown): string {
+  try {
+    return String(value);
+  } catch {
+    return Object.prototype.toString.call(value);
+  }
 }
 
 /**

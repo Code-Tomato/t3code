@@ -2677,18 +2677,13 @@ function LocalSecondaryStatus() {
   return (
     <SidebarGroup className="px-2 pt-2 pb-0">
       {connecting.length > 0 ? (
-        <Alert
-          variant="default"
-          className="rounded-2xl border-border/40 bg-accent/40 text-muted-foreground"
-        >
+        <Alert variant="sidebar-notice">
           <Spinner />
-          <AlertTitle className="text-xs font-medium text-foreground">
-            Connecting {connecting.join(", ")}
-          </AlertTitle>
+          <AlertTitle>Connecting {connecting.join(", ")}</AlertTitle>
         </Alert>
       ) : null}
       {failed.length > 0 ? (
-        <Alert variant="warning" className="rounded-2xl border-warning/40 bg-warning/8">
+        <Alert variant="sidebar-warning">
           <TriangleAlertIcon />
           <AlertTitle>Couldn't connect {failed.map((entry) => entry.label).join(", ")}</AlertTitle>
           <AlertDescription>
@@ -2986,9 +2981,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                 <SearchIcon />
                 <span className="flex-1 truncate">Search</span>
                 {commandPaletteShortcutLabel ? (
-                  <Kbd className="h-4 min-w-0 rounded-sm px-1.5 text-[10px]">
-                    {commandPaletteShortcutLabel}
-                  </Kbd>
+                  <Kbd size="xs">{commandPaletteShortcutLabel}</Kbd>
                 ) : null}
               </CommandDialogTrigger>
             </SidebarMenuItem>
@@ -2998,7 +2991,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     >
       {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
         <SidebarGroup className="px-2 pt-2 pb-0">
-          <Alert variant="warning" className="rounded-2xl border-warning/40 bg-warning/8">
+          <Alert variant="sidebar-warning">
             <TriangleAlertIcon />
             <AlertTitle>Intel build on Apple Silicon</AlertTitle>
             <AlertDescription>{arm64IntelBuildWarningDescription}</AlertDescription>

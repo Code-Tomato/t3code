@@ -5,7 +5,7 @@ import type { EnvironmentId, OrchestrationCheckpointSummary, ThreadId } from "@t
 
 import { useCheckpointDiff } from "../../state/queries";
 import { useEnvironmentQuery } from "../../state/query";
-import { reviewEnvironment } from "../../state/review";
+import { reviewEnvironment } from "../../state/clientBridges";
 import { useSelectedThreadDetail } from "../../state/use-thread-detail";
 import { useSelectedThreadWorktree } from "../../state/use-selected-thread-worktree";
 import {

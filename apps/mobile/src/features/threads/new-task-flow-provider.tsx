@@ -63,7 +63,7 @@ import {
   flushPendingTaskEditorWrite,
 } from "../../state/pending-task-editor-writes";
 import { useDebouncedValue, usePaginatedBranches } from "../../state/queries";
-import { vcsEnvironment } from "../../state/vcs";
+import { vcsEnvironment } from "../../state/clientBridges";
 import {
   flattenQueuedThreadMessages,
   threadOutboxManager,

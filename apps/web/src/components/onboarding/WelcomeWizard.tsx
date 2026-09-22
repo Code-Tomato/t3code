@@ -55,7 +55,7 @@ import { isOnboardingRelayEnvironment } from "../../onboarding/targetEnvironment
 import { useProjectScans } from "../../onboarding/useProjectScans";
 import { projectEnvironment } from "../../state/projects";
 import { serverEnvironment } from "../../state/server";
-import { terminalEnvironment } from "../../state/terminal";
+import { terminalEnvironment } from "../../state/clientBridges";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { connectPairing } from "../../connection/onboarding";
 import { getProviderSummary } from "../settings/providerStatus";

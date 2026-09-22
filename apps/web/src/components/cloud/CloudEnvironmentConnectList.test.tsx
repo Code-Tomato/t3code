@@ -19,7 +19,7 @@ const discovery = vi.hoisted(() => ({
   listEnvironments: vi.fn<() => Promise<DiscoveredEnvironments>>(),
 }));
 
-vi.mock("~/state/relay", () => ({
+vi.mock("~/state/clientBridges", () => ({
   relayEnvironmentDiscovery: { refresh: discovery.refreshCommand },
 }));
 vi.mock("~/connection/catalog", () => ({

@@ -83,8 +83,8 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useEnvironmentQuery } from "../state/query";
 import { useAtomCommand } from "../state/use-atom-command";
 import { serverEnvironment } from "../state/server";
-import { reviewEnvironment } from "../state/review";
-import { vcsEnvironment } from "../state/vcs";
+import { reviewEnvironment } from "../state/clientBridges";
+import { vcsEnvironment } from "../state/clientBridges";
 import { buildBaseRefChoices, filterBaseRefChoices } from "../lib/baseRefChoices";
 import { createGitDiffFileContentsLoader } from "../lib/diffFileContents";
 

@@ -13,7 +13,7 @@ import {
 } from "@t3tools/client-runtime/state/attachments";
 
 import { appAtomRegistry } from "~/rpc/atomRegistry";
-import { attachmentEnvironment } from "~/state/attachments";
+import { attachmentEnvironment } from "~/state/clientBridges";
 import { readPreparedConnection } from "~/state/session";
 
 /** Sends the finished encoded file once; capture frames never cross the environment connection. */

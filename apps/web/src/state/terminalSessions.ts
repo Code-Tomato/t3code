@@ -15,7 +15,7 @@ import {
 import { useMemo } from "react";
 
 import { useEnvironmentQuery } from "./query";
-import { terminalEnvironment } from "./terminal";
+import { terminalEnvironment } from "./clientBridges";
 
 const EMPTY_KNOWN_TERMINAL_SESSIONS = Object.freeze<ReadonlyArray<KnownTerminalSession>>([]);
 

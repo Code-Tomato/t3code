@@ -20,11 +20,11 @@ import { AsyncResult, Atom } from "effect/unstable/reactivity";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { appAtomRegistry } from "./atom-registry";
-import { orchestrationEnvironment } from "./orchestration";
+import { orchestrationEnvironment } from "./clientBridges";
 import { projectEnvironment } from "./projects";
 import { useEnvironmentQuery } from "./query";
 import { useEnvironmentThread } from "./threads";
-import { vcsEnvironment } from "./vcs";
+import { vcsEnvironment } from "./clientBridges";
 import { composerPullRequests } from "./pull-requests";
 import {
   buildCheckpointDiffTargets,

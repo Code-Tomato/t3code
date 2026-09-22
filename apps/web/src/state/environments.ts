@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import { environmentCatalog } from "../connection/catalog";
 import { environmentPresentations, useEnvironmentPresentation } from "./presentation";
 import { primaryEnvironmentIdAtom } from "./primaryEnvironment";
-import { relayEnvironmentDiscovery } from "./relay";
+import { relayEnvironmentDiscovery } from "./clientBridges";
 import { usePreparedConnection } from "./session";
 
 export interface EnvironmentPresentation extends BaseEnvironmentPresentation {

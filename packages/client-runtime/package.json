@@ -123,9 +123,17 @@
       "types": "./src/state/connections.ts",
       "default": "./src/state/connections.ts"
     },
+    "./state/client-bridges": {
+      "types": "./src/state/clientBridges.ts",
+      "default": "./src/state/clientBridges.ts"
+    },
     "./state/entities": {
       "types": "./src/state/entities.ts",
       "default": "./src/state/entities.ts"
+    },
+    "./state/environment-query": {
+      "types": "./src/state/environmentQuery.ts",
+      "default": "./src/state/environmentQuery.ts"
     },
     "./state/filesystem": {
       "types": "./src/state/filesystem.ts",

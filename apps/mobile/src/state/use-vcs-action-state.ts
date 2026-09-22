@@ -4,7 +4,7 @@ import { Atom } from "effect/unstable/reactivity";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { appAtomRegistry } from "./atom-registry";
-import { vcsActionManager } from "./vcs";
+import { vcsActionManager } from "./clientBridges";
 
 export function useVcsActionState(target: VcsActionTarget): VcsActionState {
   return useAtomValue(vcsActionManager.stateAtom(target));

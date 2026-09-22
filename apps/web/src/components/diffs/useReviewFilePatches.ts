@@ -5,7 +5,7 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getRenderablePatch, resolveFileDiffPath, type RenderablePatch } from "~/lib/diffRendering";
-import { reviewEnvironment } from "~/state/review";
+import { reviewEnvironment } from "~/state/clientBridges";
 
 export function useReviewFilePatches({
   environmentId,

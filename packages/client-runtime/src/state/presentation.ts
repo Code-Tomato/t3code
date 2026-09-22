@@ -8,6 +8,7 @@ import {
   type EnvironmentPresentation,
 } from "../connection/presentation.ts";
 import type { EnvironmentCatalogState } from "./connections.ts";
+import type { ClientPlatform } from "./runtime.ts";
 
 function mapsEqual<K, V>(left: ReadonlyMap<K, V>, right: ReadonlyMap<K, V>): boolean {
   if (left.size !== right.size) {
@@ -70,4 +71,22 @@ export function createEnvironmentPresentationAtoms<E>(input: {
     presentationAtom,
     presentationsAtom,
   };
+}
+
+/**
+ * Chooses the presentation atom for a hook: a shared, platform-labeled empty
+ * atom while no environment is selected, the family atom otherwise. Keeps the
+ * null-handling and label convention defined once for both clients.
+ */
+export function createEnvironmentPresentationAtomSelector(input: {
+  readonly presentationAtom: (
+    environmentId: EnvironmentId,
+  ) => Atom.Atom<EnvironmentPresentation | null>;
+  readonly platform: ClientPlatform;
+}) {
+  const emptyAtom = Atom.make<EnvironmentPresentation | null>(null).pipe(
+    Atom.withLabel(`${input.platform}-environment-presentation:empty`),
+  );
+  return (environmentId: EnvironmentId | null) =>
+    environmentId === null ? emptyAtom : input.presentationAtom(environmentId);
 }

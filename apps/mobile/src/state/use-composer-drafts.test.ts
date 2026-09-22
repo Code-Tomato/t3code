@@ -126,7 +126,7 @@ vi.mock("../lib/composerImages", async (importOriginal) => ({
 
 vi.mock("../lib/uuid", () => ({ uuidv4: () => "uuid", randomHex: () => "0000" }));
 vi.mock("./assets", () => ({ assetEnvironment: {} }));
-vi.mock("./attachments", () => ({ attachmentEnvironment: {} }));
+vi.mock("./clientBridges", () => ({ attachmentEnvironment: {} }));
 vi.mock("./session", () => ({ environmentSession: {} }));
 vi.mock("@t3tools/client-runtime/state/runtime", () => ({
   createEnvironmentRpcCommand: () => Symbol("rpc-command"),

@@ -25,7 +25,7 @@ import {
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { environmentCatalog } from "../connection/catalog";
 import { assetEnvironment } from "../state/assets";
-import { attachmentEnvironment } from "../state/attachments";
+import { attachmentEnvironment } from "../state/clientBridges";
 import { readPreparedConnection } from "../state/session";
 import type { AttachmentUploadState, ReadyAttachmentUpload } from "./attachmentUploadState";
 

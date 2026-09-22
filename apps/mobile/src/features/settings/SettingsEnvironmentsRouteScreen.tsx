@@ -16,7 +16,7 @@ import { GitHubRoutingSettings } from "../connection/GitHubRoutingSettings";
 import { splitEnvironmentSections } from "../connection/environmentSections";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
-import { relayEnvironmentDiscovery } from "../../state/relay";
+import { relayEnvironmentDiscovery } from "../../state/clientBridges";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
   applyShowcaseLocalEnvironmentDisplayUrls,

@@ -331,6 +331,9 @@ export async function executeAtomCommand<A, E>(
   return result;
 }
 
+/** Which client app is wiring the shared state bridges (desktop reuses the web client). */
+export type ClientPlatform = "mobile" | "web";
+
 export interface AtomQueryOptions extends AtomCommandOptions {
   /**
    * Force a fresh execution instead of accepting a value the atom already
@@ -340,6 +343,52 @@ export interface AtomQueryOptions extends AtomCommandOptions {
   readonly refresh?: boolean;
   /** Interrupt the query wait when its caller no longer wants the result. */
   readonly signal?: AbortSignal;
+}
+
+export interface ResolvedAtomCommandOptions extends AtomCommandOptions {
+  readonly label: string;
+  readonly reportFailure: boolean;
+  readonly reportDefect: boolean;
+}
+
+/**
+ * Resolves the `label | options` shorthand accepted by the per-client hook
+ * bridges so mobile and web share one definition of the defaulting semantics.
+ */
+export function resolveAtomCommandOptions<W, A, E>(
+  command: AtomCommand<W, A, E>,
+  options?: string | AtomCommandOptions,
+): ResolvedAtomCommandOptions {
+  return typeof options === "string"
+    ? { label: options, reportFailure: true, reportDefect: true }
+    : {
+        label: options?.label ?? command.label,
+        reportFailure: options?.reportFailure ?? true,
+        reportDefect: options?.reportDefect ?? true,
+      };
+}
+
+export interface ResolvedAtomQueryOptions extends AtomQueryOptions {
+  readonly reportFailure: boolean;
+  readonly reportDefect: boolean;
+  readonly refresh: boolean;
+}
+
+/**
+ * Query variant of {@link resolveAtomCommandOptions}. An omitted `label` is
+ * left undefined here; `executeAtomQuery` falls back to the atom's own label.
+ */
+export function resolveAtomQueryOptions(
+  options?: string | AtomQueryOptions,
+): ResolvedAtomQueryOptions {
+  return typeof options === "string"
+    ? { label: options, reportFailure: true, reportDefect: true, refresh: false }
+    : {
+        ...options,
+        reportFailure: options?.reportFailure ?? true,
+        reportDefect: options?.reportDefect ?? true,
+        refresh: options?.refresh ?? false,
+      };
 }
 
 export async function executeAtomQuery<A, E>(
@@ -368,7 +417,7 @@ export async function executeAtomQuery<A, E>(
   );
   return executeAtomCommand(
     () => Effect.runPromiseExit(query, { signal: options.signal }),
-    options,
+    { ...options, label: options.label ?? atom.label?.[0] ?? "atom query" },
     reporter,
   );
 }

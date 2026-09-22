@@ -5,7 +5,7 @@ import {
 } from "@t3tools/client-runtime/worktree-setup";
 import { useEffect, useState } from "react";
 import { useEnvironmentQuery } from "../../state/query";
-import { vcsEnvironment } from "../../state/vcs";
+import { vcsEnvironment } from "../../state/clientBridges";
 
 /** Retain the last live snapshot when its subscription closes after setup. */
 export function useWorktreeSetup(input: {

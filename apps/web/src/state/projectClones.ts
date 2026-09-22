@@ -5,7 +5,7 @@ import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/unstable/reactivity";
 
 import { environmentServerConfigsAtom } from "./server";
-import { sourceControlEnvironment } from "./sourceControl";
+import { sourceControlEnvironment } from "./clientBridges";
 
 const EMPTY_CLONES: ReadonlyArray<ProjectCloneSnapshot> = [];
 const EMPTY_CLONE_ATOM = Atom.make<ProjectCloneSnapshot | null>(null).pipe(

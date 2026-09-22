@@ -25,7 +25,7 @@ import { Bot, Braces, Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
-import { orchestrationEnvironment } from "~/state/orchestration";
+import { orchestrationEnvironment } from "~/state/clientBridges";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Button } from "~/components/ui/button";
 

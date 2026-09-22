@@ -17,7 +17,7 @@ import {
   updateBearerConnection,
 } from "../../connection/onboarding";
 import { useEnvironments } from "../../state/environments";
-import { relayEnvironmentDiscovery } from "../../state/relay";
+import { relayEnvironmentDiscovery } from "../../state/clientBridges";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { projectWorkspaceEnvironment, type WorkspaceEnvironment } from "../../state/workspaceModel";
 import { relayManagedEnvironmentIds } from "./environmentSections";

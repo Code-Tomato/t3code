@@ -47,7 +47,7 @@ vi.mock("~/state/pullRequests", async (importOriginal) => ({
   usePullRequestTurnRefresh: () => 0,
   useSharedPullRequestSummary: () => null,
 }));
-vi.mock("~/state/vcs", () => ({ vcsEnvironment: { listRefs: () => null } }));
+vi.mock("~/state/clientBridges", () => ({ vcsEnvironment: { listRefs: () => null } }));
 vi.mock("~/state/query", () => ({
   useEnvironmentQuery: (query: string) => ({
     data: query === "detail" ? detail : null,

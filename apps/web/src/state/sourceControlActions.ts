@@ -25,9 +25,9 @@ import { useCallback } from "react";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { gitEnvironment } from "./git";
 import { useEnvironmentQuery } from "./query";
-import { sourceControlEnvironment } from "./sourceControl";
+import { sourceControlEnvironment } from "./clientBridges";
 import { useAtomCommand } from "./use-atom-command";
-import { vcsActionManager, vcsEnvironment } from "./vcs";
+import { vcsActionManager, vcsEnvironment } from "./clientBridges";
 
 export type SourceControlActionKind =
   | "init"

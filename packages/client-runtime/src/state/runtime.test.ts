@@ -36,6 +36,8 @@ import {
   executeAtomQuery,
   isAtomCommandInterrupted,
   mapAtomCommandResult,
+  resolveAtomCommandOptions,
+  resolveAtomQueryOptions,
   runAtomCommand,
   settleAsyncResult,
   settlePromise,
@@ -950,5 +952,78 @@ describe("runtime command runner", () => {
     expect(await third).toMatchObject({ _tag: "Success", value: 3, waiting: false });
     expect(executed).toEqual([1, 3]);
     registry.dispose();
+  });
+});
+
+describe("resolveAtomCommandOptions", () => {
+  const command = { label: "cmd", run: async () => AsyncResult.success("ok") };
+
+  it("defaults the label to the command and reports everything", () => {
+    expect(resolveAtomCommandOptions(command)).toEqual({
+      label: "cmd",
+      reportFailure: true,
+      reportDefect: true,
+    });
+  });
+
+  it("treats a string shorthand as the label with full reporting", () => {
+    expect(resolveAtomCommandOptions(command, "ship it")).toEqual({
+      label: "ship it",
+      reportFailure: true,
+      reportDefect: true,
+    });
+  });
+
+  it("keeps explicit opt-outs while defaulting the label", () => {
+    expect(resolveAtomCommandOptions(command, { reportFailure: false })).toEqual({
+      label: "cmd",
+      reportFailure: false,
+      reportDefect: true,
+    });
+  });
+});
+
+describe("resolveAtomQueryOptions", () => {
+  it("defaults refresh off and reporting on, leaving the label to the atom", () => {
+    const resolved = resolveAtomQueryOptions();
+    expect(resolved.label).toBeUndefined();
+    expect(resolved.reportFailure).toBe(true);
+    expect(resolved.reportDefect).toBe(true);
+    expect(resolved.refresh).toBe(false);
+  });
+
+  it("treats a string shorthand as the label without enabling refresh", () => {
+    expect(resolveAtomQueryOptions("verify")).toMatchObject({
+      label: "verify",
+      refresh: false,
+      reportFailure: true,
+      reportDefect: true,
+    });
+  });
+
+  it("preserves explicit query flags", () => {
+    expect(resolveAtomQueryOptions({ refresh: true, reportFailure: false })).toMatchObject({
+      refresh: true,
+      reportFailure: false,
+      reportDefect: true,
+    });
+  });
+});
+
+describe("executeAtomQuery report labels", () => {
+  it("falls back to the atom's own label and prefers an explicit label", async () => {
+    const registry = AtomRegistry.make();
+    const atom = Atom.make(Effect.fail("nope")).pipe(Atom.withLabel("usage-summary"));
+    const warnings: string[] = [];
+    const reporter = { warn: (message: string) => warnings.push(message), error: () => {} };
+
+    await executeAtomQuery(registry, atom, {}, reporter);
+    await executeAtomQuery(registry, atom, { label: "explicit" }, reporter);
+    registry.dispose();
+
+    expect(warnings).toEqual([
+      "[atom-command] usage-summary failed",
+      "[atom-command] explicit failed",
+    ]);
   });
 });

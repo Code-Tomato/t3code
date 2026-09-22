@@ -4,7 +4,7 @@ import { selectRunningSubprocessTerminalIds } from "@t3tools/client-runtime/stat
 
 import { selectKnownTerminalSessions } from "./terminalSessions";
 
-vi.mock("./terminal", () => ({ terminalEnvironment: {} }));
+vi.mock("./clientBridges", () => ({ terminalEnvironment: {} }));
 
 const environmentA = EnvironmentId.make("environment-a");
 const environmentB = EnvironmentId.make("environment-b");

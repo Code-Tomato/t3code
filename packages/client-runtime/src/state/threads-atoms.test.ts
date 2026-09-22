@@ -21,7 +21,7 @@ import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 import * as TestClock from "effect/testing/TestClock";
-import { Atom, AtomRegistry } from "effect/unstable/reactivity";
+import { AsyncResult, Atom, AtomRegistry } from "effect/unstable/reactivity";
 import { RpcClientError } from "effect/unstable/rpc";
 import { Socket } from "effect/unstable/socket";
 
@@ -43,7 +43,9 @@ import { createEnvironmentThreadDetailAtoms } from "./threadDetail.ts";
 import { THREAD_SNAPSHOT_IDLE_TTL_MS } from "./threadRetention.ts";
 import type { ThreadSnapshotWindow } from "./threadSnapshotHttp.ts";
 import {
+  createEnvironmentThreadAtomSelector,
   createEnvironmentThreadStateAtoms,
+  EMPTY_ENVIRONMENT_THREAD_STATE,
   makeEnvironmentThreadState,
   requestOlderThreadTurns,
   ThreadSnapshotLoader,
@@ -891,4 +893,30 @@ describe("createEnvironmentThreadStateAtoms", () => {
       yield* Deferred.await(retried.closed);
     }),
   );
+});
+
+describe("createEnvironmentThreadAtomSelector", () => {
+  it("serves the platform-labeled empty atom while environment or thread is missing", () => {
+    const environmentId = EnvironmentId.make("environment-a");
+    const threadId = ThreadId.make("thread-a");
+    let familyCalls = 0;
+    const selector = createEnvironmentThreadAtomSelector({
+      stateAtom: (env, thread) => {
+        familyCalls += 1;
+        return Atom.make(AsyncResult.success(EMPTY_ENVIRONMENT_THREAD_STATE)).pipe(
+          Atom.withLabel(`thread-state:${env}/${thread}`),
+        );
+      },
+      platform: "mobile",
+    });
+
+    expect(selector(null, threadId).label?.[0]).toBe("mobile-environment-thread:empty");
+    expect(selector(environmentId, null).label?.[0]).toBe("mobile-environment-thread:empty");
+    expect(familyCalls).toBe(0);
+
+    expect(selector(environmentId, threadId).label?.[0]).toBe(
+      "thread-state:environment-a/thread-a",
+    );
+    expect(familyCalls).toBe(1);
+  });
 });

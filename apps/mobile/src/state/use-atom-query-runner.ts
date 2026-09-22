@@ -3,6 +3,7 @@ import {
   executeAtomQuery,
   type AtomQueryOptions,
   type AtomCommandResult,
+  resolveAtomQueryOptions,
 } from "@t3tools/client-runtime/state/runtime";
 import { AsyncResult, type Atom } from "effect/unstable/reactivity";
 import { useCallback, useContext } from "react";
@@ -12,21 +13,17 @@ export function useAtomQueryRunner<T, A, E>(
   options?: string | AtomQueryOptions,
 ): (target: T) => Promise<AtomCommandResult<A, E>> {
   const registry = useContext(RegistryContext);
-  const explicitLabel = typeof options === "string" ? options : options?.label;
-  const reportFailure = typeof options === "string" ? true : (options?.reportFailure ?? true);
-  const reportDefect = typeof options === "string" ? true : (options?.reportDefect ?? true);
-  const refresh = typeof options === "string" ? false : (options?.refresh ?? false);
+  const { label, reportFailure, reportDefect, refresh } = resolveAtomQueryOptions(options);
 
   return useCallback(
-    (target: T) => {
-      const atom = family(target);
-      return executeAtomQuery(registry, atom, {
-        label: explicitLabel ?? atom.label?.[0] ?? "atom query",
+    // An omitted label falls back to the target atom's own label inside `executeAtomQuery`.
+    (target: T) =>
+      executeAtomQuery(registry, family(target), {
+        ...(label === undefined ? undefined : { label }),
         reportFailure,
         reportDefect,
         refresh,
-      });
-    },
-    [explicitLabel, family, registry, refresh, reportDefect, reportFailure],
+      }),
+    [family, label, registry, refresh, reportDefect, reportFailure],
   );
 }

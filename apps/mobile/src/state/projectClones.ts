@@ -5,7 +5,7 @@ import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/unstable/reactivity";
 
 import { serverEnvironment } from "./server";
-import { sourceControlEnvironment } from "./sourceControl";
+import { sourceControlEnvironment } from "./clientBridges";
 
 /**
  * `"pending"` while the environment's clone stream has not delivered its

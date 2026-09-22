@@ -18,7 +18,7 @@ import * as Option from "effect/Option";
 
 import { appAtomRegistry } from "../state/atom-registry";
 import { assetEnvironment } from "../state/assets";
-import { attachmentEnvironment } from "../state/attachments";
+import { attachmentEnvironment } from "../state/clientBridges";
 import { environmentSession } from "../state/session";
 import { retainComposerAttachmentFileForPreview } from "../state/use-composer-drafts";
 import { resolveOwnedComposerAttachmentFileUri } from "./composerAttachmentFiles";

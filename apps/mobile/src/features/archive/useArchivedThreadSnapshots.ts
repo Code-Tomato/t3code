@@ -8,7 +8,7 @@ import type { EnvironmentId } from "@t3tools/contracts";
 import { useCallback, useMemo } from "react";
 
 import { appAtomRegistry } from "../../state/atom-registry";
-import { orchestrationEnvironment } from "../../state/orchestration";
+import { orchestrationEnvironment } from "../../state/clientBridges";
 
 function archivedSnapshotAtom(environmentId: EnvironmentId) {
   return orchestrationEnvironment.archivedShellSnapshot({

@@ -1,5 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import {
+  createEnvironmentThreadAtomSelector,
   createEnvironmentThreadDetailAtoms,
   createEnvironmentThreadShellAtoms,
   createEnvironmentThreadStateAtoms,
@@ -9,7 +10,7 @@ import {
 } from "@t3tools/client-runtime/state/threads";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import * as Option from "effect/Option";
-import { AsyncResult, Atom } from "effect/unstable/reactivity";
+import { AsyncResult } from "effect/unstable/reactivity";
 
 import { environmentCatalog } from "../connection/catalog";
 import { connectionAtomRuntime } from "../connection/runtime";
@@ -28,19 +29,16 @@ export const environmentThreadShells = createEnvironmentThreadShellAtoms({
   snapshotAtom: threadEnvironment.snapshotAtom,
 });
 
-const EMPTY_THREAD_STATE_ATOM = Atom.make(AsyncResult.success(EMPTY_ENVIRONMENT_THREAD_STATE)).pipe(
-  Atom.withLabel("mobile-environment-thread:empty"),
-);
+const threadStateAtomFor = createEnvironmentThreadAtomSelector({
+  stateAtom: environmentThreads.stateAtom,
+  platform: "mobile",
+});
 
 export function useEnvironmentThread(
   environmentId: EnvironmentId | null,
   threadId: ThreadId | null,
 ): EnvironmentThreadState {
-  const result = useAtomValue(
-    environmentId !== null && threadId !== null
-      ? environmentThreads.stateAtom(environmentId, threadId)
-      : EMPTY_THREAD_STATE_ATOM,
-  );
+  const result = useAtomValue(threadStateAtomFor(environmentId, threadId));
   return Option.getOrElse(
     AsyncResult.value(result),
     () => EMPTY_ENVIRONMENT_THREAD_STATE,

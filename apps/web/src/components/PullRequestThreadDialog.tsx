@@ -12,7 +12,7 @@ import { cn } from "~/lib/utils";
 import { parsePullRequestReference } from "~/pullRequestReference";
 import { getSourceControlPresentation } from "~/sourceControlPresentation";
 import { useEnvironmentQuery } from "~/state/query";
-import { vcsEnvironment } from "~/state/vcs";
+import { vcsEnvironment } from "~/state/clientBridges";
 import { Button } from "./ui/button";
 import {
   Dialog,

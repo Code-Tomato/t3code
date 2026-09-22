@@ -40,7 +40,7 @@ vi.mock("../state/assets", () => ({
   assetEnvironment: { createUrl: mocks.createAssetUrl },
 }));
 
-vi.mock("../state/attachments", () => ({
+vi.mock("../state/clientBridges", () => ({
   attachmentEnvironment: {
     createUploadUrl: mocks.createUploadUrl,
     remove: mocks.removeUpload,

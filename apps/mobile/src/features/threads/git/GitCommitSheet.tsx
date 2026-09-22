@@ -14,7 +14,7 @@ import { useThreadSelection } from "../../../state/use-thread-selection";
 import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-git-actions";
 import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
 import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
-import { vcsEnvironment } from "../../../state/vcs";
+import { vcsEnvironment } from "../../../state/clientBridges";
 import { SheetActionButton } from "./gitSheetComponents";
 
 type GitCommitSheetProps = StaticScreenProps<{

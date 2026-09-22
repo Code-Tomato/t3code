@@ -16,7 +16,7 @@ import * as Ref from "effect/Ref";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
-import { Atom } from "effect/unstable/reactivity";
+import { AsyncResult, Atom } from "effect/unstable/reactivity";
 
 import { EnvironmentRegistry } from "../connection/registry.ts";
 import { connectionProjectionPhase } from "../connection/model.ts";
@@ -28,7 +28,7 @@ import { ThreadSnapshotLoader, type ThreadSnapshotWindow } from "./threadSnapsho
 import { parseThreadKey, threadKey } from "./entities.ts";
 import { applyThreadDetailEvent } from "./threadReducer.ts";
 import { THREAD_SNAPSHOT_IDLE_TTL_MS } from "./threadRetention.ts";
-import { followStreamInEnvironment } from "./runtime.ts";
+import { followStreamInEnvironment, type ClientPlatform } from "./runtime.ts";
 import {
   EMPTY_ENVIRONMENT_THREAD_STATE,
   type EnvironmentThreadPageState,
@@ -955,6 +955,28 @@ export function createEnvironmentThreadStateAtoms<R, E>(
     stateAtom: (environmentId: EnvironmentIdType, threadId: ThreadIdType) =>
       family(threadKey({ environmentId, threadId })),
   };
+}
+
+/**
+ * Chooses the thread-state atom for a hook: a shared, platform-labeled atom
+ * holding the empty state while environment or thread is missing, the family
+ * atom otherwise. Keeps null-handling and the label convention defined once
+ * for both clients.
+ */
+export function createEnvironmentThreadAtomSelector<E>(input: {
+  readonly stateAtom: (
+    environmentId: EnvironmentIdType,
+    threadId: ThreadIdType,
+  ) => Atom.Atom<AsyncResult.AsyncResult<EnvironmentThreadState, E>>;
+  readonly platform: ClientPlatform;
+}) {
+  const emptyAtom = Atom.make(AsyncResult.success(EMPTY_ENVIRONMENT_THREAD_STATE)).pipe(
+    Atom.withLabel(`${input.platform}-environment-thread:empty`),
+  );
+  return (environmentId: EnvironmentIdType | null, threadId: ThreadIdType | null) =>
+    environmentId !== null && threadId !== null
+      ? input.stateAtom(environmentId, threadId)
+      : emptyAtom;
 }
 
 export * from "./archivedThreads.ts";

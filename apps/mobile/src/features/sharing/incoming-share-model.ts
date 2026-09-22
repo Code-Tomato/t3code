@@ -11,9 +11,9 @@ import {
 import * as Schema from "effect/Schema";
 import type { ResolvedSharePayload, SharePayload } from "expo-sharing";
 
-import { DraftComposerAttachmentSchema } from "../../lib/composer-image-schema";
-import type { DraftComposerAttachment } from "../../lib/composerImages";
-import { estimateBase64ByteSize } from "../../lib/base64";
+import { DraftComposerAttachmentSchema } from "@/lib/composer-image-schema";
+import type { DraftComposerAttachment } from "@/lib/composerImages";
+import { estimateBase64ByteSize } from "@/lib/base64";
 
 export interface IncomingShareDraft {
   readonly schemaVersion: 1;

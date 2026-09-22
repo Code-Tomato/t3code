@@ -41,9 +41,14 @@ const RESTRICTED_PULL_REQUEST_GLYPH_IMPORTS = {
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "~": NodeURL.fileURLToPath(new URL("./apps/web/src", import.meta.url)),
-    },
+    alias: [
+      { find: "~", replacement: NodeURL.fileURLToPath(new URL("./apps/web/src", import.meta.url)) },
+      // Mirrors the "@/..." import alias apps/mobile declares in its tsconfig and Metro config.
+      {
+        find: "@/",
+        replacement: NodeURL.fileURLToPath(new URL("./apps/mobile/src/", import.meta.url)),
+      },
+    ],
   },
   test: {
     environment: "node",

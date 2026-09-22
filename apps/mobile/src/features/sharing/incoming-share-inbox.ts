@@ -1,6 +1,6 @@
 import type { SharePayload } from "expo-sharing";
 
-import { SerializedAsyncQueue } from "../../lib/serialized-async-queue";
+import { SerializedAsyncQueue } from "@/lib/serialized-async-queue";
 import {
   hasIncomingShareContent,
   type IncomingShareDestination,

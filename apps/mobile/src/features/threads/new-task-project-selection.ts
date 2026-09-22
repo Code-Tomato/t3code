@@ -1,8 +1,8 @@
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import type { EnvironmentId } from "@t3tools/contracts";
 
-import { scopedProjectKey } from "../../lib/scopedEntities";
-import type { HomeProjectScope } from "../home/homeThreadList";
+import type { HomeProjectScope } from "@/features/home/homeThreadList";
+import { scopedProjectKey } from "@/lib/scopedEntities";
 
 type DraftProjectSelectionResolution =
   | { readonly kind: "preserve" }

@@ -1,12 +1,12 @@
-import { MaterialListRow } from "../../../components/MaterialListRow";
 import { useNavigation } from "@react-navigation/native";
 import type { ComponentProps } from "react";
 import { Platform, Pressable, View } from "react-native";
 
-import { SymbolView } from "../../../components/AppSymbol";
-import { AppText as Text } from "../../../components/AppText";
+import { SymbolView } from "@/components/AppSymbol";
+import { AppText as Text } from "@/components/AppText";
+import { MaterialListRow } from "@/components/MaterialListRow";
+import { cn } from "@/lib/cn";
 import type { SettingsLegalDocumentTarget, SettingsSheetTarget } from "./settings-sheet-targets";
-import { cn } from "../../../lib/cn";
 
 type SymbolName = ComponentProps<typeof SymbolView>["name"];
 

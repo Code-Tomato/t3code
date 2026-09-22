@@ -4,6 +4,9 @@
     "allowImportingTsExtensions": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   }
 }

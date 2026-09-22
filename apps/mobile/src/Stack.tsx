@@ -11,7 +11,14 @@ import {
   type NativeStackNavigationOptions,
 } from "@react-navigation/native-stack";
 import { useEffect, useRef } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useResolveClassNames } from "uniwind";
 
 import { AppText as Text } from "./components/AppText";
@@ -30,10 +37,13 @@ import {
 import { ReviewCommentComposerSheet } from "./features/review/ReviewCommentComposerSheet";
 import { ReviewSheet } from "./features/review/ReviewSheet";
 import { ThreadTerminalRouteScreen } from "./features/terminal/ThreadTerminalRouteScreen";
+import { DevicePreviewRouteScreen } from "./features/devices/DevicePreviewRouteScreen";
 import { GitBranchesSheet } from "./features/threads/git/GitBranchesSheet";
 import { GitCommitSheet } from "./features/threads/git/GitCommitSheet";
 import { GitConfirmSheet } from "./features/threads/git/GitConfirmSheet";
 import { GitOverviewSheet } from "./features/threads/git/GitOverviewSheet";
+import { ThreadAgentsSheet } from "./features/threads/ThreadAgentsSheet";
+import { ThreadQueueSheet } from "./features/threads/ThreadQueueControl";
 import { ThreadRouteScreen } from "./features/threads/ThreadRouteScreen";
 import { ConnectionsRouteScreen } from "./features/connection/ConnectionsRouteScreen";
 import { ConnectionsNewRouteScreen } from "./features/connection/ConnectionsNewRouteScreen";
@@ -59,6 +69,23 @@ import { SettingsClientStorageRouteScreen } from "./features/settings/SettingsCl
 import { SettingsDiagnosticsRouteScreen } from "./features/diagnostics/SettingsDiagnosticsRouteScreen";
 import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteScreen";
 import { SettingsEnvironmentsRouteScreen } from "./features/settings/SettingsEnvironmentsRouteScreen";
+import { SettingsFollowUpRouteScreen } from "./features/settings/SettingsFollowUpRouteScreen";
+import {
+  SettingsEnvironmentAgentBehaviorRouteScreen,
+  SettingsEnvironmentMaintenanceRouteScreen,
+  SettingsEnvironmentNewThreadsRouteScreen,
+  SettingsEnvironmentSourceControlRouteScreen,
+} from "./features/settings/SettingsServerControlsRouteScreen";
+import {
+  SettingsScheduledTasksRouteScreen,
+  SettingsScheduledTaskNewRouteScreen,
+  SettingsScheduledTaskEditRouteScreen,
+} from "./features/settings/SettingsScheduledTasksRouteScreen";
+import {
+  ScheduledTaskModelPickerRouteScreen,
+  ScheduledTaskBranchPickerRouteScreen,
+} from "./features/settings/ScheduledTaskPickerScreens";
+import { ScheduledTaskEditorProvider } from "./features/settings/scheduled-task-editor";
 import { SettingsKeyboardRouteScreen } from "./features/settings/SettingsKeyboardRouteScreen";
 import { SettingsLegalRouteScreen } from "./features/settings/SettingsLegalRouteScreen";
 import {
@@ -66,9 +93,14 @@ import {
   SettingsOpenSourceLicensesRouteScreen,
 } from "./features/settings/SettingsOpenSourceLicensesRouteScreen";
 import { SettingsProjectGroupingRouteScreen } from "./features/settings/SettingsProjectGroupingRouteScreen";
+import { SettingsProjectOverviewRouteScreen } from "./features/settings/SettingsProjectOverviewRouteScreen";
 import { UsageLimitAccountScreen } from "./features/usage/UsageLimitsPooled";
 import { UsageRouteScreen } from "./features/usage/UsageRouteScreen";
+import { SettingsAboutRouteScreen } from "./features/settings/SettingsAboutRouteScreen";
+import { SettingsNotificationsRouteScreen } from "./features/settings/SettingsNotificationsRouteScreen";
 import { SettingsRouteScreen } from "./features/settings/SettingsRouteScreen";
+import { SettingsThreadsRouteScreen } from "./features/settings/SettingsThreadsRouteScreen";
+import { SettingsEnvironmentFilterProvider } from "./features/settings/settings-environment-filter";
 import { ShowcaseCaptureCoordinator } from "./features/showcase/ShowcaseCaptureCoordinator";
 import {
   SettingsLegalDocumentCloseHeaderButton,
@@ -81,6 +113,7 @@ import {
   transitionIncomingSharePresentation,
 } from "./features/sharing/incoming-share-presentation";
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "./native/native-glass";
+import { deriveLayout } from "./lib/layout";
 import { nativeHeaderScrollEdgeEffects } from "./native/StackHeader";
 import { FORM_SHEET_PRESENTATION_OPTIONS } from "./native/sheet-surface";
 import { useThreadOutboxDrain } from "./state/use-thread-outbox-drain";
@@ -168,6 +201,41 @@ const SettingsContentStack = createNativeStackNavigator({
         title: "Environments",
       },
     }),
+    SettingsEnvironmentNewThreads: createNativeStackScreen({
+      screen: SettingsEnvironmentNewThreadsRouteScreen,
+      linking: "new-threads",
+      options: { title: "New threads" },
+    }),
+    SettingsEnvironmentSourceControl: createNativeStackScreen({
+      screen: SettingsEnvironmentSourceControlRouteScreen,
+      linking: "source-control",
+      options: { title: "Source control" },
+    }),
+    SettingsEnvironmentAgentBehavior: createNativeStackScreen({
+      screen: SettingsEnvironmentAgentBehaviorRouteScreen,
+      linking: "agent-behavior",
+      options: { title: "Agent behavior" },
+    }),
+    SettingsEnvironmentMaintenance: createNativeStackScreen({
+      screen: SettingsEnvironmentMaintenanceRouteScreen,
+      linking: "maintenance",
+      options: { title: "Maintenance" },
+    }),
+    SettingsNotifications: createNativeStackScreen({
+      screen: SettingsNotificationsRouteScreen,
+      linking: "notifications",
+      options: { title: "Notifications" },
+    }),
+    SettingsThreads: createNativeStackScreen({
+      screen: SettingsThreadsRouteScreen,
+      linking: "thread-preferences",
+      options: { title: "Thread behavior" },
+    }),
+    SettingsAbout: createNativeStackScreen({
+      screen: SettingsAboutRouteScreen,
+      linking: "about",
+      options: { title: "About T3 Code" },
+    }),
     SettingsEnvironmentNew: createNativeStackScreen({
       screen: ConnectionsNewRouteScreen,
       linking: "environment-new",
@@ -193,14 +261,68 @@ const SettingsContentStack = createNativeStackNavigator({
       screen: SettingsProjectGroupingRouteScreen,
       linking: "project-grouping",
       options: {
-        title: "Project Grouping",
+        title: "Organization",
       },
+    }),
+    SettingsOrganization: createNativeStackScreen({
+      screen: SettingsProjectGroupingRouteScreen,
+      linking: "organization",
+      options: {
+        title: "Organization",
+      },
+    }),
+    SettingsProjectOverview: createNativeStackScreen({
+      screen: SettingsProjectOverviewRouteScreen,
+      linking: "project",
+      options: { title: "Project overview" },
     }),
     SettingsKeyboard: createNativeStackScreen({
       screen: SettingsKeyboardRouteScreen,
       linking: "keyboard",
       options: {
         title: "Keyboard",
+      },
+    }),
+    SettingsFollowUp: createNativeStackScreen({
+      screen: SettingsFollowUpRouteScreen,
+      linking: "follow-ups",
+      options: {
+        title: "Follow-ups",
+      },
+    }),
+    SettingsScheduledTasks: createNativeStackScreen({
+      screen: SettingsScheduledTasksRouteScreen,
+      linking: "scheduled-tasks",
+      options: {
+        title: "Scheduled Tasks",
+        // Leave room to center UIKit's title beside the two trailing actions.
+        headerTitleStyle: { fontSize: 16, fontWeight: "800" },
+      },
+    }),
+    SettingsScheduledTaskNew: createNativeStackScreen({
+      screen: SettingsScheduledTaskNewRouteScreen,
+      linking: "scheduled-tasks/new",
+      options: { title: "New scheduled task" },
+    }),
+    SettingsScheduledTaskEdit: createNativeStackScreen({
+      screen: SettingsScheduledTaskEditRouteScreen,
+      options: { title: "Edit scheduled task" },
+    }),
+    SettingsScheduledTaskBranch: createNativeStackScreen({
+      screen: ScheduledTaskBranchPickerRouteScreen,
+      options: { title: "Base branch" },
+    }),
+    SettingsScheduledTaskModel: createNativeStackScreen({
+      screen: ScheduledTaskModelPickerRouteScreen,
+      options: {
+        headerShown: false,
+        ...(Platform.OS === "android"
+          ? { presentation: "card" as const }
+          : {
+              ...FORM_SHEET_PRESENTATION_OPTIONS,
+              sheetAllowedDetents: [1],
+              sheetGrabberVisible: true,
+            }),
       },
     }),
     SettingsClientStorage: createNativeStackScreen({
@@ -257,6 +379,11 @@ const SettingsSheetStack = createNativeStackNavigator({
     SettingsContent: createNativeStackScreen({
       screen: SettingsContentStack,
       linking: "",
+      layout: ({ children }) => (
+        <SettingsEnvironmentFilterProvider>
+          <ScheduledTaskEditorProvider>{children}</ScheduledTaskEditorProvider>
+        </SettingsEnvironmentFilterProvider>
+      ),
     }),
     SettingsAuth: createNativeStackScreen({
       screen: SettingsAuthRouteScreen,
@@ -277,9 +404,8 @@ const SettingsSheetStack = createNativeStackNavigator({
 // the same deep-link URLs the nested config produced.
 const THREAD_LINKING_PREFIX = "threads/:environmentId/:threadId";
 
-// New-task / add-project flow: nested navigator inside the formSheet (Settings-sheet
-// pattern — a plain formSheet screen cannot render a stack header; the header and
-// in-sheet pushes come from this nested stack).
+// New-task / add-project flow: the nested navigator owns the header and pushes
+// whether the flow opens in the workspace or in a compact form sheet.
 const NewTaskSheetStack = createNativeStackNavigator({
   initialRouteName: "NewTask",
   screenOptions: {
@@ -387,7 +513,10 @@ const WORKSPACE_OVERLAY_ROUTES = new Set([
   "NewTaskSheet",
   "SettingsLegal",
   "SettingsSheet",
+  "ThreadAgents",
+  "ThreadQueue",
   "ThreadReviewComment",
+  "ThreadDevicePreview",
   "ThreadSettingsSheet",
 ]);
 
@@ -507,7 +636,7 @@ function NotFoundScreen() {
   );
 }
 
-export const RootStack = createNativeStackNavigator({
+const RootStackConfig = createNativeStackNavigator({
   initialRouteName: "Home",
   layout: RootStackLayout,
   screenOptions: {
@@ -533,6 +662,15 @@ export const RootStack = createNativeStackNavigator({
       screen: ThreadTerminalRouteScreen,
       linking: `${THREAD_LINKING_PREFIX}/terminal`,
       options: SOLID_HEADER_OPTIONS,
+    }),
+    ThreadDevicePreview: createNativeStackScreen({
+      screen: DevicePreviewRouteScreen,
+      linking: `${THREAD_LINKING_PREFIX}/devices`,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: false,
+      },
     }),
     ThreadReview: createNativeStackScreen({
       screen: ReviewSheet,
@@ -584,6 +722,24 @@ export const RootStack = createNativeStackNavigator({
             }),
       },
     }),
+    ThreadQueue: createNativeStackScreen({
+      screen: ThreadQueueSheet,
+      options: {
+        ...FORM_SHEET_PRESENTATION_OPTIONS,
+        headerShown: false,
+        sheetAllowedDetents: [0.65, 0.95],
+        sheetGrabberVisible: true,
+      },
+    }),
+    ThreadAgents: createNativeStackScreen({
+      screen: ThreadAgentsSheet,
+      options: {
+        ...FORM_SHEET_PRESENTATION_OPTIONS,
+        headerShown: false,
+        sheetAllowedDetents: [0.5, 0.9],
+        sheetGrabberVisible: true,
+      },
+    }),
     GitOverview: createNativeStackScreen({
       screen: GitOverviewSheet,
       linking: `${THREAD_LINKING_PREFIX}/git`,
@@ -626,15 +782,6 @@ export const RootStack = createNativeStackNavigator({
       options: {
         gestureEnabled: true,
         headerShown: false,
-        // Android pushes settings as a regular full page with an in-screen
-        // back header; iOS keeps the detented form sheet.
-        ...(Platform.OS === "android"
-          ? { presentation: "card" as const }
-          : {
-              ...FORM_SHEET_PRESENTATION_OPTIONS,
-              sheetAllowedDetents: [0.7, 0.92],
-              sheetGrabberVisible: true,
-            }),
       },
     }),
     SettingsLegal: createNativeStackScreen({
@@ -698,15 +845,6 @@ export const RootStack = createNativeStackNavigator({
       options: {
         gestureEnabled: true,
         headerShown: false,
-        // Android pushes the flow as a regular full page — the draft should
-        // read like a thread that just doesn't exist yet; iOS keeps the sheet.
-        ...(Platform.OS === "android"
-          ? { presentation: "card" as const }
-          : {
-              ...FORM_SHEET_PRESENTATION_OPTIONS,
-              sheetAllowedDetents: [0.92],
-              sheetGrabberVisible: true,
-            }),
       },
     }),
     NotFound: createNativeStackScreen({
@@ -715,6 +853,32 @@ export const RootStack = createNativeStackNavigator({
     }),
   },
 });
+
+export const RootStack = RootStackConfig.with(function AdaptiveRootStack({ Navigator }) {
+  const { width, height } = useWindowDimensions();
+  const usesWorkspaceFlowScreens =
+    Platform.OS === "android" || deriveLayout({ width, height }).usesSplitView;
+
+  return (
+    <Navigator
+      screenOptions={({ route }) => {
+        if (route.name !== "SettingsSheet" && route.name !== "NewTaskSheet") {
+          return {};
+        }
+
+        // Follow the workspace viewport as it resizes; compact iOS keeps sheets.
+        return usesWorkspaceFlowScreens
+          ? { presentation: "card" }
+          : {
+              ...FORM_SHEET_PRESENTATION_OPTIONS,
+              sheetAllowedDetents: [0.92],
+              sheetGrabberVisible: true,
+            };
+      }}
+    />
+  );
+});
+
 type RootStackType = typeof RootStack;
 
 const navigationPathConfig = {

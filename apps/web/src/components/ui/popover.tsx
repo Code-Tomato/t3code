@@ -19,20 +19,24 @@ function PopoverTrigger({ className, children, ...props }: PopoverPrimitive.Trig
 function PopoverPopup({
   children,
   className,
+  positionerClassName,
   viewportClassName,
   side = "bottom",
   align = "center",
   sideOffset = 4,
   alignOffset = 0,
+  collisionAvoidance,
   tooltipStyle = false,
   anchor,
   ...props
 }: PopoverPrimitive.Popup.Props & {
+  positionerClassName?: string;
   viewportClassName?: string;
   side?: PopoverPrimitive.Positioner.Props["side"];
   align?: PopoverPrimitive.Positioner.Props["align"];
   sideOffset?: PopoverPrimitive.Positioner.Props["sideOffset"];
   alignOffset?: PopoverPrimitive.Positioner.Props["alignOffset"];
+  collisionAvoidance?: PopoverPrimitive.Positioner.Props["collisionAvoidance"];
   tooltipStyle?: boolean;
   anchor?: PopoverPrimitive.Positioner.Props["anchor"];
 }) {
@@ -42,7 +46,11 @@ function PopoverPopup({
         align={align}
         alignOffset={alignOffset}
         anchor={anchor}
-        className="z-[130] h-(--positioner-height) w-(--positioner-width) max-w-(--available-width) transition-transform data-instant:transition-none"
+        collisionAvoidance={collisionAvoidance}
+        className={cn(
+          "z-[130] h-(--positioner-height) w-(--positioner-width) max-w-(--available-width) transition-transform data-instant:transition-none",
+          positionerClassName,
+        )}
         data-slot="popover-positioner"
         side={side}
         sideOffset={sideOffset}
@@ -91,16 +99,6 @@ function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
   );
 }
 
-function PopoverDescription({ className, ...props }: PopoverPrimitive.Description.Props) {
-  return (
-    <PopoverPrimitive.Description
-      className={cn("text-muted-foreground text-sm", className)}
-      data-slot="popover-description"
-      {...props}
-    />
-  );
-}
-
 export {
   PopoverCreateHandle,
   Popover,
@@ -108,6 +106,5 @@ export {
   PopoverPopup,
   PopoverPopup as PopoverContent,
   PopoverTitle,
-  PopoverDescription,
   PopoverClose,
 };

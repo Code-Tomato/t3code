@@ -113,7 +113,7 @@ const inlineButtonVariants = cva(
         default: "text-foreground",
         muted: "text-muted-foreground hover:text-foreground",
         subtle: "text-foreground/70 hover:text-foreground",
-        destructive: "text-destructive",
+        destructive: "text-destructive/80 hover:text-destructive",
       },
       underline: {
         true: "font-medium underline-offset-2 hover:underline",

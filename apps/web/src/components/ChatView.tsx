@@ -7651,6 +7651,19 @@ export default function ChatView(props: ChatViewProps) {
         previewAnnotations: [...composerPreviewAnnotations],
         reviewComments: [...composerReviewComments],
         submissionIntent,
+        sendOptions: {
+          modelSelection: ctxSelectedModelSelection,
+          runtimeMode,
+          interactionMode: sendInteractionMode,
+          promptEffort: resolvePromptInjectedEffort(
+            getProviderModelCapabilities(
+              ctxSelectedProviderModels,
+              ctxSelectedModel,
+              ctxSelectedProvider,
+            ),
+            ctxSelectedPromptEffort,
+          ),
+        },
         queuedAfterToolActivityId: latestCompletedToolActivityId(threadActivities),
         createdAt: new Date().toISOString(),
       });

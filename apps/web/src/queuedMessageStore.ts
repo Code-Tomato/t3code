@@ -1,4 +1,10 @@
-import type { PreviewAnnotationPayload } from "@t3tools/contracts";
+import type {
+  ModelSelection,
+  PreviewAnnotationPayload,
+  ProviderInteractionMode,
+  RuntimeMode,
+} from "@t3tools/contracts";
+import type { resolvePromptInjectedEffort } from "@t3tools/shared/model";
 import { create } from "zustand";
 
 import type { ComposerSubmissionIntent } from "./composer-logic";
@@ -12,6 +18,13 @@ import type { ReviewCommentContext } from "./reviewCommentContext";
  * carries the full draft snapshot so the send path can dispatch it later with
  * the same text, attachments, and contexts the user pressed Enter on.
  */
+export interface QueuedMessageSendOptions {
+  modelSelection: ModelSelection;
+  runtimeMode: RuntimeMode;
+  interactionMode: ProviderInteractionMode;
+  promptEffort: ReturnType<typeof resolvePromptInjectedEffort>;
+}
+
 export interface QueuedComposerMessage {
   id: string;
   prompt: string;
@@ -21,6 +34,8 @@ export interface QueuedComposerMessage {
   previewAnnotations: PreviewAnnotationPayload[];
   reviewComments: ReviewCommentContext[];
   submissionIntent: ComposerSubmissionIntent;
+  /** Snapshot at enqueue time; background sends must never read another thread's composer. */
+  sendOptions?: QueuedMessageSendOptions;
   /**
    * The newest completed tool activity at queue time. A different id later
    * means a tool call finished after the user queued, which is the boundary

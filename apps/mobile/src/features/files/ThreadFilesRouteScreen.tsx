@@ -723,7 +723,10 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
     () => renderInspector(inspectorHeaderInset),
     [inspectorHeaderInset, renderInspector],
   );
-  useRegisterWorkspaceInspector(fileInspector.supported ? renderWorkspaceInspector : undefined);
+  useRegisterWorkspaceInspector(
+    fileInspector.supported ? renderWorkspaceInspector : undefined,
+    fileInspector.supported ? `files:${relativePath ?? "tree"}` : undefined,
+  );
 
   const fileMenuActions = useMemo(() => {
     if (relativePath === null) return [];

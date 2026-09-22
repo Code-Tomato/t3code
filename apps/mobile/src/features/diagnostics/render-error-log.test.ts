@@ -40,6 +40,13 @@ describe("recordRenderError", () => {
     expect(records[0]?.timestamp).toBe(200);
   });
 
+  it("keeps same-millisecond catches distinct for list identity", () => {
+    recordRenderError(new Error("a"), "screen:Thread", { timestamp: 100 });
+    recordRenderError(new Error("b"), "screen:Thread", { timestamp: 100 });
+    const [newest, oldest] = getRenderErrorRecords();
+    expect(newest?.id).not.toBe(oldest?.id);
+  });
+
   it("keeps the newest records when the log overflows", () => {
     for (let index = 0; index < 25; index += 1) {
       recordRenderError(new Error(`error ${index}`), "screen:Home", { timestamp: index });
@@ -110,6 +117,24 @@ describe("describeRenderError", () => {
     const record = getRenderErrorRecords()[0];
     expect(record?.message).toBe("Error");
     expect(record?.detail).toBe("Error");
+  });
+
+  it("survives throws where even instanceof Error rethrows", () => {
+    // instanceof walks the prototype chain; a Proxy with a throwing
+    // getPrototypeOf trap must not break the record path either.
+    const hostile = new Proxy(
+      {},
+      {
+        getPrototypeOf() {
+          throw new TypeError("no proto");
+        },
+      },
+    );
+    expect(() => describeRenderError(hostile)).not.toThrow();
+    expect(() => recordRenderError(hostile, "screen:Thread")).not.toThrow();
+    expect(() => readErrorStack(hostile)).not.toThrow();
+    expect(readErrorStack(hostile)).toBeUndefined();
+    expect(getRenderErrorRecords()[0]?.message).toBe("[object Object]");
   });
 
   it("keeps ordinary Error fields when the getters behave", () => {

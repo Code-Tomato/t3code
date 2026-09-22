@@ -4,6 +4,7 @@ import {
   boundaryResetFromProps,
   failedBoundaryState,
   healthyBoundaryState,
+  inspectorResetKeys,
   screenFallbackExit,
 } from "./render-error-boundary-model";
 
@@ -45,6 +46,34 @@ describe("boundaryResetFromProps", () => {
     const retried = healthyBoundaryState(failed.resetKeys);
     expect(retried.failed).toBe(false);
     expect(boundaryResetFromProps(["thread:1"], retried)).toBeNull();
+  });
+});
+
+describe("inspectorResetKeys", () => {
+  it("does not reset when the same owner rebuilds its render callback", () => {
+    // ThreadRouteScreen rebuilds the inspector callback on unrelated updates
+    // (active-turn churn). Keyed on the callback, a persistently crashing
+    // inspector would reset, re-throw, and re-record on every such update.
+    const renderOne = () => null;
+    const renderTwo = () => null;
+    const [firstKey] = inspectorResetKeys("thread:env1:t1:files", renderOne);
+    const [secondKey] = inspectorResetKeys("thread:env1:t1:files", renderTwo);
+    expect(Object.is(firstKey, secondKey)).toBe(true);
+  });
+
+  it("resets when the inspected content identity changes", () => {
+    const render = () => null;
+    expect(inspectorResetKeys("thread:env1:t1:files", render)).not.toEqual(
+      inspectorResetKeys("thread:env1:t2:files", render),
+    );
+    expect(inspectorResetKeys("thread:env1:t1:git", render)).not.toEqual(
+      inspectorResetKeys("thread:env1:t1:files", render),
+    );
+  });
+
+  it("falls back to the callback when no identity is registered", () => {
+    const render = () => null;
+    expect(inspectorResetKeys(undefined, render)).toEqual([render]);
   });
 });
 

@@ -615,7 +615,19 @@ function ThreadRouteContent(
   // Hand the inspector to the workspace so it renders beside the navigator,
   // outside this screen's native header — the terminal/git/files toolbar
   // stays anchored to the chat pane instead of floating above the inspector.
-  useRegisterWorkspaceInspector(activeInspectorRenderer);
+  // Stable content identity for the inspector boundary: the thread the pane
+  // actually shows plus its mode. Callback identity churns with active-turn
+  // updates (see renderInspectorStack) and must not drive the reset.
+  useRegisterWorkspaceInspector(
+    activeInspectorRenderer,
+    activeInspectorRenderer === undefined
+      ? undefined
+      : `thread:${
+          selectedThread === null
+            ? "pending"
+            : scopedThreadKey(selectedThread.environmentId, selectedThread.id)
+        }:${inspectorMode ?? "none"}`,
+  );
 
   const handleOpenConnectionEditor = useCallback(() => {
     void navigation.navigate("Connections");

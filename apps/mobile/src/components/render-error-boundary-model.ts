@@ -61,3 +61,20 @@ export function screenFallbackExit(args: {
   if (args.routeName === "SettingsSheet") return "go-home";
   return "open-settings";
 }
+
+/**
+ * Reset signature for the inspector boundary. The registrant's stable
+ * content identity (owner + content the user perceives, e.g. route thread +
+ * inspector mode) wins over the render callback: registrants like
+ * ThreadRouteScreen rebuild the callback on unrelated updates (active-turn
+ * churn), so keying on it would reset — re-throw, and re-record — a
+ * persistently crashing inspector on every such update, spamming the bounded
+ * diagnostics log. Without an identity there is nothing better than the
+ * callback itself.
+ */
+export function inspectorResetKeys(
+  contentIdentity: string | undefined,
+  render: (() => unknown) | undefined,
+): ReadonlyArray<unknown> {
+  return contentIdentity !== undefined ? [contentIdentity] : [render];
+}

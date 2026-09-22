@@ -14,6 +14,8 @@
  * nested boundaries leaves one row per scope, which reads as the bubble path.
  */
 export interface RenderErrorRecord {
+  /** Unique per recorded catch; two catches in the same millisecond stay distinct. */
+  readonly id: number;
   readonly timestamp: number;
   /** Where it was caught, e.g. `screen:Thread` or `thread-feed`. */
   readonly scope: string;
@@ -24,6 +26,7 @@ export interface RenderErrorRecord {
 
 const MAX_RECORDS = 20;
 let records: RenderErrorRecord[] = [];
+let nextRecordId = 1;
 const listeners = new Set<() => void>();
 
 /**
@@ -39,7 +42,7 @@ export function subscribeToRenderErrors(listener: () => void): () => void {
 }
 
 export function describeRenderError(error: unknown): string {
-  if (error instanceof Error) {
+  if (isErrorLike(error)) {
     // message/name/stack can be throwing getters on hostile or exotic errors,
     // and this runs inside componentDidCatch — a throw here would defeat the
     // recovery it is part of, so every property read is guarded.
@@ -54,9 +57,16 @@ export function describeRenderError(error: unknown): string {
 
 /** The error's own stack, or undefined when absent or unreadable. */
 export function readErrorStack(error: unknown): string | undefined {
-  if (!(error instanceof Error)) return undefined;
+  if (!isErrorLike(error)) return undefined;
   const stack = readSafely(() => error.stack);
   return typeof stack === "string" ? stack : undefined;
+}
+
+// instanceof consults the prototype chain (and Symbol.hasInstance), so even
+// the type check must be guarded against exotic throws (e.g. a Proxy with a
+// throwing getPrototypeOf trap) — this runs inside componentDidCatch.
+function isErrorLike(error: unknown): error is Error {
+  return readSafely(() => error instanceof Error) ?? false;
 }
 
 function readSafely<T>(read: () => T): T | undefined {
@@ -105,7 +115,7 @@ export function recordRenderError(
     .filter((part) => part.length > 0)
     .join("\n");
   records = [
-    { timestamp: options.timestamp ?? Date.now(), scope, message, detail },
+    { id: nextRecordId++, timestamp: options.timestamp ?? Date.now(), scope, message, detail },
     ...records,
   ].slice(0, MAX_RECORDS);
   for (const listener of listeners) listener();

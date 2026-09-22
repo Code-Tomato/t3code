@@ -672,7 +672,10 @@ export function ReviewSheet(props: ReviewSheetProps) {
     selectedSection !== null &&
     parsedDiff.kind === "files" &&
     NativeReviewDiffView !== null;
-  useRegisterWorkspaceInspector(showChangedFilesPane ? renderInspector : undefined);
+  useRegisterWorkspaceInspector(
+    showChangedFilesPane ? renderInspector : undefined,
+    showChangedFilesPane ? "review:changed-files" : undefined,
+  );
   // A toggle needs registered content; loading, errors and raw patches have no navigator pane.
   const showChangedFilesToggle = panes.supportsAuxiliaryPane && showChangedFilesPane;
 

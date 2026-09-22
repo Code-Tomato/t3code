@@ -135,11 +135,7 @@ export function SettingsDiagnosticsRouteScreen() {
             />
           ) : (
             renderRecords.map((record, index) => (
-              <RenderErrorRow
-                key={record.timestamp + record.scope}
-                record={record}
-                first={index === 0}
-              />
+              <RenderErrorRow key={record.id} record={record} first={index === 0} />
             ))
           )}
         </SettingsSection>

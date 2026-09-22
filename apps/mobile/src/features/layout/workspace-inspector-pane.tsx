@@ -9,6 +9,7 @@ import Animated, {
 
 import { constrainAuxiliaryPaneWidth, type WorkspacePaneLayout } from "../../lib/layout";
 import { RenderErrorBoundary } from "../../components/RenderErrorBoundary";
+import { inspectorResetKeys } from "../../components/render-error-boundary-model";
 import { WORKSPACE_PANE_TIMING } from "./workspace-pane-animation";
 import { WorkspacePaneDivider } from "./workspace-pane-divider";
 
@@ -45,6 +46,8 @@ export function WorkspaceInspectorPane(props: {
   readonly onClosed?: () => void;
   readonly panes: WorkspacePaneLayout;
   readonly renderInspector?: () => ReactNode;
+  /** Stable content identity from the registrant; resets the boundary only when the inspected content really changes. */
+  readonly inspectorIdentity?: string | undefined;
   readonly setAuxiliaryPaneWidth: (width: number) => void;
 }) {
   const { panes, setAuxiliaryPaneWidth } = props;
@@ -160,7 +163,7 @@ export function WorkspaceInspectorPane(props: {
             <RenderErrorBoundary
               scope="workspace-inspector"
               subject="The inspector"
-              resetKeys={[props.renderInspector]}
+              resetKeys={inspectorResetKeys(props.inspectorIdentity, props.renderInspector)}
             >
               <InspectorRenderer render={props.renderInspector} />
             </RenderErrorBoundary>

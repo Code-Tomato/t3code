@@ -85,7 +85,7 @@ export function PullRequestCommentForm({
     <div className="space-y-2">
       <Textarea
         ref={textareaRef}
-        className="[&_textarea]:max-h-64"
+        maxHeight="md"
         // Locked while posting: the body is cleared on success, which would otherwise throw
         // away a new draft typed while the request was still in flight.
         disabled={submitting !== null || actionPending}

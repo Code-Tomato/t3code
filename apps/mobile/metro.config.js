@@ -59,24 +59,6 @@ config.resolver = {
   },
 };
 
-// The "@/..." alias mirrors the "paths" mapping in apps/mobile/tsconfig.json and maps to
-// apps/mobile/src. It cannot live in extraNodeModules: Metro parses "@/foo" as the scoped
-// package "@/foo", so a prefix alias needs a custom resolveRequest. Handing back an absolute
-// path re-enters Metro's default resolution, so extensions, platform variants, and assets
-// keep working, and any earlier resolveRequest (none today) stays reachable as a fallback.
-const sourceRoot = path.join(__dirname, "src");
-const previousResolveRequest = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === "@" || moduleName.startsWith("@/")) {
-    const relative = moduleName.slice(1).replace(/^[/\\]+/, "");
-    return context.resolveRequest(context, path.resolve(sourceRoot, relative || "."), platform);
-  }
-  if (previousResolveRequest) {
-    return previousResolveRequest(context, moduleName, platform);
-  }
-  return context.resolveRequest(context, moduleName, platform);
-};
-
 async function writeFileIfChanged(filePath, contents) {
   try {
     if ((await fs.promises.readFile(filePath, "utf8")) === contents) return;

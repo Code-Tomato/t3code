@@ -43,7 +43,8 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: "~", replacement: NodeURL.fileURLToPath(new URL("./apps/web/src", import.meta.url)) },
-      // Mirrors the "@/..." import alias apps/mobile declares in its tsconfig and Metro config.
+      // Mirrors the "@/..." import alias apps/mobile declares as tsconfig paths, which Expo's
+      // Metro resolves natively; vitest needs its own copy of the mapping.
       {
         find: "@/",
         replacement: NodeURL.fileURLToPath(new URL("./apps/mobile/src/", import.meta.url)),

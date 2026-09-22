@@ -1859,9 +1859,7 @@ export default function GitActionsControl({
             >
               <ChevronDownIcon aria-hidden="true" className="size-4" />
             </MenuTrigger>
-            <MenuPopup align="end" width="anchor">
-              {gitItems}
-            </MenuPopup>
+            <MenuPopup align="end">{gitItems}</MenuPopup>
           </Menu>
         </Group>
       )}

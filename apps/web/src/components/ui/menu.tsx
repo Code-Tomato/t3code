@@ -17,17 +17,16 @@ function MenuTrigger({ className, children, ...props }: MenuPrimitive.Trigger.Pr
   );
 }
 
-// Menus grow with their content from a minimum; "anchor" matches the trigger.
-// Every width is capped to the viewport.
+// Menus grow with their content from a minimum. Every width is capped to
+// the viewport.
 const menuPopupWidthClassName = {
   fit: "min-w-32",
-  anchor: "w-(--anchor-width)",
-  xs: "min-w-40",
-  sm: "min-w-52",
-  md: "min-w-64",
-  lg: "min-w-72",
-  xl: "min-w-80",
-  "2xl": "min-w-96",
+  xs: "min-w-[min(10rem,calc(100vw-2rem))]",
+  sm: "min-w-[min(13rem,calc(100vw-2rem))]",
+  md: "min-w-[min(16rem,calc(100vw-2rem))]",
+  lg: "min-w-[min(18rem,calc(100vw-2rem))]",
+  xl: "min-w-[min(20rem,calc(100vw-2rem))]",
+  "2xl": "min-w-[min(24rem,calc(100vw-2rem))]",
 } as const;
 
 type MenuPopupWidth = keyof typeof menuPopupWidthClassName;

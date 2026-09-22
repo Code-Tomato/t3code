@@ -75,9 +75,9 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
 // Lists match the trigger by default and grow with their options from there.
 const selectPopupWidthClassName = {
   anchor: "",
-  xs: "min-w-44",
-  sm: "min-w-56",
-  md: "min-w-64",
+  xs: "min-w-[min(11rem,calc(100vw-2rem))]",
+  sm: "min-w-[min(14rem,calc(100vw-2rem))]",
+  md: "min-w-[min(16rem,calc(100vw-2rem))]",
 } as const;
 
 function SelectPopup({

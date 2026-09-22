@@ -2675,7 +2675,7 @@ function LocalSecondaryStatus() {
   }
 
   return (
-    <SidebarGroup className="px-2 pt-2 pb-0">
+    <SidebarGroup padding="flush-bottom">
       {connecting.length > 0 ? (
         <Alert variant="sidebar-notice">
           <Spinner />
@@ -2967,7 +2967,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
       fixedHeader={
         // Lifted above the stage backdrop, whose fade bleeds below the
         // header and would otherwise paint across the search row's outline.
-        <SidebarGroup className="relative z-[1] px-2 pt-2 pb-1">
+        <SidebarGroup padding="flush-bottom" className="z-[1] pb-1">
           <SidebarMenu>
             <SidebarMenuItem>
               <CommandDialogTrigger
@@ -2990,7 +2990,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
       }
     >
       {showArm64IntelBuildWarning && arm64IntelBuildWarningDescription ? (
-        <SidebarGroup className="px-2 pt-2 pb-0">
+        <SidebarGroup padding="flush-bottom">
           <Alert variant="sidebar-warning">
             <TriangleAlertIcon />
             <AlertTitle>Intel build on Apple Silicon</AlertTitle>
@@ -3013,7 +3013,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
         </SidebarGroup>
       ) : null}
       <LocalSecondaryStatus />
-      <SidebarGroup className="px-2 py-2">
+      <SidebarGroup>
         <div className="mb-1 flex items-center justify-between pl-2 pr-1.5">
           <span className="text-xs font-medium text-sidebar-muted-foreground/80">Projects</span>
           <div className="flex items-center gap-1">

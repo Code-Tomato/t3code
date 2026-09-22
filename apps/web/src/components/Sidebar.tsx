@@ -4396,7 +4396,7 @@ export default function Sidebar() {
         fixedHeader={
           // Lifted above the stage backdrop, whose fade bleeds below the
           // header and would otherwise paint across the search row's outline.
-          <SidebarGroup className="relative z-[1] p-[var(--sidebar-content-inset)] pt-1">
+          <SidebarGroup className="z-[1] pt-1">
             <SidebarThreadHeader
               searchFieldRef={headerSearchRef}
               hasProjects={projectGroups.length > 0}
@@ -4556,7 +4556,10 @@ export default function Sidebar() {
           </SidebarGroup>
         }
       >
-        <SidebarGroup className="ps-[calc(var(--sidebar-content-inset)+1px)] pe-[var(--sidebar-content-inset)] pb-1 pt-0 flex-1">
+        <SidebarGroup
+          padding="flush-top"
+          className="flex-1 ps-[calc(var(--sidebar-content-inset)+1px)] pb-1"
+        >
           {isSearchingThreads ? (
             threadSearchResults.length > 0 ? (
               <TooltipProvider

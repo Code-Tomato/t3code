@@ -599,11 +599,25 @@ function SidebarContent({
   );
 }
 
-function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
+// Groups stack in the sidebar column; "flush" trims the edge that touches a
+// neighbouring group so two inset paddings do not add up.
+const sidebarGroupPaddingClassName = {
+  inset: "p-[var(--sidebar-content-inset)]",
+  "flush-bottom": "px-[var(--sidebar-content-inset)] pt-[var(--sidebar-content-inset)] pb-0",
+  "flush-top": "px-[var(--sidebar-content-inset)] pt-0 pb-[var(--sidebar-content-inset)]",
+  tight: "px-[var(--sidebar-content-inset)] py-1",
+} as const;
+
+function SidebarGroup({
+  className,
+  padding = "inset",
+  ...props
+}: React.ComponentProps<"div"> & { padding?: keyof typeof sidebarGroupPaddingClassName }) {
   return (
     <div
       className={cn(
-        "relative flex w-full min-w-0 flex-col p-[var(--sidebar-content-inset)]",
+        "relative flex w-full min-w-0 flex-col",
+        sidebarGroupPaddingClassName[padding],
         className,
       )}
       data-sidebar="group"

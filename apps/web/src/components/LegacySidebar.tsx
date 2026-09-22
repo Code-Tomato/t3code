@@ -3034,7 +3034,6 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                     aria-label="Add project"
                     data-testid="sidebar-add-project-trigger"
                     tone="muted"
-                    className="size-6"
                     onClick={openAddProject}
                   />
                 }

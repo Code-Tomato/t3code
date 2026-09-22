@@ -117,7 +117,7 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
         </div>
         <Button
           aria-label={`Dismiss ${providerName} provider ${status.status}`}
-          className="absolute top-2 right-2 size-6"
+          className="absolute top-2 right-2"
           onClick={onDismiss}
           size="icon-xs"
           variant="ghost-muted"

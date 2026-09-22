@@ -4519,7 +4519,7 @@ export default function Sidebar() {
                                 aria-hidden="true"
                                 title={`Project settings for ${project.displayName}`}
                                 tone="muted"
-                                className="ml-auto size-6 focus-visible:bg-accent focus-visible:text-foreground"
+                                className="ml-auto focus-visible:bg-accent focus-visible:text-foreground"
                                 onPointerDown={(event) => event.stopPropagation()}
                                 onClick={(event) => {
                                   void handleProjectSettings(event, project);

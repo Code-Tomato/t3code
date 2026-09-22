@@ -23,7 +23,11 @@ function makeMessage(prompt: string): Omit<QueuedComposerMessage, "id"> {
 
 describe("queuedMessageStore", () => {
   beforeEach(() => {
-    useQueuedMessageStore.setState({ queuesByThreadKey: {}, drainGeneration: 0 });
+    useQueuedMessageStore.setState({
+      queuesByThreadKey: {},
+      backgroundSendsByThreadKey: {},
+      drainGeneration: 0,
+    });
   });
 
   it("keeps messages in submission order per thread", () => {
@@ -60,6 +64,21 @@ describe("queuedMessageStore", () => {
     ).toBe(false);
   });
 
+  it("owns a background send across navigation and scopes Stop to its thread", () => {
+    const store = useQueuedMessageStore.getState();
+    const a = store.enqueue("thread-a", makeMessage("a"));
+    const b = store.enqueue("thread-b", makeMessage("b"));
+    expect(store.take("thread-a", a.id, null, true)).toEqual(a);
+    expect(store.take("thread-b", b.id, null, true)).toEqual(b);
+    expect(store.drain("thread-a")).toEqual([]);
+    expect(useQueuedMessageStore.getState().backgroundSendsByThreadKey).toEqual({
+      "thread-a": { cancelled: true },
+      "thread-b": { cancelled: false },
+    });
+    store.finishBackgroundSend("thread-a");
+    store.finishBackgroundSend("thread-b");
+    expect(useQueuedMessageStore.getState().backgroundSendsByThreadKey).toEqual({});
+  });
   it("remove keeps the other messages' anchors", () => {
     const { enqueue, remove } = useQueuedMessageStore.getState();
     const first = enqueue("thread-a", { ...makeMessage("first"), queuedAfterToolActivityId: "t1" });

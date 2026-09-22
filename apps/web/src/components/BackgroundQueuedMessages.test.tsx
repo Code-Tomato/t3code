@@ -11,10 +11,13 @@ const io = vi.hoisted(() => ({
   prepare: vi.fn(),
   start: vi.fn(),
   connected: true,
+  shellPresent: true,
+  config: {},
 }));
 vi.mock("../state/entities", () => ({
   useThread: (ref: { threadId: string }) => io.threads.get(ref.threadId),
-  useServerConfigs: () => new Map([[EnvironmentId.make("env"), {}]]),
+  useServerConfigs: () => new Map([[EnvironmentId.make("env"), io.config]]),
+  useThreadShell: () => (io.shellPresent ? {} : null),
 }));
 vi.mock("../state/threads", () => ({ useEnvironmentThread: () => ({ status: "live" }) }));
 vi.mock("../state/environments", () => ({
@@ -63,8 +66,13 @@ function enqueue(prompt = "follow up") {
 }
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  useQueuedMessageStore.setState({ queuesByThreadKey: {}, drainGeneration: 0 });
+  useQueuedMessageStore.setState({
+    queuesByThreadKey: {},
+    backgroundSendsByThreadKey: {},
+    drainGeneration: 0,
+  });
   io.connected = true;
+  io.shellPresent = true;
   io.threads.set("a", { session: { status: "running" }, activities: [] });
   io.start.mockReset().mockImplementation(async (_ref, message, _options, canSend) => {
     if (!canSend()) return false;
@@ -96,6 +104,7 @@ describe("background queued messages", () => {
     await render(null);
     expect(io.start).not.toHaveBeenCalled();
     io.connected = true;
+    io.shellPresent = true;
     await render(null);
     expect(io.start).toHaveBeenCalledOnce();
   });
@@ -183,6 +192,16 @@ describe("background queued messages", () => {
     await render(null);
     await act(async () => release());
     expect(io.start).toHaveBeenCalledTimes(2);
+  });
+  it("retries when the shell arrives after the detail", async () => {
+    enqueue();
+    io.shellPresent = false;
+    io.threads.set("a", { session: { status: "ready" }, activities: [] });
+    await render(null);
+    expect(io.start).not.toHaveBeenCalled();
+    io.shellPresent = true;
+    await render(null);
+    expect(io.start).toHaveBeenCalledOnce();
   });
   it("does not send a held message", async () => {
     const message = enqueue();

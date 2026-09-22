@@ -31,7 +31,7 @@ import {
 } from "./attachmentUploadQueue";
 import { newMessageId } from "./utils";
 
-/** The message stays in the queue through preparation, so Stop/Cancel can still remove it. */
+/** Uploads stay cancellable. Taking the intent commits it before persistent thread updates. */
 export async function sendBackgroundQueuedMessage(
   ref: ScopedThreadRef,
   message: QueuedComposerMessage,
@@ -46,14 +46,18 @@ export async function sendBackgroundQueuedMessage(
       .queuesByThreadKey[key]?.some((entry) => entry.id === message.id) === true;
   const readConfig = () => appAtomRegistry.get(environmentServerConfigsAtom).get(ref.environmentId);
   const readyToSend = () => {
-    const head = useQueuedMessageStore.getState().queuesByThreadKey[key]?.[0];
+    const state = useQueuedMessageStore.getState();
+    const head = state.queuesByThreadKey[key]?.[0];
+    const ownsIntent = taken
+      ? state.backgroundSendsByThreadKey[key]?.cancelled === false
+      : head?.id === message.id;
     const provider = readConfig()?.providers.find(
       (entry) => entry.instanceId === options.modelSelection.instanceId,
     );
     return (
       canSend() &&
-      head?.id === message.id &&
-      !head.holdUntilUserAction &&
+      ownsIntent &&
+      !(head?.id === message.id && head.holdUntilUserAction) &&
       provider?.enabled === true &&
       provider.installed &&
       provider.availability !== "unavailable" &&
@@ -159,6 +163,16 @@ export async function sendBackgroundQueuedMessage(
     if (!readyToSend()) return false;
     const shell = readThreadShell(ref);
     if (!shell) return false;
+    // Claim before mutating settings. A queued Cancel can only win before this
+    // point; Stop can still cancel the owned send through its in-flight marker.
+    if (!useQueuedMessageStore.getState().take(key, message.id, latestToolActivityId(), true))
+      return false;
+    taken = true;
+    const stopIfBlocked = () => {
+      if (readyToSend()) return false;
+      useQueuedMessageStore.getState().holdAtFront(key, message);
+      return true;
+    };
     const createdAt = new Date().toISOString();
     if (options.modelSelection) {
       const result = await runAtomCommand(
@@ -172,6 +186,7 @@ export async function sendBackgroundQueuedMessage(
       );
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     }
+    if (stopIfBlocked()) return false;
     if (options.runtimeMode && options.runtimeMode !== shell.runtimeMode) {
       const result = await runAtomCommand(
         appAtomRegistry,
@@ -184,6 +199,7 @@ export async function sendBackgroundQueuedMessage(
       );
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     }
+    if (stopIfBlocked()) return false;
     if (options.interactionMode && options.interactionMode !== shell.interactionMode) {
       const result = await runAtomCommand(
         appAtomRegistry,
@@ -197,7 +213,7 @@ export async function sendBackgroundQueuedMessage(
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     }
     checkFiles();
-    if (!readyToSend()) return false;
+    if (stopIfBlocked()) return false;
     const context = buildMessageContext({
       terminalContexts: sendableTerminalContexts,
       previewAnnotations: message.previewAnnotations,
@@ -208,11 +224,6 @@ export async function sendBackgroundQueuedMessage(
       })),
     });
     const inlineContext = readConfig()?.environment.capabilities.inlineMessageContext === true;
-    // Nothing awaits between the atomic take and dispatch. Navigation, a foreground
-    // send, and Stop may race preparation, but only the winner can send this intent.
-    if (!useQueuedMessageStore.getState().take(key, message.id, latestToolActivityId()))
-      return false;
-    taken = true;
     const result = await runAtomCommand(
       appAtomRegistry,
       threadEnvironment.startTurn,
@@ -253,5 +264,7 @@ export async function sendBackgroundQueuedMessage(
       });
     }
     return false;
+  } finally {
+    if (taken) useQueuedMessageStore.getState().finishBackgroundSend(key);
   }
 }

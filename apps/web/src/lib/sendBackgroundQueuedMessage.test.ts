@@ -41,6 +41,7 @@ vi.mock("../hooks/useSettings", () => ({ useClientSettingsHydrated: () => true }
 vi.mock("../state/entities", () => ({
   useThread: (ref: { threadId: string }) => io.threads.get(ref.threadId),
   useServerConfigs: () => new Map([["env-a", io.config]]),
+  useThreadShell: () => ({}),
   readThreadShell: () => ({ runtimeMode: "full-access", interactionMode: "default" }),
 }));
 vi.mock("../components/ui/toast", () => ({
@@ -78,7 +79,11 @@ function enqueue() {
 }
 const startCalls = () => io.run.mock.calls.filter((call) => call[1] === "start");
 beforeEach(() => {
-  useQueuedMessageStore.setState({ queuesByThreadKey: {}, drainGeneration: 0 });
+  useQueuedMessageStore.setState({
+    queuesByThreadKey: {},
+    backgroundSendsByThreadKey: {},
+    drainGeneration: 0,
+  });
   io.run.mockReset().mockResolvedValue({ _tag: "Success", value: undefined });
   io.upload.mockReset().mockResolvedValue(undefined);
   io.release.mockReset();
@@ -118,6 +123,22 @@ describe("background queued send", () => {
       await act(() => root.unmount());
     }
   });
+  it("claims the queued intent before any persistent thread mutation", async () => {
+    const message = enqueue();
+    io.run.mockImplementation(async () => {
+      expect(useQueuedMessageStore.getState().queuesByThreadKey[key]).toBeUndefined();
+      return { _tag: "Success", value: undefined };
+    });
+    expect(
+      await sendBackgroundQueuedMessage(
+        ref,
+        message,
+        options,
+        () => true,
+        () => null,
+      ),
+    ).toBe(true);
+  });
   it("dispatches to the original environment/thread with the queued model and modes", async () => {
     const message = enqueue();
     expect(
@@ -142,7 +163,7 @@ describe("background queued send", () => {
     });
     expect(useQueuedMessageStore.getState().queuesByThreadKey[key]).toBeUndefined();
   });
-  it("does not dispatch or resurrect a message cancelled during preparation", async () => {
+  it("Stop after claiming an intent prevents the turn and retains it for manual retry", async () => {
     const message = enqueue();
     io.run.mockImplementation(async (_registry, command) => {
       if (command === "metadata") useQueuedMessageStore.getState().drain(key);
@@ -158,7 +179,10 @@ describe("background queued send", () => {
       ),
     ).toBe(false);
     expect(startCalls()).toHaveLength(0);
-    expect(useQueuedMessageStore.getState().queuesByThreadKey[key]).toBeUndefined();
+    expect(useQueuedMessageStore.getState().queuesByThreadKey[key]).toEqual([
+      { ...message, holdUntilUserAction: true },
+    ]);
+    expect(useQueuedMessageStore.getState().backgroundSendsByThreadKey[key]).toBeUndefined();
   });
   it("rechecks approvals and connection gates after async preparation", async () => {
     const message = enqueue();

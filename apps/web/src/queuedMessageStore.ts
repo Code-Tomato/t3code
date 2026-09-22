@@ -52,6 +52,8 @@ export interface QueuedComposerMessage {
 
 interface QueuedMessageStoreState {
   queuesByThreadKey: Record<string, QueuedComposerMessage[]>;
+  backgroundSendsByThreadKey: Record<string, { cancelled: boolean }>;
+  finishBackgroundSend: (threadKey: string) => void;
   /**
    * Bumped by `drain`. A send that took a message before a drain and finishes
    * its upload after it compares this to the value it captured and gives up,
@@ -68,6 +70,7 @@ interface QueuedMessageStoreState {
     threadKey: string,
     id: string,
     toolActivityId: string | null,
+    background?: boolean,
   ) => QueuedComposerMessage | null;
   /** Removes one message without touching the others' anchors. Null when already gone. */
   remove: (threadKey: string, id: string) => QueuedComposerMessage | null;
@@ -85,6 +88,13 @@ const EMPTY_QUEUE: QueuedComposerMessage[] = [];
 /** In-memory only: a queued message is a live intent, not a draft worth persisting. */
 export const useQueuedMessageStore = create<QueuedMessageStoreState>()((set, get) => ({
   queuesByThreadKey: {},
+  backgroundSendsByThreadKey: {},
+  finishBackgroundSend: (threadKey) =>
+    set((state) => {
+      const backgroundSendsByThreadKey = { ...state.backgroundSendsByThreadKey };
+      delete backgroundSendsByThreadKey[threadKey];
+      return { backgroundSendsByThreadKey };
+    }),
   drainGeneration: 0,
   enqueue: (threadKey, message) => {
     const entry: QueuedComposerMessage = { ...message, id: randomUUID() };
@@ -96,10 +106,10 @@ export const useQueuedMessageStore = create<QueuedMessageStoreState>()((set, get
     }));
     return entry;
   },
-  take: (threadKey, id, toolActivityId) => {
+  take: (threadKey, id, toolActivityId, background = false) => {
     const queue = get().queuesByThreadKey[threadKey];
     const entry = queue?.find((message) => message.id === id);
-    if (!queue || !entry) {
+    if (!queue || !entry || get().backgroundSendsByThreadKey[threadKey]) {
       return null;
     }
     set((state) => {
@@ -116,7 +126,17 @@ export const useQueuedMessageStore = create<QueuedMessageStoreState>()((set, get
       } else {
         queuesByThreadKey[threadKey] = remaining;
       }
-      return { queuesByThreadKey };
+      return {
+        queuesByThreadKey,
+        ...(background
+          ? {
+              backgroundSendsByThreadKey: {
+                ...state.backgroundSendsByThreadKey,
+                [threadKey]: { cancelled: false },
+              },
+            }
+          : {}),
+      };
     });
     return entry;
   },
@@ -154,6 +174,14 @@ export const useQueuedMessageStore = create<QueuedMessageStoreState>()((set, get
     });
   },
   drain: (threadKey) => {
+    if (get().backgroundSendsByThreadKey[threadKey]) {
+      set((state) => ({
+        backgroundSendsByThreadKey: {
+          ...state.backgroundSendsByThreadKey,
+          [threadKey]: { cancelled: true },
+        },
+      }));
+    }
     const queue = get().queuesByThreadKey[threadKey];
     if (!queue || queue.length === 0) {
       return EMPTY_QUEUE;

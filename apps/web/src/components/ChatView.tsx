@@ -3201,7 +3201,7 @@ export default function ChatView(props: ChatViewProps) {
     localDispatchStartedAt,
     latestUserMessageAt,
     isPreparingWorktree: isLocallyPreparingWorktree,
-    isSendBusy,
+    isSendBusy: isLocalSendBusy,
     backgroundSubmissionPending,
   } = useLocalDispatchState({
     activeThread,
@@ -3211,6 +3211,11 @@ export default function ChatView(props: ChatViewProps) {
     activePendingUserInput: activePendingUserInput?.requestId ?? null,
     threadError,
   });
+  const isBackgroundQueueSending = useQueuedMessageStore(
+    (state) =>
+      activeThreadKey !== null && state.backgroundSendsByThreadKey[activeThreadKey] !== undefined,
+  );
+  const isSendBusy = isLocalSendBusy || isBackgroundQueueSending;
   const optimisticCompactionMessage = optimisticUserMessages.at(-1);
   const pendingCompactionMessage =
     isSendBusy &&

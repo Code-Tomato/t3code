@@ -11,7 +11,7 @@ import {
   isQueuedMessageDue,
   latestCompletedToolActivityId,
 } from "../queuedMessageStore";
-import { useThread, useServerConfigs } from "../state/entities";
+import { useThread, useThreadShell, useServerConfigs } from "../state/entities";
 import { useEnvironmentThread } from "../state/threads";
 import { useEnvironments } from "../state/environments";
 import { useClientSettingsHydrated } from "../hooks/useSettings";
@@ -29,7 +29,14 @@ export function BackgroundQueueCoordinator() {
 
 /** Subscribe only to threads with queued work, independently of the selected route. */
 export function BackgroundQueuedMessages({ activeThreadKey }: { activeThreadKey: string | null }) {
-  const keys = useQueuedMessageStore(useShallow((state) => Object.keys(state.queuesByThreadKey)));
+  const keys = useQueuedMessageStore(
+    useShallow((state) => [
+      ...new Set([
+        ...Object.keys(state.queuesByThreadKey),
+        ...Object.keys(state.backgroundSendsByThreadKey),
+      ]),
+    ]),
+  );
   return keys.map((threadKey) => (
     <BackgroundThreadQueue
       key={threadKey}
@@ -42,6 +49,10 @@ export function BackgroundQueuedMessages({ activeThreadKey }: { activeThreadKey:
 function BackgroundThreadQueue({ threadKey, active }: { threadKey: string; active: boolean }) {
   const ref = useMemo(() => parseScopedThreadKey(threadKey), [threadKey]);
   const thread = useThread(ref);
+  const shell = useThreadShell(ref);
+  const sending = useQueuedMessageStore(
+    (state) => state.backgroundSendsByThreadKey[threadKey] !== undefined,
+  );
   const detail = useEnvironmentThread(ref?.environmentId ?? null, ref?.threadId ?? null);
   const { environments } = useEnvironments();
   const configs = useServerConfigs();
@@ -58,11 +69,12 @@ function BackgroundThreadQueue({ threadKey, active }: { threadKey: string; activ
       environment.connection.phase === "connected",
   );
   const blocked =
-    active ||
+    (active && !sending) ||
     rewinding ||
     !connected ||
     !hydrated ||
     !thread ||
+    !shell ||
     detail.status !== "live" ||
     pending.approvals.length > 0 ||
     pending.userInputs.length > 0;

@@ -820,9 +820,10 @@ function ScreenRenderFallback(props: {
   readonly componentStack?: string | undefined;
   readonly routeName?: string | undefined;
 }) {
-  // The seam renders OUTSIDE SceneView, so this hook resolves to the root
-  // navigation container — exactly the stack-level goBack/navigate/popToTop
-  // the recovery exits need, and it is unaffected by the failed subtree.
+  // Screen's per-route context wraps the layout, so this hook resolves to
+  // the guarded root-stack route's own navigation — the same stack the exit
+  // actions (goBack/navigate/replace) need — and it lives outside the
+  // failed subtree, so recovery keeps working when the screen cannot render.
   const navigation = useNavigation();
   const exit = screenFallbackExit({
     canGoBack: navigation.canGoBack(),

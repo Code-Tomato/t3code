@@ -542,10 +542,10 @@ function WhenExpressionNodeEditor({
             <SelectValue />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false} matchTriggerWidth={false}>
-            <SelectItem value="and" className="min-h-7 py-1 text-[12px]" font="mono">
+            <SelectItem value="and" density="compact" font="mono">
               and
             </SelectItem>
-            <SelectItem value="or" className="min-h-7 py-1 text-[12px]" font="mono">
+            <SelectItem value="or" density="compact" font="mono">
               or
             </SelectItem>
           </SelectContent>
@@ -1162,7 +1162,7 @@ function NewKeybindingCommandSelect({
         className="max-h-72"
       >
         {commandOptions.map((command) => (
-          <SelectItem key={command} value={command} className="min-h-7 w-full py-1 text-[12px]">
+          <SelectItem key={command} value={command} density="compact">
             <span className="truncate">{commandLabel(command)}</span>
           </SelectItem>
         ))}

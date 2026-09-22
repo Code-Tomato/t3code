@@ -26,7 +26,7 @@ export function PullRequestsUnavailableState({
   gitHubUrl?: string;
 }) {
   return (
-    <Empty className="min-h-0 justify-center-safe overflow-y-auto px-4 py-16 md:px-4 [&>*]:shrink-0">
+    <Empty size="spacious" className="min-h-0 justify-center-safe overflow-y-auto [&>*]:shrink-0">
       <EmptyMedia variant="icon">
         <PullRequestGlyph.pullRequest />
       </EmptyMedia>
@@ -37,7 +37,7 @@ export function PullRequestsUnavailableState({
         <EmptyDescription>{error}</EmptyDescription>
       </EmptyHeader>
       {onRetry || gitHubUrl ? (
-        <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+        <EmptyContent direction="row">
           {onRetry ? (
             <Button
               size="sm"

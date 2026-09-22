@@ -17,6 +17,7 @@ import {
   prStatusIndicator,
   PrStatusTooltipContent,
   terminalStatusFromRunningIds,
+  synchronizeTerminalPulse,
   ThreadStatusLabel,
   ThreadWorktreeIndicator,
   useLinkedThreadPullRequest,
@@ -824,7 +825,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   />
                 }
               >
-                <TerminalIcon className="size-3" />
+                <TerminalIcon
+                  className={`size-3 ${terminalStatus.pulse ? "animate-status-pulse" : ""}`}
+                  onAnimationStart={synchronizeTerminalPulse}
+                />
               </TooltipTrigger>
               <TooltipPopup side="top">{terminalStatus.label}</TooltipPopup>
             </Tooltip>

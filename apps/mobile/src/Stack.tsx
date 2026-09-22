@@ -10,7 +10,7 @@ import {
   createNativeStackScreen,
   type NativeStackNavigationOptions,
 } from "@react-navigation/native-stack";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   Platform,
   Pressable,
@@ -23,6 +23,7 @@ import { useResolveClassNames } from "uniwind";
 
 import { AppText as Text } from "./components/AppText";
 import { getCompactBrandHeaderOptions } from "./components/CompactBrandTitle";
+import { RenderErrorBoundary, RenderFailureView } from "./components/RenderErrorBoundary";
 import { ArchivedThreadsRouteScreen } from "./features/archive/ArchivedThreadsRouteScreen";
 import { useAgentNotificationNavigation } from "./features/agent-awareness/notificationNavigation";
 import { ConnectOnboardingRouteScreen } from "./features/cloud/ConnectOnboardingRouteScreen";
@@ -777,6 +778,34 @@ const RootStackConfig = createNativeStackNavigator({
   },
 });
 
+// NAVIGATION SEAM: every root route renders inside its own error boundary.
+// A crashing screen shows the recovery UI in place — the native header, back
+// gesture, and the rest of the stack stay alive, so recovery works without
+// killing the app. Each route renders this layout within its own screen slot
+// (keyed by the navigator), so a popped route tears its boundary down. Screens
+// nested inside a sheet/stack route share that route's boundary.
+function GuardedScreenLayout(props: {
+  readonly children: ReactNode;
+  readonly route: { readonly name: string };
+}) {
+  return (
+    <RenderErrorBoundary scope={`screen:${props.route.name}`} fallback={ScreenRenderFallback}>
+      {props.children}
+    </RenderErrorBoundary>
+  );
+}
+
+function ScreenRenderFallback(props: { readonly error: unknown; readonly retry: () => void }) {
+  const navigation = useNavigation();
+  return (
+    <RenderFailureView
+      error={props.error}
+      retry={props.retry}
+      onGoBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+    />
+  );
+}
+
 export const RootStack = RootStackConfig.with(function AdaptiveRootStack({ Navigator }) {
   const { width, height } = useWindowDimensions();
   const usesWorkspaceFlowScreens =
@@ -784,6 +813,7 @@ export const RootStack = RootStackConfig.with(function AdaptiveRootStack({ Navig
 
   return (
     <Navigator
+      screenLayout={GuardedScreenLayout}
       screenOptions={({ route }) => {
         if (route.name !== "SettingsSheet" && route.name !== "NewTaskSheet") {
           return {};

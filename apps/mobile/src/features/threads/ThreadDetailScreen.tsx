@@ -72,6 +72,7 @@ import type { StatusTone } from "../../components/StatusPill";
 import type { DraftComposerAttachment } from "../../lib/composerImages";
 import { CHAT_CONTENT_MAX_WIDTH, type LayoutVariant } from "../../lib/layout";
 import { IOS_NAV_BAR_HEIGHT } from "../../lib/layoutMetrics";
+import { RenderErrorBoundary } from "../../components/RenderErrorBoundary";
 import { editPendingThreadMessage } from "../../state/edit-pending-thread-message";
 import { deviceEnvironment } from "../../state/device";
 import { useEnvironmentQuery } from "../../state/query";
@@ -892,39 +893,49 @@ export const ThreadDetailScreen = memo(function ThreadDetailScreen(props: Thread
                 : "absolute inset-0 bg-screen"
             }
           />
-          <ThreadFeed
-            key={selectedThreadKey}
-            environmentId={props.environmentId}
-            threadId={props.selectedThread.id}
-            workspaceRoot={props.threadCwd}
-            feed={props.selectedThreadFeed}
-            worktreeSetup={props.worktreeSetup}
-            setupWorkingStartedAt={props.setupWorkingStartedAt}
-            queuedMessages={props.queuedMessages}
-            dispatchingMessageId={props.dispatchingMessageId}
-            onEditPendingMessage={handleEditPendingMessage}
-            contentPresentation={props.contentPresentation}
-            agentLabel={agentLabel}
-            latestTurn={props.selectedThread.latestTurn}
-            activeWorkStartedAt={props.activeWorkStartedAt}
-            listRef={listRef}
-            freeze={freeze}
-            anchorMessageId={anchorMessageId}
-            submittedMessageId={submittedMessageId}
-            contentInsetEndAdjustment={combinedContentInsetEndAdjustment}
-            contentTopInset={0}
-            contentBottomInset={
-              estimatedOverlayHeight + (showFloatingStatus ? FLOATING_WORKING_CONTROL_COVERAGE : 0)
-            }
-            contentMaxWidth={contentMaxWidth}
-            layoutVariant={layoutVariant}
-            usesAutomaticContentInsets={props.usesAutomaticContentInsets}
-            onHeaderMaterialVisibilityChange={props.onHeaderMaterialVisibilityChange}
-            onEndFollowEnabledChange={setEndFollowEnabled}
-            skills={selectedProviderSkills}
-            onUseArtifactTemplate={handleUseArtifactTemplate}
-            loadEarlier={props.loadEarlier ?? null}
-          />
+          {/* A crash while rendering feed entries is scoped here: the composer,
+              header, and navigation survive, and switching threads (new
+              resetKeys) clears the failure without any user action. */}
+          <RenderErrorBoundary
+            scope="thread-feed"
+            subject="The conversation"
+            resetKeys={[selectedThreadKey]}
+          >
+            <ThreadFeed
+              key={selectedThreadKey}
+              environmentId={props.environmentId}
+              threadId={props.selectedThread.id}
+              workspaceRoot={props.threadCwd}
+              feed={props.selectedThreadFeed}
+              worktreeSetup={props.worktreeSetup}
+              setupWorkingStartedAt={props.setupWorkingStartedAt}
+              queuedMessages={props.queuedMessages}
+              dispatchingMessageId={props.dispatchingMessageId}
+              onEditPendingMessage={handleEditPendingMessage}
+              contentPresentation={props.contentPresentation}
+              agentLabel={agentLabel}
+              latestTurn={props.selectedThread.latestTurn}
+              activeWorkStartedAt={props.activeWorkStartedAt}
+              listRef={listRef}
+              freeze={freeze}
+              anchorMessageId={anchorMessageId}
+              submittedMessageId={submittedMessageId}
+              contentInsetEndAdjustment={combinedContentInsetEndAdjustment}
+              contentTopInset={0}
+              contentBottomInset={
+                estimatedOverlayHeight +
+                (showFloatingStatus ? FLOATING_WORKING_CONTROL_COVERAGE : 0)
+              }
+              contentMaxWidth={contentMaxWidth}
+              layoutVariant={layoutVariant}
+              usesAutomaticContentInsets={props.usesAutomaticContentInsets}
+              onHeaderMaterialVisibilityChange={props.onHeaderMaterialVisibilityChange}
+              onEndFollowEnabledChange={setEndFollowEnabled}
+              skills={selectedProviderSkills}
+              onUseArtifactTemplate={handleUseArtifactTemplate}
+              loadEarlier={props.loadEarlier ?? null}
+            />
+          </RenderErrorBoundary>
         </View>
       ) : (
         <View className="flex-1" />

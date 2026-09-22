@@ -16,6 +16,11 @@ import {
   parseStartupCrashRecords,
   type StartupCrashRecord,
 } from "./crash-log-model";
+import {
+  formatRenderErrorReport,
+  getRenderErrorRecords,
+  type RenderErrorRecord,
+} from "./render-error-log";
 
 // expo-updates keeps its persistent log this long. Reading any further back
 // returns nothing, so this is the whole available window.
@@ -47,6 +52,10 @@ export function SettingsDiagnosticsRouteScreen() {
     Updates.isEnabled ? { status: "loading" } : { status: "unavailable" },
   );
   const [copied, setCopied] = useState(false);
+  const [renderCopied, setRenderCopied] = useState(false);
+  // Render errors live only for the session (in memory, no persistence), and
+  // this screen mounts fresh each time it opens.
+  const [renderRecords] = useState<ReadonlyArray<RenderErrorRecord>>(getRenderErrorRecords);
 
   useEffect(() => {
     if (!Updates.isEnabled) return;
@@ -71,6 +80,12 @@ export function SettingsDiagnosticsRouteScreen() {
       target: "crash report",
     });
     if (ok) setCopied(true);
+  };
+  const copyRenderReport = async () => {
+    const ok = await tryCopyTextWithHaptic(formatRenderErrorReport(renderRecords, appIdentity()), {
+      target: "render error report",
+    });
+    if (ok) setRenderCopied(true);
   };
 
   return (
@@ -107,6 +122,24 @@ export function SettingsDiagnosticsRouteScreen() {
           )}
         </SettingsSection>
 
+        <SettingsSection title="Recovered render errors">
+          {renderRecords.length === 0 ? (
+            <EmptyState
+              icon="checkmark.circle"
+              title="No recovered render errors"
+              detail="Nothing was caught and recovered since this launch. Recovered errors are kept in memory only — check here before restarting the app."
+            />
+          ) : (
+            renderRecords.map((record, index) => (
+              <RenderErrorRow
+                key={record.timestamp + record.scope}
+                record={record}
+                first={index === 0}
+              />
+            ))
+          )}
+        </SettingsSection>
+
         <View className="gap-3">
           <SettingsSection title="Actions">
             <SettingsActionRow
@@ -114,6 +147,12 @@ export function SettingsDiagnosticsRouteScreen() {
               label={copied ? "Copied" : "Copy crash report"}
               disabled={state.status !== "ready"}
               onPress={() => void copyReport()}
+            />
+            <SettingsActionRow
+              icon={renderCopied ? "checkmark" : "doc.on.doc"}
+              label={renderCopied ? "Copied" : "Copy render error report"}
+              disabled={renderRecords.length === 0}
+              onPress={() => void copyRenderReport()}
             />
           </SettingsSection>
           <Text className="px-2 text-sm leading-normal text-foreground-muted">
@@ -143,6 +182,20 @@ function EmptyState(props: {
       />
       <Text className="text-center text-base text-foreground">{props.title}</Text>
       <Text className="text-center text-sm text-foreground-muted">{props.detail}</Text>
+    </View>
+  );
+}
+
+function RenderErrorRow(props: { readonly record: RenderErrorRecord; readonly first: boolean }) {
+  const { record } = props;
+  return (
+    <View className={props.first ? "gap-1.5 p-4" : "gap-1.5 border-t border-border-subtle p-4"}>
+      <Text className="text-xs text-foreground-muted">
+        {new Date(record.timestamp).toLocaleString()} · {record.scope}
+      </Text>
+      <Text selectable className="text-base leading-snug text-danger-foreground">
+        {record.message}
+      </Text>
     </View>
   );
 }

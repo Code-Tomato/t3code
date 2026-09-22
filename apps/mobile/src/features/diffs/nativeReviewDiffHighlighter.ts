@@ -1,33 +1,12 @@
-import { createHighlighterCore, type GrammarState, type HighlighterCore } from "@shikijs/core";
-import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
-import bashLanguage from "@shikijs/langs/bash";
-import diffLanguage from "@shikijs/langs/diff";
-import javascriptLanguage from "@shikijs/langs/javascript";
-import jsonLanguage from "@shikijs/langs/json";
-import jsxLanguage from "@shikijs/langs/jsx";
-import tsxLanguage from "@shikijs/langs/tsx";
-import typescriptLanguage from "@shikijs/langs/typescript";
-import yamlLanguage from "@shikijs/langs/yaml";
+import type { GrammarState, ThemeInput } from "@shikijs/core";
 import * as Schema from "effect/Schema";
 
+import { createShikiHighlighter, type ShikiHighlighterHandle } from "../../lib/shikiHighlighter";
 import type { NativeReviewDiffFile, NativeReviewDiffLanguage } from "./nativeReviewDiffTypes";
 import type { NativeReviewDiffRow, NativeReviewDiffToken } from "./nativeReviewDiffSurface";
 
 export type NativeReviewDiffHighlightScheme = "light" | "dark";
 export type NativeReviewDiffHighlightEngine = "native" | "javascript";
-
-export class NativeReviewDiffHighlighterUnavailableError extends Schema.TaggedError<NativeReviewDiffHighlighterUnavailableError>()(
-  "NativeReviewDiffHighlighterUnavailableError",
-  {},
-) {
-  override get message(): string {
-    return "The native review diff highlighter is unavailable in this build.";
-  }
-}
-
-export const isNativeReviewDiffHighlighterUnavailableError = Schema.is(
-  NativeReviewDiffHighlighterUnavailableError,
-);
 
 export class NativeReviewDiffHighlighterInitializationError extends Schema.TaggedError<NativeReviewDiffHighlighterInitializationError>()(
   "NativeReviewDiffHighlighterInitializationError",
@@ -179,18 +158,7 @@ const PIERRE_DARK_SHIKI_THEME = {
 const NATIVE_REVIEW_DIFF_SHIKI_THEMES = [
   PIERRE_LIGHT_SHIKI_THEME,
   PIERRE_DARK_SHIKI_THEME,
-] satisfies Parameters<typeof createHighlighterCore>[0]["themes"];
-
-const NATIVE_REVIEW_DIFF_LANGUAGES = [
-  bashLanguage,
-  diffLanguage,
-  javascriptLanguage,
-  jsonLanguage,
-  jsxLanguage,
-  tsxLanguage,
-  typescriptLanguage,
-  yamlLanguage,
-] satisfies Parameters<typeof createHighlighterCore>[0]["langs"];
+] satisfies readonly ThemeInput[];
 
 let nativeHighlighterPromise: Promise<NativeReviewDiffHighlighterHandle> | null = null;
 let javascriptHighlighterPromise: Promise<NativeReviewDiffHighlighterHandle> | null = null;
@@ -211,13 +179,16 @@ function normalizeTokens(
   );
 }
 
-function createHighlighterHandle(
-  highlighter: HighlighterCore,
-  engine: NativeReviewDiffHighlightEngine,
-): NativeReviewDiffHighlighterHandle {
+function createHighlighterHandle(shiki: ShikiHighlighterHandle): NativeReviewDiffHighlighterHandle {
   return {
-    engine,
+    engine: shiki.engine,
     async tokenize(code, { lang, theme, signal }) {
+      // Grammars arrive on demand, so the review sheet only pays for the languages
+      // it actually shows. Without one, the segment stays plain text.
+      if (!(await shiki.ensureGrammar(lang))) {
+        return [];
+      }
+
       const lines = code.split("\n");
       const highlighted: Array<ReadonlyArray<NativeReviewDiffToken>> = [];
       let grammarState: GrammarState | undefined;
@@ -253,12 +224,12 @@ function createHighlighterHandle(
           end += 1;
         }
 
-        const tokens = highlighter.codeToTokensBase(lines.slice(start, end).join("\n"), {
+        const tokens = shiki.core.codeToTokensBase(lines.slice(start, end).join("\n"), {
           lang,
           theme,
           grammarState,
         });
-        grammarState = highlighter.getLastGrammarState(tokens);
+        grammarState = shiki.core.getLastGrammarState(tokens);
         highlighted.push(...normalizeTokens(tokens));
         start = end;
         if (start < lines.length) await waitForNextFrame();
@@ -269,81 +240,45 @@ function createHighlighterHandle(
   };
 }
 
-async function createNativeReviewDiffHighlighter(): Promise<NativeReviewDiffHighlighterHandle> {
-  const nativeEngineModule = await import("react-native-shiki-engine");
-  if (!nativeEngineModule.isNativeEngineAvailable()) {
-    throw new NativeReviewDiffHighlighterUnavailableError();
-  }
-
-  const highlighter = await createHighlighterCore({
-    langs: NATIVE_REVIEW_DIFF_LANGUAGES,
-    themes: NATIVE_REVIEW_DIFF_SHIKI_THEMES,
-    engine: nativeEngineModule.createNativeEngine(),
-  });
-
-  return createHighlighterHandle(highlighter, "native");
+function createReviewDiffHighlighter(
+  preferredEngine: NativeReviewDiffHighlightEngine,
+): Promise<NativeReviewDiffHighlighterHandle> {
+  return createShikiHighlighter({
+    themes: async () => NATIVE_REVIEW_DIFF_SHIKI_THEMES,
+    preferredEngine,
+    createInitializationError: ({ preferredEngine: requested, attemptedEngine, cause }) =>
+      new NativeReviewDiffHighlighterInitializationError({
+        requestedEngine: requested,
+        attemptedEngine,
+        cause,
+      }),
+    onNativeEngineUnavailable: (error) => {
+      console.warn("[debug-native-diff] native highlighter unavailable", { error });
+    },
+  }).then(createHighlighterHandle);
 }
 
-async function createJavascriptReviewDiffHighlighter(): Promise<NativeReviewDiffHighlighterHandle> {
-  const highlighter: HighlighterCore = await createHighlighterCore({
-    langs: NATIVE_REVIEW_DIFF_LANGUAGES,
-    themes: NATIVE_REVIEW_DIFF_SHIKI_THEMES,
-    engine: createJavaScriptRegexEngine(),
-  });
-
-  return createHighlighterHandle(highlighter, "javascript");
-}
-
-export async function getNativeReviewDiffHighlighter(
+/**
+ * One cached highlighter per requested engine. A highlighter requested as
+ * `native` may still report the `javascript` engine when the native regex engine
+ * is unavailable in the build.
+ */
+export function getNativeReviewDiffHighlighter(
   engine: NativeReviewDiffHighlightEngine = "native",
 ): Promise<NativeReviewDiffHighlighterHandle> {
   if (engine === "javascript") {
-    try {
-      javascriptHighlighterPromise ??= createJavascriptReviewDiffHighlighter();
-      return await javascriptHighlighterPromise;
-    } catch (cause) {
+    javascriptHighlighterPromise ??= createReviewDiffHighlighter("javascript").catch((error) => {
       javascriptHighlighterPromise = null;
-      throw new NativeReviewDiffHighlighterInitializationError({
-        requestedEngine: engine,
-        attemptedEngine: "javascript",
-        cause,
-      });
-    }
-  }
-
-  nativeHighlighterPromise ??= createNativeReviewDiffHighlighter()
-    .catch(async (cause: unknown) => {
-      const nativeError = isNativeReviewDiffHighlighterUnavailableError(cause)
-        ? cause
-        : new NativeReviewDiffHighlighterInitializationError({
-            requestedEngine: engine,
-            attemptedEngine: "native",
-            cause,
-          });
-      console.warn("[debug-native-diff] native highlighter unavailable", {
-        error: nativeError,
-      });
-      try {
-        javascriptHighlighterPromise ??= createJavascriptReviewDiffHighlighter();
-        return await javascriptHighlighterPromise;
-      } catch (fallbackCause) {
-        javascriptHighlighterPromise = null;
-        throw new NativeReviewDiffHighlighterInitializationError({
-          requestedEngine: engine,
-          attemptedEngine: "javascript",
-          cause: new AggregateError(
-            [nativeError, fallbackCause],
-            "Native and JavaScript review diff highlighter initialization failed.",
-            { cause: nativeError },
-          ),
-        });
-      }
-    })
-    .catch((error) => {
-      nativeHighlighterPromise = null;
       throw error;
     });
-  return await nativeHighlighterPromise;
+    return javascriptHighlighterPromise;
+  }
+
+  nativeHighlighterPromise ??= createReviewDiffHighlighter("native").catch((error) => {
+    nativeHighlighterPromise = null;
+    throw error;
+  });
+  return nativeHighlighterPromise;
 }
 
 function isHighlightableLineRow(row: NativeReviewDiffRow): row is NativeReviewDiffLineRow {

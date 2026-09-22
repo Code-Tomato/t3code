@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import {
   resolveMobileCodeSurface,
   type ResolvedMobileCodeSurface,
-} from "../../../lib/appearancePreferences";
+} from "@/lib/appearancePreferences";
 import { createNativeReviewDiffStyle } from "../../review/nativeReviewDiffAdapter";
 import { createNativeSourceStyle } from "../../files/nativeSourceFileAdapter";
 import { useAppearancePreferences } from "./AppearancePreferencesProvider";

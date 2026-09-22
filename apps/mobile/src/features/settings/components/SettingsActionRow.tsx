@@ -1,10 +1,10 @@
 import type { ComponentProps } from "react";
 import { ActivityIndicator, Platform, Pressable } from "react-native";
 
-import { SymbolView } from "../../../components/AppSymbol";
-import { AppText as Text } from "../../../components/AppText";
-import { MaterialListRow } from "../../../components/MaterialListRow";
-import { cn } from "../../../lib/cn";
+import { SymbolView } from "@/components/AppSymbol";
+import { AppText as Text } from "@/components/AppText";
+import { MaterialListRow } from "@/components/MaterialListRow";
+import { cn } from "@/lib/cn";
 
 export function SettingsActionRow(props: {
   readonly icon: ComponentProps<typeof SymbolView>["name"];

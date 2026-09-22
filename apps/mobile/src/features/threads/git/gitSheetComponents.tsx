@@ -1,9 +1,9 @@
-import { SymbolView } from "../../../components/AppSymbol";
+import { SymbolView } from "@/components/AppSymbol";
 import type { ComponentProps } from "react";
 import { Platform, Pressable, View } from "react-native";
-import { AppText as Text } from "../../../components/AppText";
-import { MaterialButton } from "../../../components/MaterialButton";
-import { cn } from "../../../lib/cn";
+import { AppText as Text } from "@/components/AppText";
+import { MaterialButton } from "@/components/MaterialButton";
+import { cn } from "@/lib/cn";
 
 /* ─── Shared sheet components ──────────────────────────────────────── */
 

@@ -4,8 +4,8 @@ import {
 } from "@t3tools/contracts";
 import { View } from "react-native";
 
-import { AppText } from "../../../components/AppText";
-import { MaterialIconButton } from "../../../components/MaterialIconButton";
+import { AppText } from "@/components/AppText";
+import { MaterialIconButton } from "@/components/MaterialIconButton";
 import type { AutoSettleDaysFieldProps } from "./AutoSettleDaysField";
 
 export function AutoSettleDaysField(props: AutoSettleDaysFieldProps) {

@@ -2,9 +2,9 @@ import { useNavigation } from "@react-navigation/native";
 import type { ReactNode } from "react";
 import { Platform, View } from "react-native";
 
-import type { ScreenHeaderProps } from "../../../components/ScreenHeader.types";
-import { ScreenHeader } from "../../../components/ScreenHeader";
-import { MaterialScreenContent as SettingsScreenContent } from "../../../components/MaterialScreenContent";
+import type { ScreenHeaderProps } from "@/components/ScreenHeader.types";
+import { ScreenHeader } from "@/components/ScreenHeader";
+import { MaterialScreenContent as SettingsScreenContent } from "@/components/MaterialScreenContent";
 
 export { SettingsScreenContent };
 

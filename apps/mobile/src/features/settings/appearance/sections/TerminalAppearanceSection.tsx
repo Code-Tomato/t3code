@@ -4,7 +4,7 @@ import {
   MAX_TERMINAL_FONT_SIZE,
   MIN_TERMINAL_FONT_SIZE,
   TERMINAL_FONT_SIZE_STEP,
-} from "../../../../lib/appearancePreferences";
+} from "@/lib/appearancePreferences";
 import { SettingsSection } from "../../components/SettingsSection";
 import { SettingsSwitchRow } from "../../components/SettingsSwitchRow";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";

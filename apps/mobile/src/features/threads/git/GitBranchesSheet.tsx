@@ -4,17 +4,17 @@ import { useState } from "react";
 import { Platform, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AndroidSheetHeader } from "../../../components/AndroidScreenHeader";
-import { MaterialScreenContent } from "../../../components/MaterialScreenContent";
-import { NativeStackScreenOptions } from "../../../native/StackHeader";
-import { AppText as Text, AppTextInput as TextInput } from "../../../components/AppText";
-import { cn } from "../../../lib/cn";
-import { useEnvironmentQuery } from "../../../state/query";
-import { useThreadSelection } from "../../../state/use-thread-selection";
-import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-git-actions";
-import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
-import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
-import { vcsEnvironment } from "../../../state/vcs";
+import { AndroidSheetHeader } from "@/components/AndroidScreenHeader";
+import { MaterialScreenContent } from "@/components/MaterialScreenContent";
+import { NativeStackScreenOptions } from "@/native/StackHeader";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { cn } from "@/lib/cn";
+import { useEnvironmentQuery } from "@/state/query";
+import { useThreadSelection } from "@/state/use-thread-selection";
+import { useSelectedThreadGitActions } from "@/state/use-selected-thread-git-actions";
+import { useSelectedThreadGitState } from "@/state/use-selected-thread-git-state";
+import { useSelectedThreadWorktree } from "@/state/use-selected-thread-worktree";
+import { vcsEnvironment } from "@/state/vcs";
 import { SheetActionButton } from "./gitSheetComponents";
 
 type GitBranchesSheetProps = StaticScreenProps<{

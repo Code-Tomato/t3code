@@ -4,8 +4,8 @@ import {
   DEFAULT_BASE_FONT_SIZE,
   normalizeBaseFontSize,
   scaledTypographyLineHeight,
-} from "../../../lib/appearancePreferences";
-import { MOBILE_TYPOGRAPHY } from "../../../lib/typography";
+} from "@/lib/appearancePreferences";
+import { MOBILE_TYPOGRAPHY } from "@/lib/typography";
 import { useAppearancePreferences } from "./AppearancePreferencesProvider";
 
 export interface ScaledTextRole {

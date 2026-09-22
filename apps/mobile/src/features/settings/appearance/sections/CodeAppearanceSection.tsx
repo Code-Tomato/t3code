@@ -4,7 +4,7 @@ import {
   CODE_FONT_SIZE_STEP,
   MAX_CODE_FONT_SIZE,
   MIN_CODE_FONT_SIZE,
-} from "../../../../lib/appearancePreferences";
+} from "@/lib/appearancePreferences";
 import { SettingsSection } from "../../components/SettingsSection";
 import { SettingsSwitchRow } from "../../components/SettingsSwitchRow";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";

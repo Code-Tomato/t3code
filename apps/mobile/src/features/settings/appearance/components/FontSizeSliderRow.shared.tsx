@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { SymbolView } from "../../../../components/AppSymbol";
+import { SymbolView } from "@/components/AppSymbol";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { View, type AccessibilityActionEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -11,7 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import type { ComponentProps } from "react";
 
-import { AppText as Text } from "../../../../components/AppText";
+import { AppText as Text } from "@/components/AppText";
 
 type SymbolName = ComponentProps<typeof SymbolView>["name"];
 

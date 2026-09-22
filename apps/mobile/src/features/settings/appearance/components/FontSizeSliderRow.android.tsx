@@ -4,8 +4,8 @@ import * as Haptics from "expo-haptics";
 import { useRef, type ComponentProps } from "react";
 import { View } from "react-native";
 
-import { AppText as Text } from "../../../../components/AppText";
-import { SymbolView } from "../../../../components/AppSymbol";
+import { AppText as Text } from "@/components/AppText";
+import { SymbolView } from "@/components/AppSymbol";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
 import type { FontSizeSliderRow as SharedFontSizeSliderRow } from "./FontSizeSliderRow.shared";
 

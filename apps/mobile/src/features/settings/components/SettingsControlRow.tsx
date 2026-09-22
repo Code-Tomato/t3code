@@ -1,9 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Platform, View } from "react-native";
 
-import { SymbolView } from "../../../components/AppSymbol";
-import { AppText as Text } from "../../../components/AppText";
-import { cn } from "../../../lib/cn";
+import { SymbolView } from "@/components/AppSymbol";
+import { AppText as Text } from "@/components/AppText";
+import { cn } from "@/lib/cn";
 
 export function SettingsControlRow(props: {
   readonly disabled?: boolean;

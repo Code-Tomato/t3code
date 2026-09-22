@@ -5,8 +5,8 @@ import { ScopedTheme, ScopedVariables } from "uniwind";
 
 import { mixThemePreviewBase, THEME_PREVIEW_RENDER_SPECS } from "@t3tools/shared/themePreview";
 
-import { SymbolView } from "../../../../components/AppSymbol";
-import { AppText as Text } from "../../../../components/AppText";
+import { SymbolView } from "@/components/AppSymbol";
+import { AppText as Text } from "@/components/AppText";
 import {
   getMobileThemePreviewColors,
   MOBILE_THEME_OPTIONS,
@@ -14,9 +14,9 @@ import {
   type MobileThemeId,
   type MobileThemeIds,
   type MobileThemeMode,
-} from "../../../../lib/mobileTheme";
-import { getMobileUniwindThemeName } from "../../../../lib/mobileThemeRuntime";
-import { cn } from "../../../../lib/cn";
+} from "@/lib/mobileTheme";
+import { getMobileUniwindThemeName } from "@/lib/mobileThemeRuntime";
+import { cn } from "@/lib/cn";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
 
 const APPEARANCE_MODES: ReadonlyArray<{

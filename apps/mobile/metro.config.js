@@ -3,6 +3,7 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { getDefaultConfig } = require("expo/metro-config");
 const { withUniwindConfig } = require("uniwind/metro");
+const { createSourceAliasResolver } = require("./metro-src-alias");
 const extraThemes = require("./generated-uniwind-theme-names.json");
 
 /** @type {import("expo/metro-config").MetroConfig} */
@@ -36,6 +37,8 @@ const resolveShikiDependencyRoot = (packageName) => {
 config.watchFolders = [...new Set([...(config.watchFolders ?? []), workspaceRoot])];
 config.resolver = {
   ...config.resolver,
+  // `@/…` for the app bundle, matching tsconfig `paths` and the vite alias.
+  resolveRequest: createSourceAliasResolver(path.join(__dirname, "src")),
   blockList: [
     ...(Array.isArray(config.resolver?.blockList)
       ? config.resolver.blockList

@@ -2,7 +2,7 @@ import {
   BASE_FONT_SIZE_STEP,
   MAX_BASE_FONT_SIZE,
   MIN_BASE_FONT_SIZE,
-} from "../../../../lib/appearancePreferences";
+} from "@/lib/appearancePreferences";
 import { SettingsSection } from "../../components/SettingsSection";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
 import {

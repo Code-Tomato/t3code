@@ -1,9 +1,9 @@
 import { useNavigation } from "@react-navigation/native";
 import { Platform, Pressable } from "react-native";
 
-import { ControlPillMenu } from "../../../components/ControlPill";
-import { SymbolView } from "../../../components/AppSymbol";
-import { NativeStackScreenOptions } from "../../../native/StackHeader";
+import { ControlPillMenu } from "@/components/ControlPill";
+import { SymbolView } from "@/components/AppSymbol";
+import { NativeStackScreenOptions } from "@/native/StackHeader";
 import { withNativeGlassHeaderItem } from "../../layout/native-glass-header-items";
 import { useAdaptiveWorkspaceLayout } from "../../layout/AdaptiveWorkspaceLayout";
 import { useSettingsEnvironmentFilter } from "../settings-environment-filter";

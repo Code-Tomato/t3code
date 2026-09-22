@@ -43,6 +43,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "~": NodeURL.fileURLToPath(new URL("./apps/web/src", import.meta.url)),
+      // Mirrors apps/mobile/tsconfig.json `paths` and the Metro resolver, so mobile
+      // tests import from `@/…` the same way the app code and the compiler do.
+      "@": NodeURL.fileURLToPath(new URL("./apps/mobile/src", import.meta.url)),
     },
   },
   test: {

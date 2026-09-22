@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 
-import { ThemedSwitch } from "../../../components/ThemedSwitch";
+import { ThemedSwitch } from "@/components/ThemedSwitch";
 import { SettingsControlRow } from "./SettingsControlRow";
 
 export function SettingsSwitchRow(

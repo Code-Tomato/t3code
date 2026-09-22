@@ -8,12 +8,12 @@ import { Platform, ScrollView, useWindowDimensions, View } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AndroidSheetHeader } from "../../../components/AndroidScreenHeader";
-import { MaterialScreenContent } from "../../../components/MaterialScreenContent";
-import { NativeStackScreenOptions } from "../../../native/StackHeader";
-import { AppText as Text } from "../../../components/AppText";
-import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-git-actions";
-import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
+import { AndroidSheetHeader } from "@/components/AndroidScreenHeader";
+import { MaterialScreenContent } from "@/components/MaterialScreenContent";
+import { NativeStackScreenOptions } from "@/native/StackHeader";
+import { AppText as Text } from "@/components/AppText";
+import { useSelectedThreadGitActions } from "@/state/use-selected-thread-git-actions";
+import { useSelectedThreadGitState } from "@/state/use-selected-thread-git-state";
 import { SheetActionButton } from "./gitSheetComponents";
 
 type GitConfirmSheetProps = StaticScreenProps<{

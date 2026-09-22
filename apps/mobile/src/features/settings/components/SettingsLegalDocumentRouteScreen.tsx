@@ -3,9 +3,9 @@ import { useCallback, useLayoutEffect, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, View } from "react-native";
 import { WebView } from "react-native-webview";
 
-import { AppText as Text } from "../../../components/AppText";
-import { LoadingStrip } from "../../../components/LoadingStrip";
-import { SymbolView } from "../../../components/AppSymbol";
+import { AppText as Text } from "@/components/AppText";
+import { LoadingStrip } from "@/components/LoadingStrip";
+import { SymbolView } from "@/components/AppSymbol";
 import { isLegalDocumentUrl, LEGAL_URL } from "../lib/legal-document-url";
 
 export function SettingsLegalDocumentCloseHeaderButton() {

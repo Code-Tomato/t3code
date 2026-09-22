@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Platform, View } from "react-native";
 
-import { AppText as Text } from "../../../components/AppText";
+import { AppText as Text } from "@/components/AppText";
 
 export function SettingsSection(props: {
   readonly title?: string;

@@ -15,32 +15,26 @@ import {
   useNavigation,
   type StaticScreenProps,
 } from "@react-navigation/native";
-import { SymbolView } from "../../../components/AppSymbol";
+import { SymbolView } from "@/components/AppSymbol";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
 
 import { Screen, ScreenStack, ScreenStackHeaderConfig } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useUniwindTheme } from "../../../lib/useUniwindTheme";
-import {
-  AndroidHeaderIconButton,
-  AndroidSheetHeader,
-} from "../../../components/AndroidScreenHeader";
-import { AndroidAnchoredMenu } from "../../../components/AndroidAnchoredMenu";
-import { MaterialScreenContent } from "../../../components/MaterialScreenContent";
+import { useUniwindTheme } from "@/lib/useUniwindTheme";
+import { AndroidHeaderIconButton, AndroidSheetHeader } from "@/components/AndroidScreenHeader";
+import { AndroidAnchoredMenu } from "@/components/AndroidAnchoredMenu";
+import { MaterialScreenContent } from "@/components/MaterialScreenContent";
 import { useAdaptiveWorkspaceLayout } from "../../layout/AdaptiveWorkspaceLayout";
-import { AppText as Text } from "../../../components/AppText";
-import {
-  NativeStackScreenOptions,
-  nativeHeaderScrollEdgeEffects,
-} from "../../../native/StackHeader";
-import { tryOpenExternalUrl } from "../../../lib/openExternalUrl";
-import { useEnvironmentQuery } from "../../../state/query";
-import { useThreadSelection } from "../../../state/use-thread-selection";
-import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-git-actions";
-import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
-import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
-import { vcsEnvironment } from "../../../state/vcs";
+import { AppText as Text } from "@/components/AppText";
+import { NativeStackScreenOptions, nativeHeaderScrollEdgeEffects } from "@/native/StackHeader";
+import { tryOpenExternalUrl } from "@/lib/openExternalUrl";
+import { useEnvironmentQuery } from "@/state/query";
+import { useThreadSelection } from "@/state/use-thread-selection";
+import { useSelectedThreadGitActions } from "@/state/use-selected-thread-git-actions";
+import { useSelectedThreadGitState } from "@/state/use-selected-thread-git-state";
+import { useSelectedThreadWorktree } from "@/state/use-selected-thread-worktree";
+import { vcsEnvironment } from "@/state/vcs";
 import { resolveGitOverviewReviewNavigationAction } from "./git-overview-navigation";
 import { MetaCard, SheetListRow, menuItemIconName, statusSummary } from "./gitSheetComponents";
 

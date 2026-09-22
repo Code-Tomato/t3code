@@ -4,7 +4,7 @@ import {
   MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
 } from "@t3tools/contracts";
 
-import { AppTextInput } from "../../../components/AppText";
+import { AppTextInput } from "@/components/AppText";
 
 export interface AutoSettleDaysFieldProps {
   readonly value: number;

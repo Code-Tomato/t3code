@@ -1,12 +1,9 @@
 import { Platform, ScrollView, type StyleProp, type TextStyle, View } from "react-native";
 
-import { AppText as Text } from "../../../../components/AppText";
-import {
-  resolveMarkdownFontSizes,
-  resolveMobileCodeSurface,
-} from "../../../../lib/appearancePreferences";
-import { useUniwindTheme } from "../../../../lib/useUniwindTheme";
-import { getMobileTerminalTheme } from "../../../terminal/terminalTheme";
+import { AppText as Text } from "@/components/AppText";
+import { resolveMarkdownFontSizes, resolveMobileCodeSurface } from "@/lib/appearancePreferences";
+import { useUniwindTheme } from "@/lib/useUniwindTheme";
+import { getMobileTerminalTheme } from "@/features/terminal/terminalTheme";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
 
 const CODE_FONT_FAMILY = Platform.select({

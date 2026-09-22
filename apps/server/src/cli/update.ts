@@ -1,6 +1,7 @@
 import {
   HostProcessArchitecture,
   HostProcessEnvironment,
+  HostProcessExecutablePath,
   HostProcessInvokedAs,
   HostProcessIsExecutable,
   HostProcessPlatform,
@@ -99,6 +100,41 @@ const resolveNewestVersion = Effect.fn("cli.update.resolve_newest")(function* (
   }
   return yield* new CliUpdateError({ reason: `No published ${channel} release was found.` });
 });
+
+/**
+ * The system package (`t3code-cli` for Debian and RPM) unpacks the release
+ * archive under `/opt/t3code-cli` and writes a one-line `package-type` file
+ * beside the executable, the marker electron-builder leaves in a packaged
+ * desktop app. That package manager owns updates: `t3 update` cannot repoint
+ * `/usr/bin/t3`, and a copy downloaded into this home would leave the
+ * launcher and the service on different versions.
+ *
+ * Read beside the real executable, behind the `/usr/bin/t3` symlink. A
+ * missing or unreadable marker is an archive or npm install that `t3 update`
+ * manages itself; any other content is a package manager this build does not
+ * know.
+ */
+export const resolvePackageManagedInstall = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const executablePath = yield* HostProcessExecutablePath;
+  const realPath = yield* fs
+    .realPath(executablePath)
+    .pipe(Effect.orElseSucceed(() => executablePath));
+  const marker = yield* fs
+    .readFileString(path.join(path.dirname(realPath), "package-type"))
+    .pipe(Effect.option);
+  if (Option.isNone(marker)) return undefined;
+  const packageType = marker.value.trim();
+  if (packageType === "deb" || packageType === "rpm") return packageType;
+  return packageType.length > 0 ? ("unknown" as const) : undefined;
+});
+
+const PACKAGE_MANAGED_UPDATE_REASONS = {
+  deb: "t3 is installed with apt. Update it with: sudo apt update && sudo apt upgrade",
+  rpm: "t3 is installed with dnf. Update it with: sudo dnf upgrade",
+  unknown: "t3 is installed by your system package manager. Update it with that package manager.",
+} as const;
 
 /** Whether a launcher target lives inside `<baseDir>/runtime/versions`. */
 export function launcherOwnsVersionsDir(
@@ -333,7 +369,7 @@ const belongsToBootService = Effect.fn("cli.update.belongs_to_boot_service")(fun
   return false;
 });
 
-const runUpdate = Effect.fn("cli.update.run")(function* (input: {
+export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   readonly baseDir: string;
   readonly logsDir: string;
   readonly serverRuntimeStatePath: string;
@@ -350,6 +386,13 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   const environment = yield* HostProcessEnvironment;
   const httpClient = yield* HttpClient.HttpClient;
   const service = yield* BootService.BootService;
+
+  // Refused before anything is fetched, written, or asked: the package
+  // manager is the only thing that may replace this executable.
+  const packageManaged = yield* resolvePackageManagedInstall;
+  if (packageManaged !== undefined) {
+    return yield* new CliUpdateError({ reason: PACKAGE_MANAGED_UPDATE_REASONS[packageManaged] });
+  }
 
   const currentVersion = packageJson.version;
   const channel = input.channel ?? cliReleaseChannelOf(currentVersion);

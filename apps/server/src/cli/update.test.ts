@@ -4,14 +4,120 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
+import { HttpClient } from "effect/unstable/http";
 import {
+  HostProcessArchitecture,
   HostProcessEnvironment,
+  HostProcessExecutablePath,
   HostProcessInvokedAs,
   HostProcessPlatform,
   HostProcessWorkingDirectory,
 } from "@t3tools/shared/hostProcess";
 
-import { repointLauncher, resolveLauncherPath } from "./update.ts";
+import * as BootService from "../cloud/bootService.ts";
+import * as ProcessRunner from "../processRunner.ts";
+import {
+  repointLauncher,
+  resolveLauncherPath,
+  resolvePackageManagedInstall,
+  runUpdate,
+} from "./update.ts";
+
+it.layer(NodeServices.layer)("t3 update package-managed install", (it) => {
+  it.effect("reads the package-type marker beside the executable behind the launcher", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
+      const exe = path.join(root, "opt/t3code-cli/t3");
+      const launcher = path.join(root, "usr/bin/t3");
+      yield* fs.makeDirectory(path.dirname(exe), { recursive: true });
+      yield* fs.writeFileString(exe, "");
+      yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
+      yield* fs.symlink(exe, launcher);
+      const marker = path.join(path.dirname(exe), "package-type");
+      const detect = (executablePath: string) =>
+        resolvePackageManagedInstall.pipe(
+          Effect.provideService(HostProcessExecutablePath, executablePath),
+        );
+
+      assert.equal(yield* detect(launcher), undefined, "no marker");
+      yield* fs.writeFileString(marker, "deb\n");
+      assert.equal(yield* detect(launcher), "deb");
+      assert.equal(yield* detect(exe), "deb");
+      yield* fs.writeFileString(marker, "rpm\n");
+      assert.equal(yield* detect(launcher), "rpm");
+      yield* fs.writeFileString(marker, "snap\n");
+      assert.equal(yield* detect(launcher), "unknown");
+      yield* fs.writeFileString(marker, "\n");
+      assert.equal(yield* detect(launcher), undefined, "empty marker");
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("refuses to update a package-managed install before touching anything", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
+      const exe = path.join(root, "opt/t3code-cli/t3");
+      yield* fs.makeDirectory(path.dirname(exe), { recursive: true });
+      yield* fs.writeFileString(exe, "");
+      yield* fs.writeFileString(path.join(path.dirname(exe), "package-type"), "deb\n");
+      const touched: string[] = [];
+      const update = runUpdate({
+        baseDir: path.join(root, "home"),
+        logsDir: path.join(root, "home/logs"),
+        serverRuntimeStatePath: path.join(root, "home/runtime/server.json"),
+        channel: undefined,
+        requestedVersion: "9.9.9",
+        allowDowngrade: false,
+        assumeYes: true,
+      }).pipe(
+        Effect.provideService(HostProcessExecutablePath, exe),
+        Effect.provideService(HostProcessPlatform, "linux"),
+        Effect.provideService(HostProcessArchitecture, "x64"),
+        Effect.provideService(HostProcessEnvironment, {}),
+        Effect.provideService(
+          HttpClient.HttpClient,
+          HttpClient.make((request) => {
+            touched.push(`fetch ${request.url}`);
+            return Effect.die("unexpected network request");
+          }),
+        ),
+        Effect.provideService(ProcessRunner.ProcessRunner, {
+          run: (input) => {
+            touched.push(`run ${input.command}`);
+            return Effect.die("unexpected process");
+          },
+        }),
+        Effect.provideService(BootService.BootService, {
+          status: Effect.sync(() => {
+            touched.push("service status");
+            return {
+              supported: false,
+              installed: false,
+              current: false,
+              unitPath: "",
+              logPath: "",
+            };
+          }),
+          install: () => Effect.die("unexpected service install"),
+          restart: Effect.die("unexpected service restart"),
+          uninstall: Effect.die("unexpected service uninstall"),
+        }),
+      );
+
+      const error = yield* Effect.flip(update);
+      assert.equal(error._tag, "CliUpdateError");
+      assert.equal(
+        error.message,
+        "t3 is installed with apt. Update it with: sudo apt update && sudo apt upgrade",
+      );
+      assert.deepStrictEqual(touched, []);
+      assert.isFalse(yield* fs.exists(path.join(root, "home")));
+    }).pipe(Effect.scoped),
+  );
+});
 
 it.layer(NodeServices.layer)("t3 update launcher", (it) => {
   it.effect("repoints a symlink that lives in a runtime versions tree", () =>

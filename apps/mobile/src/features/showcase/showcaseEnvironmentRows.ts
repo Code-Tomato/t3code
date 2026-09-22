@@ -3,12 +3,13 @@ import { EnvironmentId } from "@t3tools/contracts";
 import type { RelayEnvironmentView } from "../connection/useConnectionController";
 import type { ConnectedEnvironmentSummary } from "../../state/remote-runtime-types";
 
-// Fictional placeholder endpoints for the showcase; they use reserved example
-// domains and a non-routable CGNAT address so nothing points at a real host.
+// Fictional placeholder endpoints for the showcase; they use RFC 2606 reserved
+// domains and an RFC 5737 documentation address so nothing can point at a
+// real host, including inside a viewer's own tailnet or LAN.
 const SHOWCASE_LOCAL_ENVIRONMENT_DISPLAY_URLS: Readonly<Record<string, string>> = {
-  "Moonbase Terminal": "https://moonbase.tail0000000.ts.net/",
+  "Moonbase Terminal": "https://moonbase.tailnet.example/",
   "Suspense Station": "https://suspense-vps.hel1.example/",
-  "Kernel Cabin": "http://100.64.0.5:3773/",
+  "Kernel Cabin": "http://192.0.2.5:3773/",
 };
 
 export function applyShowcaseLocalEnvironmentDisplayUrls(

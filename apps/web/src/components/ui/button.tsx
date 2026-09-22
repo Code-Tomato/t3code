@@ -16,17 +16,6 @@ const buttonVariants = cva(
       variant: "default",
     },
     variants: {
-      // A tone colors the label and lets the icon follow it instead of the
-      // variant's fixed icon tint. Icon-only buttons use it to signal state.
-      tone: {
-        default: "",
-        muted:
-          "[--control-icon-color:currentColor] text-muted-foreground [:hover,[data-pressed]]:text-foreground",
-        current: "[--control-icon-color:currentColor]",
-        primary: "[--control-icon-color:currentColor] text-primary",
-        warning: "[--control-icon-color:currentColor] text-warning",
-        destructive: "[--control-icon-color:currentColor] [:hover,[data-pressed]]:text-destructive",
-      },
       size: {
         compact:
           "h-7 gap-1 rounded-md px-[calc(--spacing(2)-1px)] text-xs before:rounded-[calc(var(--radius-md)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
@@ -76,6 +65,22 @@ const buttonVariants = cva(
           "border-transparent bg-secondary text-secondary-foreground [:active,[data-pressed]]:bg-secondary/80 [:hover,[data-pressed]]:bg-secondary/90",
         "warning-outline":
           "border-warning/32 bg-warning-surface text-warning-foreground shadow-xs/5 [:disabled,:active,[data-pressed]]:shadow-none [:hover,[data-pressed]]:border-warning/40 [:hover,[data-pressed]]:bg-warning/16 dark:[:hover,[data-pressed]]:bg-warning/24",
+      },
+      // A tone colors the label and lets the icon follow it instead of the
+      // variant's fixed icon tint. Icon-only buttons use it to signal state.
+      // Declared after variant so its color utilities win under tailwind-merge.
+      tone: {
+        default: "",
+        muted:
+          "[--control-icon-color:currentColor] text-muted-foreground [:hover,[data-pressed]]:text-foreground",
+        current:
+          "[--control-icon-color:currentColor] text-foreground [:hover,[data-pressed]]:text-foreground",
+        primary:
+          "[--control-icon-color:currentColor] text-primary [:hover,[data-pressed]]:text-primary",
+        warning:
+          "[--control-icon-color:currentColor] text-warning [:hover,[data-pressed]]:text-warning",
+        destructive:
+          "[--control-icon-color:currentColor] text-muted-foreground [:hover,[data-pressed]]:text-destructive",
       },
     },
   },

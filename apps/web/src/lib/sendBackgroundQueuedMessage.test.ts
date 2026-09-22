@@ -324,6 +324,39 @@ describe("background queued send", () => {
     expect(startCalls()).toHaveLength(0);
     expect(useQueuedMessageStore.getState().queuesByThreadKey[key]).toBeUndefined();
   });
+  it("revalidates the current provider catalog after settings persistence", async () => {
+    const message = enqueue();
+    const provider = {
+      instanceId: "codex",
+      driver: "antigravity",
+      enabled: true,
+      installed: true,
+      status: "ready",
+      auth: { status: "authenticated" },
+      models: [{ slug: "gpt-5" }],
+    };
+    io.config = {
+      providers: [provider],
+      environment: { capabilities: { attachmentUploads: true, inlineMessageContext: true } },
+    };
+    io.run.mockImplementation(async () => {
+      provider.models = [{ slug: "replacement-model" }];
+      return { _tag: "Success", value: undefined };
+    });
+    expect(
+      await sendBackgroundQueuedMessage(
+        ref,
+        message,
+        options,
+        () => true,
+        () => null,
+      ),
+    ).toBe(false);
+    expect(startCalls()).toHaveLength(0);
+    expect(useQueuedMessageStore.getState().queuesByThreadKey[key]).toEqual([
+      { ...message, holdUntilUserAction: true },
+    ]);
+  });
   it("has only one dispatch winner if two preparations race", async () => {
     const message = enqueue();
     const results = await Promise.all([

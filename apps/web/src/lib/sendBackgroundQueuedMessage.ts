@@ -54,6 +54,8 @@ export async function sendBackgroundQueuedMessage(
     const provider = readConfig()?.providers.find(
       (entry) => entry.instanceId === options.modelSelection.instanceId,
     );
+    const blockReason = getAntigravitySendBlockReason(provider, options.modelSelection.model);
+    if (blockReason) throw new Error(blockReason);
     return (
       canSend() &&
       ownsIntent &&

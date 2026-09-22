@@ -1,13 +1,31 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-// The hook module subscribes to platform APIs on first use; these tests only
-// exercise the pure signal folds, so stub the runtime imports.
+// Controllable platform module: `currentState` can move between the module
+// load and the first subscription to reproduce startup ordering races.
+const platform = vi.hoisted(() => {
+  const state = { appState: "active" };
+  const changeListeners: ((nextAppState: string) => void)[] = [];
+  return {
+    state,
+    changeListeners,
+    AppState: {
+      get currentState() {
+        return state.appState;
+      },
+      addEventListener: (_type: string, handler: (nextAppState: string) => void) => {
+        changeListeners.push(handler);
+        return { remove: () => {} };
+      },
+    },
+    AccessibilityInfo: {
+      isReduceMotionEnabled: () => Promise.resolve(false),
+      addEventListener: () => ({ remove: () => {} }),
+    },
+  };
+});
 vi.mock("react-native", () => ({
-  AppState: { currentState: "active", addEventListener: vi.fn() },
-  AccessibilityInfo: {
-    isReduceMotionEnabled: () => Promise.resolve(false),
-    addEventListener: vi.fn(),
-  },
+  AppState: platform.AppState,
+  AccessibilityInfo: platform.AccessibilityInfo,
 }));
 vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }));
 
@@ -82,5 +100,35 @@ describe("withAppState", () => {
 
   it("keeps the snapshot identity when the state is unchanged", () => {
     expect(withAppState(signals, "active")).toBe(signals);
+  });
+});
+
+describe("first subscription", () => {
+  it("reconciles a stale module-load snapshot with the current app state", async () => {
+    platform.state.appState = "active";
+    vi.resetModules();
+    const mod = await import("./useAmbientAnimationsActive");
+    expect(mod.getPlatformSignalsSnapshot().appState).toBe("active");
+
+    // The app leaves the foreground before the first consumer mounts, so no
+    // listener exists yet and the stored snapshot goes stale.
+    platform.state.appState = "background";
+
+    const unsubscribe = mod.subscribeToPlatformSignals(() => {});
+    expect(mod.getPlatformSignalsSnapshot().appState).toBe("background");
+    unsubscribe();
+  });
+
+  it("folds transitions delivered after the listener is registered", async () => {
+    platform.state.appState = "active";
+    vi.resetModules();
+    const mod = await import("./useAmbientAnimationsActive");
+    const unsubscribe = mod.subscribeToPlatformSignals(() => {});
+
+    platform.state.appState = "inactive";
+    for (const listener of platform.changeListeners) listener("inactive");
+
+    expect(mod.getPlatformSignalsSnapshot().appState).toBe("inactive");
+    unsubscribe();
   });
 });

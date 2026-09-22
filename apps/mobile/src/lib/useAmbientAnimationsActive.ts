@@ -79,6 +79,11 @@ function subscribeToPlatformSignals(onChange: () => void): () => void {
         report((signals) => withReduceMotionReport(signals, reduceMotionEnabled, true));
       }),
     ];
+    // The module-load snapshot can be stale: an app-state transition that
+    // happened before the first consumer mounted never reached our listener.
+    // Register the listener first, then reconcile with the platform's current
+    // value; a transition that lands in between is folded by the listener.
+    report((signals) => withAppState(signals, AppState.currentState));
     void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotionEnabled) => {
       report((signals) => withReduceMotionReport(signals, reduceMotionEnabled, false));
     });
@@ -92,6 +97,9 @@ function subscribeToPlatformSignals(onChange: () => void): () => void {
 function getPlatformSignalsSnapshot(): AmbientPlatformSignals {
   return platformSignals;
 }
+
+// Exported for the first-subscription ordering test; consumers use the hook.
+export { subscribeToPlatformSignals, getPlatformSignalsSnapshot };
 
 /**
  * Tracks the platform half of `ambientAnimationsEnabledFrom`; combine with

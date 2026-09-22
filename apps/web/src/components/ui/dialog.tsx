@@ -162,16 +162,29 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
   );
 }
 
+const dialogPanelSpacingClassName = {
+  none: "",
+  sm: "space-y-3",
+  md: "space-y-4",
+  lg: "space-y-5",
+} as const;
+
 function DialogPanel({
   className,
   scrollFade = true,
+  spacing = "none",
   ...props
-}: React.ComponentProps<"div"> & { scrollFade?: boolean }) {
+}: React.ComponentProps<"div"> & {
+  scrollFade?: boolean;
+  /** Vertical rhythm between the panel's direct children. */
+  spacing?: keyof typeof dialogPanelSpacingClassName;
+}) {
   return (
     <ScrollArea scrollFade={scrollFade}>
       <div
         className={cn(
           "p-6 in-[[data-slot=dialog-popup]:has([data-slot=dialog-header])]:pt-1 in-[[data-slot=dialog-popup]:has([data-slot=dialog-footer]:not(.border-t))]:pb-1",
+          dialogPanelSpacingClassName[spacing],
           className,
         )}
         data-slot="dialog-panel"

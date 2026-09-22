@@ -22,6 +22,10 @@ const selectTriggerVariants = cva(
         ghost:
           "border-transparent text-secondary-label focus-visible:ring-2 focus-visible:ring-ring data-pressed:bg-accent [:hover,[data-pressed]]:bg-accent [:hover,[data-pressed]]:text-foreground",
       },
+      font: {
+        default: "",
+        mono: "font-mono tabular-nums",
+      },
       size: {
         compact:
           "h-7 gap-1 rounded-md px-[calc(--spacing(2)-1px)] text-xs before:rounded-[calc(var(--radius-md)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
@@ -38,6 +42,7 @@ function SelectTrigger({
   className,
   size = "default",
   variant = "default",
+  font = "default",
   children,
   icon,
   ...props
@@ -45,7 +50,7 @@ function SelectTrigger({
   VariantProps<typeof selectTriggerVariants> & { icon?: React.ReactNode }) {
   return (
     <SelectPrimitive.Trigger
-      className={cn(selectTriggerVariants({ size, variant }), className)}
+      className={cn(selectTriggerVariants({ font, size, variant }), className)}
       data-slot="select-trigger"
       {...props}
     >
@@ -141,15 +146,18 @@ function SelectPopup({
 function SelectItem({
   className,
   children,
+  font = "default",
   hideIndicator: _hideIndicator = false,
   ...props
 }: SelectPrimitive.Item.Props & {
+  font?: "default" | "mono";
   hideIndicator?: boolean;
 }) {
   return (
     <SelectPrimitive.Item
       className={cn(
         "flex min-h-8 in-data-[side=none]:min-w-[calc(var(--anchor-width)+1.25rem)] cursor-pointer items-center rounded-sm px-2 py-1 text-base outline-none data-selected:bg-foreground/[0.08] data-disabled:pointer-events-none data-disabled:cursor-not-allowed data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-64 sm:min-h-7 sm:text-sm [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        font === "mono" && "font-mono tabular-nums",
         className,
       )}
       data-slot="select-item"

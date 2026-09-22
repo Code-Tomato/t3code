@@ -144,6 +144,17 @@ const decodeManifest = Schema.decodeUnknownEffect(ModelManifestSchema);
 export const BUNDLED_MODEL_MANIFEST: ModelManifestData =
   Schema.decodeUnknownSync(ModelManifestSchema)(bundledManifestJson);
 
+/**
+ * A remote file without `compatibility` (one that predates the section, or was
+ * edited without it) keeps the bundled ranges rather than silently dropping
+ * them. The remote clears them with an explicit `{}`.
+ */
+function withBundledCompatibility(manifest: ModelManifestData): ModelManifestData {
+  return manifest.compatibility !== undefined || BUNDLED_MODEL_MANIFEST.compatibility === undefined
+    ? manifest
+    : { ...manifest, compatibility: BUNDLED_MODEL_MANIFEST.compatibility };
+}
+
 /** Epoch millis of the manifest's `updatedAt`, or 0 when absent or unparsable. */
 function manifestUpdatedAtMs(manifest: ModelManifestData): number {
   if (manifest.updatedAt === undefined) return 0;
@@ -373,7 +384,7 @@ export const make = Effect.gen(function* () {
       if (manifestUpdatedAtMs(BUNDLED_MODEL_MANIFEST) > manifestUpdatedAtMs(fromDisk.manifest)) {
         return;
       }
-      manifest = fromDisk.manifest;
+      manifest = withBundledCompatibility(fromDisk.manifest);
       fetchedAtMs = fromDisk.fetchedAtMs;
     }),
   );
@@ -408,7 +419,7 @@ export const make = Effect.gen(function* () {
     );
     if (fetched === null) return manifest;
 
-    manifest = fetched;
+    manifest = withBundledCompatibility(fetched);
     fetchedAtMs = now;
     yield* encodeManifestCache({ fetchedAtMs: now, manifest: fetched }).pipe(
       Effect.flatMap((serialized) => fileSystem.writeFileString(cachePath, serialized)),

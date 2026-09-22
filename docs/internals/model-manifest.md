@@ -42,6 +42,10 @@ Only a real threshold belongs here: an API the adapter calls without a fallback
 release that fails in practice (broken). Drivers that already refuse a version at
 probe time, such as OpenCode and Pi, need no entry.
 
+A remote manifest without a `compatibility` key keeps the bundled ranges, so a
+newer file that predates the section cannot silently disable them. Publish
+`"compatibility": {}` to clear them.
+
 Set `recommendedVersion` only when updating to latest is the wrong fix. Settings
 then offers to install that version, which only package-manager installs can do;
 native updaters and Homebrew always go to latest.

@@ -218,7 +218,8 @@ describe("resolveProviderCatalog", () => {
   });
 });
 
-// Remote fixtures date after the bundle so a fetch still outranks it.
+// Remote fixtures date after the bundle so a fetch still outranks it, and
+// carry an explicit empty `compatibility` so the bundled ranges stay out.
 const REMOTE_UPDATED_AT = "2099-01-01T00:00:00Z";
 
 const REMOTE_MANIFEST: ModelManifestData = {
@@ -228,12 +229,14 @@ const REMOTE_MANIFEST: ModelManifestData = {
     codex: ["remote-model"],
     claudeAgent: ["remote-agent-model"],
   },
+  compatibility: {},
 };
 
 const REMOTE_CLAUDE_MANIFEST: ModelManifestData = {
   version: 1,
   updatedAt: REMOTE_UPDATED_AT,
   currentModels: {},
+  compatibility: {},
   providers: {
     claudeAgent: {
       profiles: {
@@ -518,6 +521,26 @@ describe("ModelManifest service", () => {
         serviceLayers({
           prefix: "model-manifest-newer-bundle-test",
           response: () => Response.json(REMOTE_MANIFEST),
+        }),
+      ),
+    ),
+  );
+
+  it.live("keeps the bundled compatibility ranges when the remote file has none", () =>
+    Effect.gen(function* () {
+      const service = yield* make;
+      const refreshed = yield* service.refresh;
+      assert.deepStrictEqual(refreshed.currentModels, REMOTE_MANIFEST.currentModels);
+      assert.deepStrictEqual(refreshed.compatibility, BUNDLED_MODEL_MANIFEST.compatibility);
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        serviceLayers({
+          prefix: "model-manifest-compatibility-fallback-test",
+          response: () => {
+            const { compatibility: _omitted, ...withoutCompatibility } = REMOTE_MANIFEST;
+            return Response.json(withoutCompatibility);
+          },
         }),
       ),
     ),

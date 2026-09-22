@@ -572,7 +572,8 @@ function RightPanelEmptyState(props: {
                       align="end"
                       side="bottom"
                       sideOffset={6}
-                      className="min-w-40 max-w-56"
+                      width="xs"
+                      className="max-w-56"
                     >
                       {props.browserProfiles.map((profile) => (
                         <MenuItem
@@ -1273,7 +1274,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                   align="start"
                   side="bottom"
                   sideOffset={6}
-                  className="min-w-44"
+                  width="xs"
                   onKeyDownCapture={handleAddSurfaceMenuKeyDown}
                 >
                   {addSurfaceActions.map((action) => {
@@ -1314,7 +1315,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                             and run to 48 characters, which would otherwise widen
                             the popup to fit-content and wrap.
                           */}
-                          <MenuSubPopup className="min-w-40 max-w-56">
+                          <MenuSubPopup width="xs" className="max-w-56">
                             {browserProfiles.map((profile) => (
                               <MenuItem
                                 key={profile.id}

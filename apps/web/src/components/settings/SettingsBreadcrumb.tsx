@@ -119,7 +119,7 @@ function ScopeMenu({
         {icon}
         <span className="min-w-0 truncate">{label}</span>
       </MenuTrigger>
-      <MenuPopup align="start" className="w-64 max-w-[calc(100vw-2rem)]">
+      <MenuPopup align="start" width="md">
         {children}
       </MenuPopup>
     </Menu>

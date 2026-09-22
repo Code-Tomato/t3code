@@ -1793,7 +1793,7 @@ export default function GitActionsControl({
                 <SourceControlIcon className="size-4" />
                 <MenuItemLabel>Git actions</MenuItemLabel>
               </MenuSubTrigger>
-              <MenuSubPopup className="min-w-32 max-w-[calc(100vw-2rem)]">{gitItems}</MenuSubPopup>
+              <MenuSubPopup>{gitItems}</MenuSubPopup>
             </MenuSub>
           </>
         )
@@ -1859,7 +1859,7 @@ export default function GitActionsControl({
             >
               <ChevronDownIcon aria-hidden="true" className="size-4" />
             </MenuTrigger>
-            <MenuPopup align="end" className="w-full">
+            <MenuPopup align="end" width="anchor">
               {gitItems}
             </MenuPopup>
           </Menu>

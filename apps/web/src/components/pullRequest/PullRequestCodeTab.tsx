@@ -1075,7 +1075,7 @@ function PullRequestCodeTab({
               <span className="truncate">{scopeLabel}</span>
               <ChevronDownIcon className="size-3.5 shrink-0 opacity-70" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-80">
+            <DropdownMenuContent align="start" width="xl">
               <DropdownMenuItem
                 selected={commit === null}
                 onClick={() => onSelectedCommitChange(null)}

@@ -516,7 +516,7 @@ export const ChatHeader = memo(function ChatHeader({
             keepMounted
             aria-label="Header actions"
             align="end"
-            className="min-w-56 max-w-[calc(100vw-2rem)]"
+            width="sm"
             finalFocus={actionsCollapsed ? undefined : false}
           >
             <div ref={mountMenuActions} className="contents" />

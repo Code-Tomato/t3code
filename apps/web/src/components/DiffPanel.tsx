@@ -657,7 +657,7 @@ export default function DiffPanel({
             <span className="truncate">{selectedScopeLabel}</span>
             <ChevronDownIcon className="size-3.5 shrink-0 opacity-70" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-60">
+          <DropdownMenuContent align="start" width="md">
             <DropdownMenuItem
               selected={selectedTurnId === null && selectedGitScope === "unstaged"}
               onClick={() => selectGitScope("unstaged")}
@@ -680,7 +680,7 @@ export default function DiffPanel({
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>Turn</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-64">
+              <DropdownMenuSubContent width="md">
                 {orderedTurnDiffSummaries.map((summary) => {
                   const turnCount =
                     summary.checkpointTurnCount ??

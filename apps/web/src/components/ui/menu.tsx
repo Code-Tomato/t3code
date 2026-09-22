@@ -17,6 +17,21 @@ function MenuTrigger({ className, children, ...props }: MenuPrimitive.Trigger.Pr
   );
 }
 
+// Menus grow with their content from a minimum; "anchor" matches the trigger.
+// Every width is capped to the viewport.
+const menuPopupWidthClassName = {
+  fit: "min-w-32",
+  anchor: "w-(--anchor-width)",
+  xs: "min-w-40",
+  sm: "min-w-52",
+  md: "min-w-64",
+  lg: "min-w-72",
+  xl: "min-w-80",
+  "2xl": "min-w-96",
+} as const;
+
+type MenuPopupWidth = keyof typeof menuPopupWidthClassName;
+
 function MenuPopup({
   children,
   className,
@@ -26,6 +41,7 @@ function MenuPopup({
   side = "bottom",
   anchor,
   keepMounted = false,
+  width = "fit",
   ...props
 }: MenuPrimitive.Popup.Props & {
   align?: MenuPrimitive.Positioner.Props["align"];
@@ -34,14 +50,8 @@ function MenuPopup({
   side?: MenuPrimitive.Positioner.Props["side"];
   anchor?: MenuPrimitive.Positioner.Props["anchor"];
   keepMounted?: boolean;
+  width?: MenuPopupWidth;
 }) {
-  const hasExplicitWidthClass =
-    typeof className === "string" &&
-    className.split(/\s+/).some((classToken) => {
-      const utility = classToken.split(":").at(-1) ?? classToken;
-      return /^(?:min-|max-)?w-/.test(utility);
-    });
-
   return (
     <MenuPrimitive.Portal keepMounted={keepMounted}>
       <MenuPrimitive.Positioner
@@ -60,7 +70,8 @@ function MenuPopup({
             // the Review panel header). Drag hit-testing ignores z-index, so
             // the topmost row would stay unhoverable without this opt-out.
             "[-webkit-app-region:no-drag]",
-            !hasExplicitWidthClass && "min-w-32",
+            "max-w-[calc(100vw-2rem)]",
+            menuPopupWidthClassName[width],
             className,
           )}
           data-slot="menu-popup"
@@ -319,6 +330,7 @@ function MenuSubPopup({
   align?: MenuPrimitive.Positioner.Props["align"];
   sideOffset?: MenuPrimitive.Positioner.Props["sideOffset"];
   alignOffset?: MenuPrimitive.Positioner.Props["alignOffset"];
+  width?: MenuPopupWidth;
 }) {
   const defaultAlignOffset = align !== "center" ? -5 : undefined;
 

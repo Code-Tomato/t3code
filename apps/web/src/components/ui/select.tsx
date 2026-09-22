@@ -72,10 +72,19 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
   );
 }
 
+// Lists match the trigger by default and grow with their options from there.
+const selectPopupWidthClassName = {
+  anchor: "",
+  xs: "min-w-44",
+  sm: "min-w-56",
+  md: "min-w-64",
+} as const;
+
 function SelectPopup({
   className,
   popupClassName,
   children,
+  width = "anchor",
   side = "bottom",
   sideOffset = 4,
   align = "start",
@@ -93,6 +102,7 @@ function SelectPopup({
   alignItemWithTrigger?: SelectPrimitive.Positioner.Props["alignItemWithTrigger"];
   matchTriggerWidth?: boolean;
   anchor?: SelectPrimitive.Positioner.Props["anchor"];
+  width?: keyof typeof selectPopupWidthClassName;
 }) {
   return (
     <SelectPrimitive.Portal>
@@ -121,6 +131,7 @@ function SelectPopup({
             className={cn(
               "dropdown-glass relative h-full rounded-lg shadow-[0_16px_40px_-18px_rgb(0_0_0/55%)] dark:shadow-[0_18px_44px_-18px_rgb(0_0_0/80%)]",
               matchTriggerWidth && "min-w-(--anchor-width)",
+              selectPopupWidthClassName[width],
               popupClassName,
             )}
           >

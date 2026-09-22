@@ -329,8 +329,8 @@ function WhenVariableSelect({
       <SelectContent
         alignItemWithTrigger={false}
         matchTriggerWidth={false}
-        popupClassName="w-fit"
-        className="max-h-72 w-fit min-w-44"
+        width="xs"
+        className="max-h-72"
       >
         {options.map((option) => (
           <SelectItem
@@ -541,12 +541,7 @@ function WhenExpressionNodeEditor({
           <SelectTrigger size="compact" className="w-24">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent
-            alignItemWithTrigger={false}
-            matchTriggerWidth={false}
-            popupClassName="w-fit"
-            className="w-fit min-w-24"
-          >
+          <SelectContent alignItemWithTrigger={false} matchTriggerWidth={false}>
             <SelectItem value="and" className="min-h-7 py-1 text-[12px]" font="mono">
               and
             </SelectItem>
@@ -963,7 +958,7 @@ function KeybindingRowMenu({
       >
         <EllipsisIcon className="size-3.5" />
       </MenuTrigger>
-      <MenuPopup align="end" className="min-w-36">
+      <MenuPopup align="end" width="xs">
         {canReset ? (
           <MenuItem disabled={isSaving} onClick={() => onReset(row)}>
             Reset to default
@@ -1163,7 +1158,8 @@ function NewKeybindingCommandSelect({
       <SelectContent
         alignItemWithTrigger={false}
         matchTriggerWidth={false}
-        className="max-h-72 w-fit min-w-56"
+        width="sm"
+        className="max-h-72"
       >
         {commandOptions.map((command) => (
           <SelectItem key={command} value={command} className="min-h-7 w-full py-1 text-[12px]">

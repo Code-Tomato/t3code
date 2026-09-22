@@ -1635,7 +1635,7 @@ function SavedBackendListRow({
         >
           <EllipsisIcon className="size-3.5" />
         </MenuTrigger>
-        <MenuPopup align="end" className="min-w-52">
+        <MenuPopup align="end" width="sm">
           <EnvironmentIconMenu
             environmentId={environmentId}
             serverConfig={environment.serverConfig}
@@ -3299,7 +3299,7 @@ export function ConnectionsSettings() {
                   >
                     <EllipsisIcon className="size-3.5" />
                   </MenuTrigger>
-                  <MenuPopup align="end" className="min-w-52">
+                  <MenuPopup align="end" width="sm">
                     <EnvironmentIconMenu
                       environmentId={primaryEnvironmentId}
                       serverConfig={primaryServerConfig}

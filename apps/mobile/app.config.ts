@@ -214,6 +214,12 @@ const config: ExpoConfig = {
   slug: "t3-code",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
+  // Memoize components at build time instead of relying on manual memo/useMemo
+  // discipline. The compiler only runs on app code (never node_modules), and
+  // production builds skip components with diagnostics rather than failing.
+  experiments: {
+    reactCompiler: true,
+  },
   version: "1.3.0",
   runtimeVersion: {
     // Development manifests resolve on every launch, so avoid fingerprint's

@@ -5,6 +5,7 @@ import type {
   ProviderInstanceConfig,
   PreviewViewportSetting,
   ProviderInstanceId,
+  ResponseStreamingMode,
   ServerSettings,
   SidebarProjectGroupingMode,
   UnifiedSettings,
@@ -18,6 +19,12 @@ import {
 } from "@t3tools/shared/backgroundActivitySettings";
 import * as Duration from "effect/Duration";
 import * as Equal from "effect/Equal";
+
+export const RESPONSE_STREAMING_MODE_LABELS: Record<ResponseStreamingMode, string> = {
+  turn: "Wait for the full response",
+  paragraph: "Show finished paragraphs",
+  token: "Token by token (legacy)",
+};
 
 export function isProjectGroupingEnabled(mode: SidebarProjectGroupingMode): boolean {
   return mode !== "separate";

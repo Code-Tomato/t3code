@@ -13,12 +13,14 @@ import { cn } from "../../lib/utils";
 import type { EnvironmentPresentation } from "../../state/environments";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { resolveEnvModeLabel, WORKTREE_SUBMODULES_LABELS } from "../BranchToolbar.logic";
+import { runtimeModeConfig } from "../chat/runtimeModeConfig";
 import { PULL_REQUEST_MERGE_METHOD_LABELS } from "../pullRequest/pullRequestDetail.logic";
 import { Button, InlineButton } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import type { ProjectOverrideEntry, ScopedSettingsTarget } from "./scopedSettings";
 import { isProjectScopedSettingKey } from "./scopedSettings";
+import { RESPONSE_STREAMING_MODE_LABELS } from "./SettingsPanels.logic";
 
 interface InheritanceLayer {
   readonly key: "project" | "environment" | "t3.json" | "built-in";
@@ -34,8 +36,8 @@ const WRITING_STYLE_LABELS: Record<string, string> = {
   custom: "Custom instructions",
 };
 
-/** Human labels for the values the chain can show; falls back to a type summary. */
-function formatValue(key: keyof ServerSettings, value: unknown): string {
+/** Human labels for setting values in the chain and override lists; falls back to a type summary. */
+export function formatSettingValue(key: keyof ServerSettings, value: unknown): string {
   if (value === null || value === undefined) {
     return key === "pullRequestMergeMethod"
       ? "Last selected"
@@ -62,6 +64,12 @@ function formatValue(key: keyof ServerSettings, value: unknown): string {
     if (key === "worktreeSubmodules" && value in WORKTREE_SUBMODULES_LABELS) {
       return WORKTREE_SUBMODULES_LABELS[value as WorktreeSubmodules];
     }
+    if (key === "defaultRuntimeMode" && value in runtimeModeConfig) {
+      return runtimeModeConfig[value as keyof typeof runtimeModeConfig].label;
+    }
+    if (key === "responseStreamingMode" && value in RESPONSE_STREAMING_MODE_LABELS) {
+      return RESPONSE_STREAMING_MODE_LABELS[value as keyof typeof RESPONSE_STREAMING_MODE_LABELS];
+    }
     if (key === "pullRequestMergeMethod" && value in PULL_REQUEST_MERGE_METHOD_LABELS) {
       return PULL_REQUEST_MERGE_METHOD_LABELS[
         value as keyof typeof PULL_REQUEST_MERGE_METHOD_LABELS
@@ -73,6 +81,7 @@ function formatValue(key: keyof ServerSettings, value: unknown): string {
   if (typeof value === "object") {
     if ("model" in value && typeof value.model === "string") return value.model;
     if ("mode" in value && typeof value.mode === "string") {
+      if (key === "worktreeCleanup") return value.mode === "off" ? "Off" : "Custom";
       return WRITING_STYLE_LABELS[value.mode] ?? value.mode;
     }
   }
@@ -99,7 +108,7 @@ export function settingInheritanceLayers(
     layers.push({
       key: "project",
       label: "Project",
-      value: source === "project" ? formatValue(key, target.settings[key]) : "Inherits",
+      value: source === "project" ? formatSettingValue(key, target.settings[key]) : "Inherits",
       effective: source === "project",
       set: source === "project",
     });
@@ -107,7 +116,7 @@ export function settingInheritanceLayers(
   layers.push({
     key: "environment",
     label: target.label,
-    value: environmentSet ? formatValue(key, environmentValue) : "Inherits",
+    value: environmentSet ? formatSettingValue(key, environmentValue) : "Inherits",
     effective: source === "environment" && environmentSet,
     set: environmentSet,
   });
@@ -115,7 +124,7 @@ export function settingInheritanceLayers(
     layers.push({
       key: "t3.json",
       label: "t3.json",
-      value: source === "t3.json" ? formatValue(key, target.settings[key]) : "Inherits",
+      value: source === "t3.json" ? formatSettingValue(key, target.settings[key]) : "Inherits",
       effective: source === "t3.json",
       set: source === "t3.json",
     });
@@ -128,7 +137,7 @@ export function settingInheritanceLayers(
   layers.push({
     key: "built-in",
     label: "Default",
-    value: formatValue(key, builtIn),
+    value: formatSettingValue(key, builtIn),
     effective: source === "environment" && !environmentSet,
     set: true,
   });
@@ -302,7 +311,7 @@ export function SettingInheritance({
                           </InlineButton>
                           <span className="max-w-32 truncate text-muted-foreground tabular-nums">
                             {isProjectScopedSettingKey(key)
-                              ? formatValue(key, overrides[project.projectId]?.[key])
+                              ? formatSettingValue(key, overrides[project.projectId]?.[key])
                               : null}
                           </span>
                         </li>

@@ -687,6 +687,7 @@ export const SETTINGS_SEARCH_ITEMS = [
       "repository conventions conventional commits custom instructions change descriptions request titles",
     ],
     environmentOnly: true,
+    scope: "project-defaults",
   },
   {
     id: "follow-change-request-templates",
@@ -694,6 +695,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/source-control",
     searchTerms: ["repository pr pull request description structure"],
     environmentOnly: true,
+    scope: "project-defaults",
   },
   {
     id: "source-control-writer-model",
@@ -930,8 +932,13 @@ export function searchableSetting(id: SettingsSearchItemId): {
   readonly id: string;
   readonly title: string;
 } {
-  const { id: anchorId, title } = SEARCH_ITEMS_BY_ID.get(id)!;
+  const { id: anchorId, title } = settingsSearchItem(id);
   return { id: anchorId, title };
+}
+
+/** The catalog entry for `id`, for links that open a setting's row on its page. */
+export function settingsSearchItem(id: SettingsSearchItemId): SettingsSearchItem {
+  return SEARCH_ITEMS_BY_ID.get(id)!;
 }
 
 export function filterAvailableSettingsSearchItems(

@@ -8,9 +8,9 @@ import {
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { AsyncResult } from "effect/unstable/reactivity";
 import { type EnvironmentId, type ProjectIconOverride } from "@t3tools/contracts";
-import { useLocation, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import * as Cause from "effect/Cause";
-import { Trash2Icon } from "lucide-react";
+import { ChevronRightIcon, Trash2Icon } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useComposerDraftStore } from "../../composerDraftStore";
@@ -39,7 +39,12 @@ import {
   ProjectFaviconPickerDialog,
 } from "./ProjectFaviconPickerDialog";
 import { ProjectActionsSettings } from "./ProjectActionsSettings";
-import { projectGroupTitleNeedsUpdate } from "./ProjectSettingsPanel.logic";
+import { ProjectDefaultsSettings } from "./ProjectDefaultsSettings";
+import { listedProjectOverrides, projectGroupTitleNeedsUpdate } from "./ProjectSettingsPanel.logic";
+import { formatSettingValue } from "./SettingInheritance";
+import { scopedSettingsAreMixed } from "./scopedSettings";
+import { useSettingsScope } from "./SettingsScopeContext";
+import { SETTINGS_SECTION_LABELS } from "./settingsSearch";
 import { useSettingsProjectGroups } from "./useSettingsProjectGroups";
 
 const ProjectIconPickerDialog = lazy(() =>
@@ -51,8 +56,6 @@ const ProjectIconPickerDialog = lazy(() =>
 function memberKey(member: { environmentId: string; id: string }): string {
   return `${member.environmentId}:${member.id}`;
 }
-
-export type ProjectSettingsCategory = "general" | "integrations" | "source-control";
 
 export function ProjectSettingsPanel({
   projectKey,
@@ -480,6 +483,8 @@ function ProjectDetail({
             }
           />
         </SettingsSection>
+        <ProjectDefaultsSettings category="general" />
+        <ProjectOverridesSection />
         <ProjectActionsSettings />
         {hasMultipleCheckouts ? checkoutChoices : null}
         <SettingsSection title="Danger">
@@ -540,5 +545,52 @@ function ProjectDetail({
         </Suspense>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Settings this project overrides that are edited on other pages. Each row
+ * shows the value, resets the override, and links to the row that edits it.
+ */
+function ProjectOverridesSection() {
+  const { targets, target } = useSettingsScope();
+  const overrides = listedProjectOverrides(targets);
+  if (overrides.length === 0 || target === null) return null;
+  return (
+    <SettingsSection id="project-overrides" title="Overrides">
+      {overrides.map(({ key, item }) => {
+        const page = SETTINGS_SECTION_LABELS[item.to];
+        const value = scopedSettingsAreMixed(targets, [key])
+          ? "Mixed"
+          : formatSettingValue(key, target.settings[key]);
+        return (
+          <SettingsRow
+            key={key}
+            serverScoped
+            settingKeys={[key]}
+            title={item.title}
+            description={page}
+            control={
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label={`${item.title}: ${value}. Open in ${page}`}
+                render={
+                  <Link
+                    to={item.to}
+                    hash={item.targetId ?? item.id}
+                    hashScrollIntoView={false}
+                    state={{ settingsTargetHighlight: true }}
+                  />
+                }
+              >
+                {value}
+                <ChevronRightIcon />
+              </Button>
+            }
+          />
+        );
+      })}
+    </SettingsSection>
   );
 }

@@ -4,7 +4,7 @@ import { ProjectSettingsPanel } from "./ProjectSettingsPanel";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { SettingsScopeNotice } from "./SettingsScopeNotice";
 
-/** Project identity and checkout management for the selected project. */
+/** Identity, new-thread defaults, overrides, actions and checkouts for the selected project. */
 export function ProjectsSettings() {
   const { search: value, scope } = useSettingsScope();
   // The panel follows remembered members when grouping replaces a project key.
@@ -25,7 +25,7 @@ export function ProjectsSettings() {
         <p className="p-8 text-sm text-muted-foreground">{scope.message}</p>
       ) : (
         <SettingsScopeNotice target="project">
-          Choose a project to manage its name, icon, checkouts and actions.
+          Choose a project to manage its name, icon, defaults, actions and checkouts.
         </SettingsScopeNotice>
       )}
     </div>

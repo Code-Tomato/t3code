@@ -16,8 +16,8 @@ describe("recordRenderError", () => {
   it("records the message, stack, scope, and timestamp, newest first", () => {
     const first = new Error("first broke");
     const second = new Error("second broke");
-    expect(recordRenderError(first, "thread-feed", { timestamp: 100 })).toBe(true);
-    expect(recordRenderError(second, "screen:Thread", { timestamp: 200 })).toBe(true);
+    recordRenderError(first, "thread-feed", { timestamp: 100 });
+    recordRenderError(second, "screen:Thread", { timestamp: 200 });
 
     const records = getRenderErrorRecords();
     expect(records.map((record) => record.message)).toEqual(["second broke", "first broke"]);
@@ -26,18 +26,16 @@ describe("recordRenderError", () => {
     expect(records[1]?.detail).toContain("Error: first broke");
   });
 
-  it("records one throw once when several boundaries on the path catch it", () => {
-    const error = new Error("bubble through everything");
-    expect(recordRenderError(error, "thread-feed")).toBe(true);
-    // The same object keeps bubbling; the outer screen boundary must not add
-    // a second report of the identical crash.
-    expect(recordRenderError(error, "screen:Thread")).toBe(false);
-    expect(getRenderErrorRecords()).toHaveLength(1);
-
-    // A fresh throw with the same message (e.g. after a failed retry) is a
-    // distinct crash and is recorded.
-    expect(recordRenderError(new Error("bubble through everything"), "thread-feed")).toBe(true);
-    expect(getRenderErrorRecords()).toHaveLength(2);
+  it("records a cached error again when a retry re-throws the same object", () => {
+    // A module-level or memoized Error keeps its identity across re-throws.
+    // Identity-based dedupe would silently swallow every crash after the
+    // first, which is exactly the report the retry most needs.
+    const cached = new Error("deterministically broken");
+    recordRenderError(cached, "thread-feed", { timestamp: 100 });
+    recordRenderError(cached, "thread-feed", { timestamp: 200 });
+    const records = getRenderErrorRecords();
+    expect(records).toHaveLength(2);
+    expect(records[0]?.timestamp).toBe(200);
   });
 
   it("keeps the newest records when the log overflows", () => {

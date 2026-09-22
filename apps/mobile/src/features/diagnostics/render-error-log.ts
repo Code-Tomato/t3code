@@ -8,6 +8,10 @@
  * global fatal handler, so it could never appear there — recording it here is
  * the only way to surface it, and routing it anywhere else would double-report
  * what the startup log already owns.
+ *
+ * There is no dedupe by error identity on purpose: a cached error re-thrown on
+ * retry is a fresh incident worth recording again, and the same throw seen by
+ * nested boundaries leaves one row per scope, which reads as the bubble path.
  */
 export interface RenderErrorRecord {
   readonly timestamp: number;
@@ -19,7 +23,6 @@ export interface RenderErrorRecord {
 }
 
 const MAX_RECORDS = 20;
-const recordedErrors = new WeakSet<object>();
 let records: RenderErrorRecord[] = [];
 
 export function describeRenderError(error: unknown): string {
@@ -30,20 +33,17 @@ export function describeRenderError(error: unknown): string {
 }
 
 /**
- * Record a caught render error. Returns false when this exact error object was
- * already recorded (a boundary further up the tree saw the same throw), which
- * is how ancestors stay silent while still resetting their subtree.
+ * Record a caught render error. Every boundary that catches a throw records it
+ * against its own scope, so one crash can produce one row per scope it bubbled
+ * through — a useful trail, and the opposite of suppressing a cached error
+ * that legitimately throws again after a retry.
  */
 export function recordRenderError(
   error: unknown,
   scope: string,
   options: { readonly componentStack?: string | undefined; readonly timestamp?: number } = {},
-): boolean {
+): void {
   const message = describeRenderError(error);
-  if (typeof error === "object" && error !== null) {
-    if (recordedErrors.has(error)) return false;
-    recordedErrors.add(error);
-  }
   const stack = error instanceof Error ? error.stack : undefined;
   const detail = [
     message,
@@ -58,7 +58,6 @@ export function recordRenderError(
     { timestamp: options.timestamp ?? Date.now(), scope, message, detail },
     ...records,
   ].slice(0, MAX_RECORDS);
-  return true;
 }
 
 /** Newest first, as stored. */

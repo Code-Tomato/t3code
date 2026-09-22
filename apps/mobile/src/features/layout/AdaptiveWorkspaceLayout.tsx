@@ -31,6 +31,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { AsyncResult } from "effect/unstable/reactivity";
 
+import { RenderErrorBoundary } from "../../components/RenderErrorBoundary";
+
 import {
   deriveFileInspectorPaneLayout,
   deriveLayout,
@@ -580,21 +582,28 @@ function AdaptiveWorkspaceLayoutContent(
               style={sidebarAnimatedStyle}
             >
               <View className="flex-1" style={{ width: layout.listPaneWidth }}>
-                <AndroidHomeFabLayout sidebar onStartNewTask={handleStartNewTask}>
-                  <ThreadNavigationSidebar
-                    width={layout.listPaneWidth}
-                    visible={panes.primarySidebarVisible}
-                    onRequestVisibility={revealPrimarySidebar}
-                    selectedThreadKey={selectedThreadKey}
-                    onOpenSettings={handleOpenSettings}
-                    onOpenEnvironmentSettings={handleOpenEnvironmentSettings}
-                    onNewThreadInProject={handleNewThreadInProject}
-                    onNewThreadOnBranch={handleNewThreadOnBranch}
-                    onSelectThread={handleSelectThread}
-                    onSearchQueryChange={setPrimarySidebarSearchQuery}
-                    searchQuery={primarySidebarSearchQuery}
-                  />
-                </AndroidHomeFabLayout>
+                {/* The sidebar and inspector render OUTSIDE the navigator's
+                    screen slots (the workspace layout wraps the whole stack),
+                    so no screenLayout boundary covers them. Scope their own
+                    failures here: a broken sidebar must not take the open
+                    thread (or the app) down, and vice versa. */}
+                <RenderErrorBoundary scope="workspace-sidebar" subject="The thread list">
+                  <AndroidHomeFabLayout sidebar onStartNewTask={handleStartNewTask}>
+                    <ThreadNavigationSidebar
+                      width={layout.listPaneWidth}
+                      visible={panes.primarySidebarVisible}
+                      onRequestVisibility={revealPrimarySidebar}
+                      selectedThreadKey={selectedThreadKey}
+                      onOpenSettings={handleOpenSettings}
+                      onOpenEnvironmentSettings={handleOpenEnvironmentSettings}
+                      onNewThreadInProject={handleNewThreadInProject}
+                      onNewThreadOnBranch={handleNewThreadOnBranch}
+                      onSelectThread={handleSelectThread}
+                      onSearchQueryChange={setPrimarySidebarSearchQuery}
+                      searchQuery={primarySidebarSearchQuery}
+                    />
+                  </AndroidHomeFabLayout>
+                </RenderErrorBoundary>
               </View>
             </Animated.View>
           ) : null}
@@ -624,14 +633,16 @@ function AdaptiveWorkspaceLayoutContent(
               </WorkspaceContentWidthContext>
             </View>
           </View>
-          <WorkspaceInspectorPane
-            renderedInspectorWidth={renderedInspectorWidth}
-            active={workspaceInspector?.active ?? false}
-            panes={panes}
-            renderInspector={workspaceInspector?.render}
-            setAuxiliaryPaneWidth={setAuxiliaryPaneWidth}
-            onClosed={handleWorkspaceInspectorClosed}
-          />
+          <RenderErrorBoundary scope="workspace-inspector" subject="The inspector">
+            <WorkspaceInspectorPane
+              renderedInspectorWidth={renderedInspectorWidth}
+              active={workspaceInspector?.active ?? false}
+              panes={panes}
+              renderInspector={workspaceInspector?.render}
+              setAuxiliaryPaneWidth={setAuxiliaryPaneWidth}
+              onClosed={handleWorkspaceInspectorClosed}
+            />
+          </RenderErrorBoundary>
         </View>
       </AdaptiveWorkspaceContext.Provider>
     </HomeListOptionsProvider>

@@ -762,10 +762,15 @@ const RootStackConfig = createNativeStackNavigator({
       // The whole new-task flow (choose project → draft → add project) shares
       // draft state via NewTaskFlowProvider. The expo-router era mounted it in
       // app/new/_layout.tsx; this layout wrapper is the native-stack equivalent.
-      layout: ({ children }) => (
-        <NewTaskFlowProvider>
-          <View className="flex-1 bg-sheet-solid">{children}</View>
-        </NewTaskFlowProvider>
+      // A screen `layout` replaces the navigator's default screenLayout, so
+      // this route's boundary lives HERE, wrapping the whole flow (outside the
+      // provider: a provider crash is also caught, and retry remounts it).
+      layout: ({ children, route }) => (
+        <GuardedScreenLayout route={route}>
+          <NewTaskFlowProvider>
+            <View className="flex-1 bg-sheet-solid">{children}</View>
+          </NewTaskFlowProvider>
+        </GuardedScreenLayout>
       ),
       options: {
         gestureEnabled: true,
@@ -785,12 +790,24 @@ const RootStackConfig = createNativeStackNavigator({
 // killing the app. Each route renders this layout within its own screen slot
 // (keyed by the navigator), so a popped route tears its boundary down. Screens
 // nested inside a sheet/stack route share that route's boundary.
+//
+// NOTE: React Navigation resolves the wrapper as `screen.layout ?? group
+// layout ?? navigator screenLayout` (useDescriptors), so any screen that
+// declares its own `layout` BYPASSES this default and must render
+// GuardedScreenLayout inside its own layout (see NewTaskSheet below).
 function GuardedScreenLayout(props: {
   readonly children: ReactNode;
-  readonly route: { readonly name: string };
+  readonly route: { readonly name: string; readonly params?: object | undefined };
 }) {
   return (
-    <RenderErrorBoundary scope={`screen:${props.route.name}`} fallback={ScreenRenderFallback}>
+    <RenderErrorBoundary
+      scope={`screen:${props.route.name}`}
+      // In split view the Thread route stays mounted while a sidebar selection
+      // swaps its params; new params are new input and must not inherit a
+      // previous thread's failure state.
+      resetKeys={[props.route.params]}
+      fallback={ScreenRenderFallback}
+    >
       {props.children}
     </RenderErrorBoundary>
   );

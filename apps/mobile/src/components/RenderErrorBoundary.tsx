@@ -46,8 +46,8 @@ type RenderErrorBoundaryState = BoundaryState;
  *
  * A caught error never reaches the global fatal handler, so expo-updates'
  * ErrorRecovery startup log stays exclusively for process-ending fatals —
- * `recordRenderError` is the sole report path here, deduped by error identity
- * so an inner and outer boundary catching the same throw record it once.
+ * `recordRenderError` is the sole report path here. Once a boundary recovers,
+ * the throw stops bubbling, so only the innermost boundary records it.
  */
 export class RenderErrorBoundary extends Component<
   RenderErrorBoundaryProps,

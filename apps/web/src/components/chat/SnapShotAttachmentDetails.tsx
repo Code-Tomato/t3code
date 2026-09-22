@@ -150,7 +150,8 @@ export function SnapShotContentsButton({
                   aria-label={
                     includesAccessibility ? "View accessibility data" : "No accessibility data"
                   }
-                  className={cn("[--control-icon-color:currentColor]", className)}
+                  tone="current"
+                  className={className}
                   onClick={(event) => event.stopPropagation()}
                   size="icon-micro"
                   variant="ghost-muted"

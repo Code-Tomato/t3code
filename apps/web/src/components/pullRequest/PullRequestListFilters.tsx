@@ -503,12 +503,7 @@ export function PullRequestFiltersMenu({
   return (
     <Menu onOpenChange={onOpenChange}>
       <MenuTrigger
-        render={
-          <Button
-            className={filterCount > 0 ? "[--control-icon-color:currentColor]" : undefined}
-            variant="outline"
-          />
-        }
+        render={<Button tone={filterCount > 0 ? "current" : "default"} variant="outline" />}
       >
         <ListFilterIcon className="size-4" />
         <span>Filters</span>

@@ -387,8 +387,8 @@ function ThemeLibraryCard({
                                 : `Remove ${theme.label}`
                             }
                             size="icon-xs"
-                            variant="ghost"
-                            className="text-muted-foreground hover:text-destructive"
+                            variant="ghost-muted"
+                            tone="destructive"
                             onClick={(event) => {
                               event.stopPropagation();
                               onRemove();

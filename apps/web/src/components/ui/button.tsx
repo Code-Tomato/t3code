@@ -12,9 +12,21 @@ const buttonVariants = cva(
   {
     defaultVariants: {
       size: "default",
+      tone: "default",
       variant: "default",
     },
     variants: {
+      // A tone colors the label and lets the icon follow it instead of the
+      // variant's fixed icon tint. Icon-only buttons use it to signal state.
+      tone: {
+        default: "",
+        muted:
+          "[--control-icon-color:currentColor] text-muted-foreground [:hover,[data-pressed]]:text-foreground",
+        current: "[--control-icon-color:currentColor]",
+        primary: "[--control-icon-color:currentColor] text-primary",
+        warning: "[--control-icon-color:currentColor] text-warning",
+        destructive: "[--control-icon-color:currentColor] [:hover,[data-pressed]]:text-destructive",
+      },
       size: {
         compact:
           "h-7 gap-1 rounded-md px-[calc(--spacing(2)-1px)] text-xs before:rounded-[calc(var(--radius-md)-1px)] [&_svg:not([class*='size-'])]:size-3.5",
@@ -72,16 +84,17 @@ const buttonVariants = cva(
 interface ButtonProps extends useRender.ComponentProps<"button"> {
   variant?: VariantProps<typeof buttonVariants>["variant"];
   size?: VariantProps<typeof buttonVariants>["size"];
+  tone?: VariantProps<typeof buttonVariants>["tone"];
 }
 
-function Button({ className, variant, size, render, ...props }: ButtonProps) {
+function Button({ className, variant, size, tone, render, ...props }: ButtonProps) {
   const typeValue: React.ButtonHTMLAttributes<HTMLButtonElement>["type"] = render
     ? undefined
     : "button";
 
   const defaultProps = {
     className:
-      variant === "chip" ? cn(className) : cn(buttonVariants({ className, size, variant })),
+      variant === "chip" ? cn(className) : cn(buttonVariants({ className, size, tone, variant })),
     "data-slot": "button",
     type: typeValue,
   };

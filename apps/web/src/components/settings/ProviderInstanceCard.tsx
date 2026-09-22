@@ -300,10 +300,7 @@ function ProviderEnvironmentSection(props: {
                       type="button"
                       size="icon-micro"
                       variant="ghost-muted"
-                      className={cn(
-                        "[--control-icon-color:currentColor]",
-                        variable.sensitive && "text-foreground",
-                      )}
+                      tone={variable.sensitive ? "current" : "muted"}
                       onClick={() => {
                         const sensitive = !variable.sensitive;
                         updateVariable(variable.id, {
@@ -332,7 +329,7 @@ function ProviderEnvironmentSection(props: {
                 type="button"
                 size="icon-micro"
                 variant="ghost-muted"
-                className="[--control-icon-color:currentColor] hover:text-destructive"
+                tone="destructive"
                 onClick={() => removeVariable(variable.id)}
                 aria-label={`Remove environment variable ${variable.name || index + 1}`}
               >
@@ -705,12 +702,7 @@ export function ProviderInstanceCard({
                   type="button"
                   size="icon-xs"
                   variant="ghost"
-                  className={cn(
-                    "[--control-icon-color:currentColor]",
-                    versionAdvisory.emphasis === "strong"
-                      ? "text-warning hover:text-warning"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
+                  tone={versionAdvisory.emphasis === "strong" ? "warning" : "muted"}
                   aria-label="Update available — view details"
                 >
                   <ArrowUpCircleIcon />
@@ -795,7 +787,7 @@ export function ProviderInstanceCard({
             size="icon-xs"
             variant="ghost-muted"
             disabled={readOnly}
-            className="[--control-icon-color:currentColor] hover:text-destructive"
+            tone="destructive"
             onClick={onDelete}
             aria-label={`Delete instance ${instanceId}`}
           >

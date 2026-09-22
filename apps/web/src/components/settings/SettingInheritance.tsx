@@ -208,16 +208,15 @@ export function SettingInheritance({
                   size="icon-micro"
                   variant="ghost-muted"
                   aria-label={`${overrideSummary}. Show where this value comes from`}
-                  className={cn(
-                    "[--control-icon-color:currentColor]",
+                  tone={
                     state === "overridden"
-                      ? "text-primary hover:text-primary"
+                      ? "primary"
                       : state === "mixed"
-                        ? "text-warning hover:text-warning"
+                        ? "warning"
                         : state === "environment"
-                          ? "text-foreground/70 hover:text-foreground"
-                          : "text-muted-foreground/60 hover:text-foreground",
-                  )}
+                          ? "current"
+                          : "muted"
+                  }
                 />
               }
             />

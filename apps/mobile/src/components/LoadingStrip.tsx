@@ -3,11 +3,14 @@ import { View } from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+
+import { useAmbientAnimationsEnabled } from "../lib/useAmbientAnimationsActive";
 
 const INDICATOR_WIDTH_FRACTION = 0.3;
 const MIN_INDICATOR_WIDTH = 48;
@@ -37,24 +40,31 @@ function LoadingStripFrame(props: {
 
 function IndeterminateLoadingStrip() {
   const [containerWidth, setContainerWidth] = useState(0);
+  const animationsEnabled = useAmbientAnimationsEnabled();
   const travelProgress = useSharedValue(0);
   const indicatorWidth = Math.max(MIN_INDICATOR_WIDTH, containerWidth * INDICATOR_WIDTH_FRACTION);
 
   useEffect(() => {
+    cancelAnimation(travelProgress);
     travelProgress.value = 0;
+    if (!animationsEnabled || containerWidth <= 0) return;
+
     travelProgress.value = withRepeat(
       withTiming(1, {
         duration: 1100,
         easing: Easing.inOut(Easing.quad),
+        reduceMotion: ReduceMotion.Never,
       }),
       -1,
       false,
+      undefined,
+      ReduceMotion.Never,
     );
 
     return () => {
       cancelAnimation(travelProgress);
     };
-  }, [travelProgress]);
+  }, [animationsEnabled, containerWidth, travelProgress]);
 
   const indicatorStyle = useAnimatedStyle(
     () => ({
@@ -70,7 +80,13 @@ function IndeterminateLoadingStrip() {
 
   return (
     <LoadingStripFrame onLayout={setContainerWidth}>
-      <Animated.View className="h-full rounded-full bg-primary" style={indicatorStyle} />
+      {animationsEnabled ? (
+        <Animated.View className="h-full rounded-full bg-primary" style={indicatorStyle} />
+      ) : (
+        // Static stand-in so "still loading" stays legible when the loop is
+        // parked (reduced motion, backgrounded, or unfocused screen).
+        <View className="h-full w-full bg-primary opacity-40" />
+      )}
     </LoadingStripFrame>
   );
 }

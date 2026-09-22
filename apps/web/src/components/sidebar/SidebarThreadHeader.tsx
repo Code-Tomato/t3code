@@ -88,7 +88,7 @@ export function SidebarThreadHeader({
         <Input
           ref={searchInputRef}
           nativeInput
-          unstyled
+          variant="inline"
           type="search"
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
@@ -104,7 +104,7 @@ export function SidebarThreadHeader({
               ? `sidebar-thread-search-result-${activeSearchResultIndex}`
               : undefined
           }
-          className="min-w-0 flex-1 [&_[data-slot=input]]:h-auto [&_[data-slot=input]]:p-0 [&_[data-slot=input]]:leading-normal [&_[data-slot=input]]:text-sm [&_[data-slot=input]]:font-medium [&_[data-slot=input]]:text-sidebar-foreground [&_[data-slot=input]]:placeholder:text-[var(--sidebar-icon-color)]"
+          className="min-w-0 flex-1"
         />
         {isSearching ? (
           <Button

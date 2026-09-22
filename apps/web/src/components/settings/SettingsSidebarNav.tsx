@@ -240,7 +240,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
             <Input
               ref={searchInputRef}
               nativeInput
-              unstyled
+              variant="inline"
               type="search"
               value={query}
               onChange={(event) => {
@@ -259,7 +259,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                   ? `settings-search-result-${results[activeResultIndex].id}`
                   : undefined
               }
-              className="min-w-0 flex-1 [&_[data-slot=input]]:h-auto [&_[data-slot=input]]:p-0 [&_[data-slot=input]]:leading-normal [&_[data-slot=input]]:text-sm [&_[data-slot=input]]:font-medium [&_[data-slot=input]]:text-sidebar-foreground [&_[data-slot=input]]:placeholder:text-sidebar-muted-foreground"
+              className="min-w-0 flex-1"
             />
             {isSearching ? (
               <Button

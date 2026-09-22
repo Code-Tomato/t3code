@@ -350,11 +350,7 @@ function ConnectionStep({
             onToggleEnvironment={onToggleEnvironment}
           />
         ) : null}
-        <Collapsible
-          open={pairingOpen}
-          onOpenChange={setPairingOpen}
-          className="rounded-lg border border-border bg-background"
-        >
+        <Collapsible open={pairingOpen} onOpenChange={setPairingOpen} variant="card">
           <CollapsibleTrigger
             disabled={isPairing}
             render={
@@ -422,7 +418,7 @@ function ConnectAccountOption({
     <Collapsible
       open={expanded && !!isSignedIn && discoveryReady}
       onOpenChange={setExpanded}
-      className="rounded-lg border border-border bg-background"
+      variant="card"
     >
       <CollapsibleTrigger
         disabled={disabled || !isLoaded}

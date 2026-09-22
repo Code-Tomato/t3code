@@ -4,8 +4,28 @@ import { Collapsible as CollapsiblePrimitive } from "@base-ui/react/collapsible"
 
 import { cn } from "~/lib/utils";
 
-function Collapsible({ ...props }: CollapsiblePrimitive.Root.Props) {
-  return <CollapsiblePrimitive.Root data-slot="collapsible" {...props} />;
+// The root is a plain container; a variant gives it the chrome of the
+// section it folds: a bordered card, or a rule on the edge it shares.
+const collapsibleVariantClassName = {
+  plain: "",
+  card: "rounded-lg border border-border bg-background",
+  "card-muted": "overflow-hidden rounded-lg border border-border/70 bg-muted/20",
+  "divided-bottom": "border-b border-border/60",
+  divided: "border-y border-border/60",
+} as const;
+
+function Collapsible({
+  className,
+  variant = "plain",
+  ...props
+}: CollapsiblePrimitive.Root.Props & { variant?: keyof typeof collapsibleVariantClassName }) {
+  return (
+    <CollapsiblePrimitive.Root
+      className={cn(collapsibleVariantClassName[variant], className)}
+      data-slot="collapsible"
+      {...props}
+    />
+  );
 }
 
 function CollapsibleTrigger({ className, ...props }: CollapsiblePrimitive.Trigger.Props) {

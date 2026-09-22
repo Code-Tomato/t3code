@@ -378,10 +378,7 @@ function CommentGroup({
     null,
   );
   return (
-    <Collapsible
-      className="overflow-hidden rounded-lg border border-border/70 bg-muted/20"
-      onOpenChange={onOpenChange}
-    >
+    <Collapsible variant="card-muted" onOpenChange={onOpenChange}>
       <div className="flex items-center gap-3 pl-3">
         <div className="flex shrink-0 -space-x-1.5">
           {authors.slice(0, 3).map((actor) => (

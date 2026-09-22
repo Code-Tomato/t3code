@@ -1406,7 +1406,8 @@ function PullRequestCodeTab({
             line of it, and in the stream they read as cards dropped into the patch. */}
       {orphanFiles.size > 0 ? (
         <Collapsible
-          className="shrink-0 border-b border-border/60"
+          variant="divided-bottom"
+          className="shrink-0"
           open={orphansOpen}
           onOpenChange={setOrphansOpen}
         >

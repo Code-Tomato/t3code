@@ -847,7 +847,8 @@ function MarkdownDetails({
     <Collapsible
       defaultOpen={open}
       onOpenChange={setIsOpen}
-      className="chat-markdown-details my-2 border-y border-border/60"
+      variant="divided"
+      className="chat-markdown-details my-2"
       data-markdown-details=""
       data-markdown-details-open={isOpen ? "true" : "false"}
     >

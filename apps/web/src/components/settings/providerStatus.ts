@@ -1,4 +1,4 @@
-import type { ServerProvider, ServerProviderVersionAdvisory } from "@t3tools/contracts";
+import type { ServerProvider } from "@t3tools/contracts";
 
 /**
  * Visual treatment for each server-reported provider status. Centralized so
@@ -99,28 +99,65 @@ export function getProviderVersionLabel(version: string | null | undefined) {
   return /^\d/.test(version) ? `v${version}` : version;
 }
 
+const COMPATIBILITY_TITLES = {
+  graceful: "Limited support",
+  unsupported: "Unsupported version",
+  broken: "Known broken version",
+} as const;
+
+/**
+ * What the provider's update popover says. A compatibility problem outranks a
+ * plain "newer version exists", and shows even when the provider is current
+ * (for example when latest itself is broken).
+ */
 export function getProviderVersionAdvisoryPresentation(
-  advisory: ServerProviderVersionAdvisory | undefined,
+  provider: Pick<ServerProvider, "versionAdvisory" | "compatibility"> | undefined,
 ): {
+  readonly title: string;
   readonly detail: string;
   readonly updateCommand: string | null;
   readonly emphasis: "normal" | "strong";
+  /** Install this exact version instead of latest. */
+  readonly targetVersion: string | null;
 } | null {
-  if (!advisory || advisory.status === "current" || advisory.status === "unknown") {
+  const advisory = provider?.versionAdvisory;
+  const compatibility = provider?.compatibility;
+  const behindLatest =
+    advisory !== undefined && advisory.status !== "current" && advisory.status !== "unknown";
+
+  if (compatibility && compatibility.status !== "supported") {
+    const targetVersion = compatibility.recommendedVersion;
+    const targetLabel = getProviderVersionLabel(targetVersion);
+    const fallback = targetLabel
+      ? `Install ${targetLabel} for full support.`
+      : "Update for full support.";
+    return {
+      title: COMPATIBILITY_TITLES[compatibility.status],
+      detail: compatibility.message ?? fallback,
+      // The advisory's command installs latest, which is the wrong fix when
+      // the manifest recommends a specific version.
+      updateCommand: targetVersion ? null : (advisory?.updateCommand ?? null),
+      emphasis: compatibility.status === "graceful" ? "normal" : "strong",
+      targetVersion,
+    };
+  }
+
+  if (!behindLatest) {
     return null;
   }
 
   const label = "Update available";
-  const version = advisory.latestVersion;
-  const versionLabel = getProviderVersionLabel(version);
+  const versionLabel = getProviderVersionLabel(advisory.latestVersion);
 
   return {
+    title: label,
     detail:
       advisory.message ??
       (versionLabel
         ? `${label}: install ${versionLabel}.`
         : `${label}: install the latest provider version.`),
     updateCommand: advisory.updateCommand,
-    emphasis: "normal" as const,
+    emphasis: "normal",
+    targetVersion: null,
   };
 }

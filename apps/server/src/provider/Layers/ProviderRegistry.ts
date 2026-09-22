@@ -53,6 +53,8 @@ import {
 } from "../providerStatusCache.ts";
 import type { ProviderInstance } from "../ProviderDriver.ts";
 import { makeManualOnlyProviderMaintenanceCapabilities } from "../providerMaintenance.ts";
+import * as ModelManifest from "../ModelManifest.ts";
+import { withProviderCompatibility } from "../providerCompatibility.ts";
 import type { ProviderSnapshotSource } from "../builtInProviderCatalog.ts";
 
 const loadProviders = (
@@ -281,6 +283,7 @@ export const ProviderRegistryLive = Layer.effect(
     const config = yield* ServerConfig;
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
+    const modelManifest = yield* ModelManifest.ModelManifest;
 
     // Aggregator PubSub — consumers (WS gateway, etc.) subscribe here for
     // coalesced updates across every instance.
@@ -424,9 +427,12 @@ export const ProviderRegistryLive = Layer.effect(
         readonly replace?: boolean;
       },
     ) {
+      // Compatibility is judged here rather than in each driver so every
+      // provider gets it, and so it always matches the snapshot's version.
+      const { compatibility } = yield* modelManifest.current;
       const nextProvidersWithUpdateState = yield* Effect.forEach(
         nextProviders,
-        applyProviderUpdateState,
+        (provider) => applyProviderUpdateState(withProviderCompatibility(provider, compatibility)),
         {
           concurrency: "unbounded",
         },

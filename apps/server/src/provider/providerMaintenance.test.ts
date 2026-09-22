@@ -23,6 +23,7 @@ import {
   normalizeCommandPath,
   npmGlobalPrefixFromCommandPath,
   parseHomebrewLatestVersion,
+  pinProviderUpdateAction,
   ProviderVersionCache,
   resolveLatestProviderVersion,
   resolvePackageManagedProviderMaintenance,
@@ -572,6 +573,47 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
       platform: "win32",
     });
     expect(windows.update?.command).toBe("& 'C:\\Program Files\\Tool\\tool.exe' update");
+  });
+
+  it("pins package-manager updates and refuses installers that only reach latest", () => {
+    const packageManaged = (executable: string, args: ReadonlyArray<string>, lockKey: string) =>
+      makeProviderMaintenanceCapabilities({
+        provider: driver("packageTool"),
+        packageName: "@example/package-tool",
+        updateExecutable: executable,
+        updateArgs: args,
+        updateLockKey: lockKey,
+        platform: "darwin",
+      }).update!;
+
+    const npm = packageManaged(
+      "npm",
+      ["install", "-g", "--prefix", "/Users/Jane Doe/.npm-global", "@example/package-tool@latest"],
+      "npm-global",
+    );
+    expect(pinProviderUpdateAction(npm, "@example/package-tool", "1.2.3", "darwin")).toMatchObject({
+      args: [
+        "install",
+        "-g",
+        "--prefix",
+        "/Users/Jane Doe/.npm-global",
+        "@example/package-tool@1.2.3",
+      ],
+      command: "npm install -g --prefix '/Users/Jane Doe/.npm-global' @example/package-tool@1.2.3",
+      lockKey: "npm-global",
+    });
+    // Vite+ installs the bare package name.
+    const vitePlus = packageManaged("vp", ["i", "-g", "@example/package-tool"], "vite-plus-global");
+    expect(
+      pinProviderUpdateAction(vitePlus, "@example/package-tool", "1.2.3", "darwin")?.command,
+    ).toBe("vp i -g @example/package-tool@1.2.3");
+
+    const native = packageManaged("/Users/jane/.local/bin/tool", ["update"], "native");
+    expect(pinProviderUpdateAction(native, "@example/package-tool", "1.2.3", "darwin")).toBeNull();
+    const homebrew = packageManaged("/opt/homebrew/bin/brew", ["upgrade", "tool"], "homebrew");
+    expect(
+      pinProviderUpdateAction(homebrew, "@example/package-tool", "1.2.3", "darwin"),
+    ).toBeNull();
   });
 
   it.effect.skipIf(windowsHost)("carries the native updater's environment into the action", () =>

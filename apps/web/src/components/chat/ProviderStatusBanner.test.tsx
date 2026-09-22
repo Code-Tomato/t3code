@@ -28,6 +28,26 @@ function warningProvider(): ServerProvider {
 }
 
 describe("ProviderStatusBanner", () => {
+  it("warns about an unsupported version on a ready provider until it changes version", () => {
+    const status: ServerProvider = {
+      ...warningProvider(),
+      status: "ready",
+      compatibility: { status: "unsupported", message: "Update Codex.", recommendedVersion: null },
+    };
+    const key = getProviderStatusBannerKey(status);
+    expect(key).not.toBeNull();
+    expect(shouldShowProviderStatusBanner(status, key)).toBe(false);
+    // Updating to another still-unsupported version asks again.
+    expect(shouldShowProviderStatusBanner({ ...status, version: "1.0.1" }, key)).toBe(true);
+    // Limited support is shown in settings only.
+    expect(
+      getProviderStatusBannerKey({
+        ...status,
+        compatibility: { status: "graceful", message: null, recommendedVersion: null },
+      }),
+    ).toBeNull();
+  });
+
   it("waits for an Antigravity auth result before showing a sign-in warning", () => {
     const status: ServerProvider = {
       ...warningProvider(),

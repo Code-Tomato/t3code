@@ -159,10 +159,13 @@ export function collectProviderUpdateCandidates(
 export function isProviderSettingsUpdateCandidate(
   provider: ServerProvider,
 ): provider is ProviderSettingsUpdateCandidate {
+  // A recommended version can sit behind latest (when latest is broken), so
+  // it makes the provider updatable even when it is current.
   return (
     provider.enabled &&
-    provider.versionAdvisory?.status === "behind_latest" &&
-    provider.versionAdvisory.canUpdate === true &&
+    (provider.versionAdvisory?.status === "behind_latest" ||
+      Boolean(provider.compatibility?.recommendedVersion)) &&
+    provider.versionAdvisory?.canUpdate === true &&
     provider.versionAdvisory.updateCommand !== null
   );
 }

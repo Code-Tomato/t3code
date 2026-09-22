@@ -25,6 +25,7 @@ import { ProviderRegistry } from "./Services/ProviderRegistry.ts";
 import { makeProviderMaintenanceCommandCoordinator } from "./providerMaintenanceCommandCoordinator.ts";
 import {
   enrichProviderSnapshotWithVersionAdvisory,
+  pinProviderUpdateAction,
   type ProviderMaintenanceCommandAction,
   ProviderVersionCache,
 } from "./providerMaintenance.ts";
@@ -51,6 +52,8 @@ export interface ProviderMaintenanceRunnerShape {
       | {
           readonly provider: ProviderDriverKind;
           readonly instanceId?: ProviderInstanceId | undefined;
+          /** Install this exact version instead of latest. */
+          readonly targetVersion?: string | undefined;
         },
   ) => Effect.Effect<ServerProviderUpdatedPayload, ServerProviderUpdateError>;
 }
@@ -310,16 +313,27 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
       typeof target === "string"
         ? defaultInstanceIdForDriver(provider)
         : (target.instanceId ?? defaultInstanceIdForDriver(provider));
+    const targetVersion = typeof target === "string" ? undefined : target.targetVersion;
     const targetKey = `instance:${instanceId}`;
     const capabilities = yield* providerRegistry.getProviderMaintenanceCapabilitiesForInstance(
       instanceId,
       provider,
     );
-    const update = capabilities.update;
-    if (!update) {
+    const resolveAction = (resolved: ProviderMaintenanceCapabilities) =>
+      resolved.update && targetVersion
+        ? pinProviderUpdateAction(resolved.update, resolved.packageName, targetVersion)
+        : resolved.update;
+    if (!capabilities.update) {
       return yield* new ServerProviderUpdateError({
         provider,
         reason: "This provider does not support one-click updates.",
+      });
+    }
+    const update = resolveAction(capabilities);
+    if (!update) {
+      return yield* new ServerProviderUpdateError({
+        provider,
+        reason: "This installation can only update to the latest version.",
       });
     }
 
@@ -365,7 +379,8 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
               provider,
               { fresh: true },
             );
-            if (!fresh.update || fresh.update.lockKey !== update.lockKey) {
+            const freshUpdate = resolveAction(fresh);
+            if (!freshUpdate || freshUpdate.lockKey !== update.lockKey) {
               return yield* finish(
                 makeUpdateState({
                   status: "failed",
@@ -376,7 +391,7 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
               );
             }
 
-            const result = yield* runMaintenanceCommand(fresh.update);
+            const result = yield* runMaintenanceCommand(freshUpdate);
             const finishedAt = yield* nowIso;
             if (result.timedOut || result.exitCode !== 0) {
               return yield* finish(
@@ -408,8 +423,12 @@ export const make = Effect.fn("ProviderMaintenanceRunner.make")(function* () {
             const couldNotVerify =
               verifiedProviders.length === 0 ||
               verifiedProviders.some((verifiedProvider) => !isStillInstalled(verifiedProvider));
+            // A pinned install is meant to stay behind latest; it only has
+            // to land on the version asked for.
             const stillOutdated = verifiedProviders.some((verifiedProvider) =>
-              isOutdatedProvider(verifiedProvider),
+              targetVersion
+                ? verifiedProvider.version !== targetVersion
+                : isOutdatedProvider(verifiedProvider),
             );
             return yield* finish(
               makeUpdateState({

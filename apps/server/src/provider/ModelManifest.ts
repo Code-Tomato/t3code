@@ -8,6 +8,9 @@
  * successful on-disk copy, then the bundle. A failed fetch never fails a
  * provider check.
  *
+ * The same file carries provider version compatibility ranges, so a provider
+ * release that breaks T3 Code can be flagged without a T3 Code release.
+ *
  * Providers with authoritative discovery can use only the classification
  * overlay. Providers with static catalogs can resolve presentation and
  * capabilities from `providers`, then decode their own allowlisted adapter
@@ -34,6 +37,7 @@ import { ServerConfig } from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { hasValidClaudeManifestAdapters } from "./ClaudeModelManifest.ts";
 import bundledManifestJson from "./model-manifest.json" with { type: "json" };
+import { ManifestCompatibility } from "./providerCompatibility.ts";
 import type { ServerProviderDraft } from "./providerSnapshot.ts";
 
 const MODEL_MANIFEST_URL =
@@ -91,6 +95,8 @@ const ModelManifestEnvelopeSchema = Schema.Struct({
   updatedAt: Schema.optional(Schema.String),
   currentModels: Schema.Record(Schema.String, Schema.Array(Schema.String)),
   providers: Schema.optional(Schema.Record(Schema.String, ManifestProviderCatalog)),
+  /** Installed provider version ranges per driver; see `providerCompatibility.ts`. */
+  compatibility: Schema.optional(ManifestCompatibility),
 });
 
 const hasValidProviderCatalogReferences = (

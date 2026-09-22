@@ -1067,7 +1067,12 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
                   retainedModels,
                 );
               }).pipe(
-                Effect.provide(ProviderRegistryLive.pipe(Layer.provide(instanceRegistryLayer))),
+                Effect.provide(
+                  ProviderRegistryLive.pipe(
+                    Layer.provide(instanceRegistryLayer),
+                    Layer.provide(ModelManifest.layerTest),
+                  ),
+                ),
                 Effect.scoped,
               );
             }
@@ -1412,6 +1417,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
           const runtimeServices = yield* Layer.build(
             ProviderRegistryLive.pipe(
               Layer.provideMerge(instanceRegistryLayer),
+              Layer.provideMerge(ModelManifest.layerTest),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
                   prefix: "t3-provider-registry-background-refresh-",
@@ -1531,6 +1537,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
           const runtimeServices = yield* Layer.build(
             ProviderRegistryLive.pipe(
               Layer.provideMerge(instanceRegistryLayer),
+              Layer.provideMerge(ModelManifest.layerTest),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
                   prefix: "t3-provider-registry-workspace-snapshot-",
@@ -1727,6 +1734,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
           const runtimeServices = yield* Layer.build(
             ProviderRegistryLive.pipe(
               Layer.provideMerge(instanceRegistryLayer),
+              Layer.provideMerge(ModelManifest.layerTest),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
                   prefix: "t3-provider-registry-reconnect-refresh-",
@@ -1853,6 +1861,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
           const runtimeServices = yield* Layer.build(
             ProviderRegistryLive.pipe(
               Layer.provideMerge(instanceRegistryLayer),
+              Layer.provideMerge(ModelManifest.layerTest),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
                   prefix: "t3-provider-registry-merged-persist-",
@@ -1978,6 +1987,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
             const runtimeServices = yield* Layer.build(
               ProviderRegistryLive.pipe(
                 Layer.provideMerge(instanceRegistryLayer),
+                Layer.provideMerge(ModelManifest.layerTest),
                 Layer.provideMerge(
                   ServerConfig.layerTest(process.cwd(), {
                     prefix: "t3-provider-registry-opencode-authoritative-persist-",
@@ -2081,6 +2091,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
           const runtimeServices = yield* Layer.build(
             ProviderRegistryLive.pipe(
               Layer.provideMerge(instanceRegistryLayer),
+              Layer.provideMerge(ModelManifest.layerTest),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
                   prefix: "t3-provider-registry-refresh-failure-",
@@ -2193,6 +2204,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, ServerSettingsModule.layerTest(), Te
           const runtimeServices = yield* Layer.build(
             ProviderRegistryLive.pipe(
               Layer.provideMerge(instanceRegistryLayer),
+              Layer.provideMerge(ModelManifest.layerTest),
               Layer.provideMerge(
                 ServerConfig.layerTest(process.cwd(), {
                   prefix: "t3-provider-registry-sync-failure-",

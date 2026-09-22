@@ -438,7 +438,7 @@ export function ProviderInstanceCard({
       ? (liveProvider.auth.label ?? liveProvider.auth.type ?? null)
       : null;
   const versionLabel = getProviderVersionLabel(liveProvider?.version);
-  const versionAdvisory = getProviderVersionAdvisoryPresentation(liveProvider?.versionAdvisory);
+  const versionAdvisory = getProviderVersionAdvisoryPresentation(liveProvider);
   const updateCommand = versionAdvisory?.updateCommand ?? null;
   const FallbackIconComponent = driverOption?.icon;
   const displayName =
@@ -650,8 +650,19 @@ export function ProviderInstanceCard({
                     <TooltipPopup side="top">Copy update command</TooltipPopup>
                   </Tooltip>
                 ) : (
-                  <span role="img" aria-label="Update available" className="inline-flex shrink-0">
-                    <ArrowUpCircleIcon className="size-3.5 text-muted-foreground" />
+                  <span
+                    role="img"
+                    aria-label={versionAdvisory.title}
+                    className="inline-flex shrink-0"
+                  >
+                    <ArrowUpCircleIcon
+                      className={cn(
+                        "size-3.5",
+                        versionAdvisory.emphasis === "strong"
+                          ? "text-warning"
+                          : "text-muted-foreground",
+                      )}
+                    />
                   </span>
                 )
               ) : null}
@@ -700,7 +711,7 @@ export function ProviderInstanceCard({
                   type="button"
                   size="icon-xs"
                   variant="ghost-muted"
-                  aria-label="Update available — view details"
+                  aria-label={`${versionAdvisory.title} — view details`}
                 >
                   <ArrowUpCircleIcon
                     className={cn(versionAdvisory.emphasis === "strong" && "text-warning")}
@@ -712,7 +723,7 @@ export function ProviderInstanceCard({
               <div className="grid min-w-0 gap-3">
                 <div className="grid gap-0.5">
                   <p className="text-[13px] font-semibold leading-tight text-foreground">
-                    Update available
+                    {versionAdvisory.title}
                   </p>
                   <p
                     className={cn(
@@ -735,7 +746,11 @@ export function ProviderInstanceCard({
                     onClick={onRunUpdate}
                   >
                     {isUpdating ? <Spinner /> : <DownloadIcon />}
-                    {isUpdating ? "Updating" : "Update now"}
+                    {isUpdating
+                      ? "Updating"
+                      : versionAdvisory.targetVersion
+                        ? `Install ${getProviderVersionLabel(versionAdvisory.targetVersion)}`
+                        : "Update now"}
                   </Button>
                 ) : null}
                 {onRunUpdate && updateCommand ? (

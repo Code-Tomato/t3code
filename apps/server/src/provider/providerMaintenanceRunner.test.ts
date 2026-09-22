@@ -387,6 +387,54 @@ describe("providerMaintenanceRunner", () => {
     );
   });
 
+  it.effect("installs a pinned version and counts it as success while behind latest", () => {
+    const calls: Array<{ command: string; args: ReadonlyArray<string> }> = [];
+    return Effect.gen(function* () {
+      const { registry } = yield* makeRegistry({ ...baseProvider, version: "0.150.0" });
+      const updater = yield* makeTestRunner(registry);
+
+      const result = yield* updater.updateProvider({
+        provider: CODEX_DRIVER,
+        targetVersion: "0.150.0",
+      });
+      assert.deepStrictEqual(calls, [
+        { command: "npm", args: ["install", "-g", "@openai/codex@0.150.0"] },
+      ]);
+      assert.strictEqual(result.providers[0]?.updateState?.status, "succeeded");
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          NonWindowsPlatform,
+          latestVersionHttpClient("0.200.0"),
+          mockSpawnerLayer((command, args) => {
+            calls.push({ command, args });
+            return { stdout: "updated" };
+          }),
+        ),
+      ),
+    );
+  });
+
+  it.effect("refuses a pinned version for an installer that only reaches latest", () => {
+    return Effect.gen(function* () {
+      const { registry } = yield* makeRegistry(baseNativeCliProvider);
+      const updater = yield* makeTestRunner(registry);
+
+      const error = yield* Effect.flip(
+        updater.updateProvider({ provider: NATIVE_CLI_DRIVER, targetVersion: "1.0.0" }),
+      );
+      assert.strictEqual(error.reason, "This installation can only update to the latest version.");
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          NonWindowsPlatform,
+          latestVersionHttpClient("0.0.0"),
+          mockSpawnerLayer(() => assert.fail("no command should run")),
+        ),
+      ),
+    );
+  });
+
   it.effect("aborts without running when the installation changed since the advisory", () => {
     const calls: Array<string> = [];
     return Effect.gen(function* () {

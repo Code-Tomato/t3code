@@ -1,7 +1,7 @@
 import { ProviderDriverKind, ProviderInstanceId, type ServerProvider } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { getProviderSummary } from "./providerStatus";
+import { getProviderSummary, getProviderVersionAdvisoryPresentation } from "./providerStatus";
 
 const provider: ServerProvider = {
   instanceId: ProviderInstanceId.make("codex"),
@@ -67,5 +67,41 @@ describe("getProviderSummary", () => {
 
   it("treats a disabled provider status as disabled even before its enabled flag updates", () => {
     expect(getProviderSummary({ ...provider, status: "disabled" }).headline).toBe("Disabled");
+  });
+});
+
+describe("getProviderVersionAdvisoryPresentation", () => {
+  const advisory: NonNullable<ServerProvider["versionAdvisory"]> = {
+    status: "current",
+    currentVersion: "1.0.0",
+    latestVersion: "1.0.0",
+    updateCommand: "npm install -g tool@latest",
+    canUpdate: true,
+    checkedAt: null,
+    message: null,
+  };
+
+  it("offers the recommended version instead of latest when latest is broken", () => {
+    expect(
+      getProviderVersionAdvisoryPresentation({
+        versionAdvisory: advisory,
+        compatibility: { status: "broken", message: null, recommendedVersion: "0.9.0" },
+      }),
+    ).toEqual({
+      title: "Known broken version",
+      detail: "Install v0.9.0 for full support.",
+      updateCommand: null,
+      emphasis: "strong",
+      targetVersion: "0.9.0",
+    });
+  });
+
+  it("stays quiet for a current, supported provider", () => {
+    expect(
+      getProviderVersionAdvisoryPresentation({
+        versionAdvisory: advisory,
+        compatibility: { status: "supported", message: null, recommendedVersion: null },
+      }),
+    ).toBeNull();
   });
 });

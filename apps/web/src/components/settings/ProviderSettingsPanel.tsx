@@ -663,6 +663,9 @@ export function EnvironmentProviderSettings({
         input: {
           provider: candidate.driver,
           instanceId: candidate.instanceId,
+          ...(candidate.compatibility?.recommendedVersion
+            ? { targetVersion: candidate.compatibility.recommendedVersion }
+            : {}),
         },
       });
       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {

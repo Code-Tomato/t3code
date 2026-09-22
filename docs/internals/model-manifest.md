@@ -25,3 +25,23 @@ models.
 Model data is schema-validated configuration. Tests should cover resolver, cache,
 and adapter semantics with synthetic model names, so adding a model never requires
 tests that repeat the configuration.
+
+## Provider compatibility
+
+`compatibility` classifies installed provider versions per driver, so a bad
+provider release can be flagged without shipping T3 Code. The first policy whose
+`t3Code` range matches the running build applies, and its first matching range
+wins. Put a known-broken release before the broad range that would otherwise
+contain it. Ranges use only `^`, `>=`, `>`, `<=`, `<`, `=` comparators joined by
+spaces or `||`; anything else fails decoding rather than never matching.
+
+A verdict is advisory. It never changes provider status or blocks a session,
+because an old or offline server must keep working with whatever manifest it has.
+Only a real threshold belongs here: an API the adapter calls without a fallback
+(unsupported), a feature the adapter hides on older versions (graceful), or a
+release that fails in practice (broken). Drivers that already refuse a version at
+probe time, such as OpenCode and Pi, need no entry.
+
+Set `recommendedVersion` only when updating to latest is the wrong fix. Settings
+then offers to install that version, which only package-manager installs can do;
+native updaters and Homebrew always go to latest.

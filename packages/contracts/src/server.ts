@@ -8,6 +8,7 @@ import {
 import { ServerAuthDescriptor } from "./auth.ts";
 import {
   ForwardCompatibleArray,
+  ForwardCompatibleOptional,
   IsoDateTime,
   NonNegativeInt,
   PositiveInt,
@@ -166,6 +167,33 @@ export const ServerProviderVersionAdvisory = Schema.Struct({
 });
 export type ServerProviderVersionAdvisory = typeof ServerProviderVersionAdvisory.Type;
 
+export const ServerProviderCompatibilityStatus = Schema.Literals([
+  "supported",
+  "graceful",
+  "unsupported",
+  "broken",
+]);
+export type ServerProviderCompatibilityStatus = typeof ServerProviderCompatibilityStatus.Type;
+
+/** Exact release version, e.g. `1.14.40` or `0.2.0-beta.1`. Update targets
+ * are passed to package managers, so ranges, tags and URLs are rejected. */
+export const ProviderReleaseVersion = TrimmedNonEmptyString.check(
+  Schema.isPattern(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/),
+);
+
+/**
+ * How the installed provider version fares against this server build, from
+ * the compatibility section of the model manifest. Absent when no policy
+ * covers the driver or the version could not be read.
+ */
+export const ServerProviderCompatibility = Schema.Struct({
+  status: ServerProviderCompatibilityStatus,
+  message: Schema.NullOr(TrimmedNonEmptyString),
+  // Set only when updating to latest is the wrong fix; install this instead.
+  recommendedVersion: Schema.NullOr(ProviderReleaseVersion),
+});
+export type ServerProviderCompatibility = typeof ServerProviderCompatibility.Type;
+
 export const ServerProviderUpdateStatus = Schema.Literals([
   "idle",
   "queued",
@@ -234,6 +262,7 @@ export const ServerProvider = Schema.Struct({
   // Absent when the driver has no notion of subscription usage.
   usageLimits: Schema.optional(ServerProviderUsageLimits),
   versionAdvisory: Schema.optionalKey(ServerProviderVersionAdvisory),
+  compatibility: ForwardCompatibleOptional(ServerProviderCompatibility),
   updateState: Schema.optionalKey(ServerProviderUpdateState),
 });
 export type ServerProvider = typeof ServerProvider.Type;
@@ -800,6 +829,9 @@ export type ServerProviderUpdatedPayload = typeof ServerProviderUpdatedPayload.T
 export const ServerProviderUpdateInput = Schema.Struct({
   provider: ProviderDriverKind,
   instanceId: Schema.optionalKey(ProviderInstanceId),
+  // Install this exact version instead of latest. Only package-manager
+  // installs can pin; native updaters and Homebrew always go to latest.
+  targetVersion: Schema.optionalKey(ProviderReleaseVersion),
 });
 export type ServerProviderUpdateInput = typeof ServerProviderUpdateInput.Type;
 

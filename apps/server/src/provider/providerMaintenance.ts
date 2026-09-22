@@ -186,6 +186,33 @@ export function makeProviderMaintenanceCapabilities(input: {
   };
 }
 
+/**
+ * Rewrite a package-manager update so it installs `version` instead of
+ * latest. Native updaters and Homebrew can only go to latest, so they return
+ * null.
+ */
+export function pinProviderUpdateAction(
+  update: ProviderMaintenanceCommandAction,
+  packageName: string | null,
+  version: string,
+  platform: NodeJS.Platform = HostProcessPlatform.defaultValue(),
+): ProviderMaintenanceCommandAction | null {
+  if (!packageName || update.lockKey === "homebrew") return null;
+  const specIndex = update.args.findIndex(
+    (arg) => arg === packageName || arg === `${packageName}@latest`,
+  );
+  if (specIndex === -1) return null;
+  const args = update.args.with(specIndex, `${packageName}@${version}`);
+  return {
+    ...update,
+    args,
+    command: [
+      quoteUpdateExecutable(update.executable, platform),
+      ...args.map((arg) => quoteShellWord(arg, platform)),
+    ].join(" "),
+  };
+}
+
 export function makeManualOnlyProviderMaintenanceCapabilities(input: {
   readonly provider: ProviderDriverKind;
   readonly packageName: string | null;

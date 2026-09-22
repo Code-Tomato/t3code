@@ -24,6 +24,7 @@ import { useResolveClassNames } from "uniwind";
 import { AppText as Text } from "./components/AppText";
 import { getCompactBrandHeaderOptions } from "./components/CompactBrandTitle";
 import { RenderErrorBoundary, RenderFailureView } from "./components/RenderErrorBoundary";
+import { screenFallbackExit } from "./components/render-error-boundary-model";
 import { ArchivedThreadsRouteScreen } from "./features/archive/ArchivedThreadsRouteScreen";
 import { useAgentNotificationNavigation } from "./features/agent-awareness/notificationNavigation";
 import { ConnectOnboardingRouteScreen } from "./features/cloud/ConnectOnboardingRouteScreen";
@@ -797,11 +798,24 @@ function GuardedScreenLayout(props: {
 
 function ScreenRenderFallback(props: { readonly error: unknown; readonly retry: () => void }) {
   const navigation = useNavigation();
+  // The navigation container is outside the failed subtree, so navigating out
+  // still works even when the screen content cannot render. On a cold-launch
+  // crash there is no previous route to go back to; Settings (and its
+  // Diagnostics tab, where the caught errors are listed) is always reachable.
+  if (screenFallbackExit(navigation.canGoBack()) === "open-settings") {
+    return (
+      <RenderFailureView
+        error={props.error}
+        retry={props.retry}
+        onOpenSettings={() => navigation.navigate("SettingsSheet")}
+      />
+    );
+  }
   return (
     <RenderFailureView
       error={props.error}
       retry={props.retry}
-      onGoBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+      onGoBack={() => navigation.goBack()}
     />
   );
 }

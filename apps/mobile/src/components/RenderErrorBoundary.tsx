@@ -6,6 +6,12 @@ import { AppText as Text } from "./AppText";
 import { MaterialButton } from "./MaterialButton";
 import { tryCopyTextWithHaptic } from "../lib/copyTextWithHaptic";
 import { recordRenderError } from "../features/diagnostics/render-error-log";
+import {
+  boundaryResetFromProps,
+  failedBoundaryState,
+  healthyBoundaryState,
+  type BoundaryState,
+} from "./render-error-boundary-model";
 
 interface RenderErrorBoundaryProps {
   readonly children: ReactNode;
@@ -27,16 +33,16 @@ export interface RenderFallbackProps {
   readonly retry: () => void;
 }
 
-interface RenderErrorBoundaryState {
-  readonly failedWith: unknown | undefined;
-  readonly resetKeys?: ReadonlyArray<unknown> | undefined;
-}
+type RenderErrorBoundaryState = BoundaryState;
 
 /**
  * Catches render errors in one subtree, records them for diagnostics, and
  * shows an in-session recovery UI instead of letting the app die. Retrying
  * unmounts the failed subtree and mounts a fresh one; changed `resetKeys`
  * (e.g. a thread switch) clear the failure on their own.
+ *
+ * Failure is tracked by a dedicated flag, not the thrown value, so
+ * `throw undefined`/`null`/`""` still render the fallback.
  *
  * A caught error never reaches the global fatal handler, so expo-updates'
  * ErrorRecovery startup log stays exclusively for process-ending fatals —
@@ -47,7 +53,7 @@ export class RenderErrorBoundary extends Component<
   RenderErrorBoundaryProps,
   RenderErrorBoundaryState
 > {
-  override state = { failedWith: undefined, resetKeys: this.props.resetKeys };
+  override state = healthyBoundaryState(this.props.resetKeys);
 
   // A changed thread/environment underneath a persistent boundary is new input:
   // retry without waiting for the user to press Try again.
@@ -55,17 +61,11 @@ export class RenderErrorBoundary extends Component<
     { resetKeys }: RenderErrorBoundaryProps,
     state: RenderErrorBoundaryState,
   ) {
-    if (
-      resetKeys?.length !== state.resetKeys?.length ||
-      resetKeys?.some((key, index) => !Object.is(key, state.resetKeys?.[index]))
-    ) {
-      return { failedWith: undefined, resetKeys };
-    }
-    return null;
+    return boundaryResetFromProps(resetKeys, state);
   }
 
   static getDerivedStateFromError(error: unknown) {
-    return { failedWith: error };
+    return failedBoundaryState(error);
   }
 
   override componentDidCatch(error: unknown, info: { componentStack?: string }) {
@@ -73,18 +73,21 @@ export class RenderErrorBoundary extends Component<
   }
 
   private readonly retry = () => {
-    this.setState({ failedWith: undefined });
+    this.setState(healthyBoundaryState(this.state.resetKeys));
   };
 
   override render() {
-    const { failedWith } = this.state;
-    if (failedWith !== undefined) {
+    if (this.state.failed) {
       if (this.props.fallback) {
         const Fallback = this.props.fallback;
-        return <Fallback error={failedWith} retry={this.retry} />;
+        return <Fallback error={this.state.error} retry={this.retry} />;
       }
       return (
-        <RenderFailureView subject={this.props.subject} error={failedWith} retry={this.retry} />
+        <RenderFailureView
+          subject={this.props.subject}
+          error={this.state.error}
+          retry={this.retry}
+        />
       );
     }
     return this.props.children;
@@ -102,6 +105,8 @@ export function RenderFailureView(props: {
   readonly error: unknown;
   readonly retry: () => void;
   readonly onGoBack?: (() => void) | undefined;
+  /** Escape exit for a cold-launch crash where there is no route to go back to. */
+  readonly onOpenSettings?: (() => void) | undefined;
 }) {
   const message =
     props.error instanceof Error ? props.error.message || props.error.name : String(props.error);
@@ -137,6 +142,14 @@ export function RenderFailureView(props: {
         <MaterialButton label="Copy details" onPress={() => void copy()} fullWidth />
         {props.onGoBack ? (
           <MaterialButton label="Go back" onPress={props.onGoBack} tone="text" fullWidth />
+        ) : null}
+        {props.onOpenSettings ? (
+          <MaterialButton
+            label="Open settings"
+            onPress={props.onOpenSettings}
+            tone="text"
+            fullWidth
+          />
         ) : null}
       </View>
     </View>

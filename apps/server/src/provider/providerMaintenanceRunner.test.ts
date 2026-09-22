@@ -417,11 +417,11 @@ describe("providerMaintenanceRunner", () => {
 
   it.effect("refuses a pinned version for an installer that only reaches latest", () => {
     return Effect.gen(function* () {
-      const { registry } = yield* makeRegistry(baseNativeCliProvider);
+      const { registry } = yield* makeRegistry(baseCursorProvider);
       const updater = yield* makeTestRunner(registry);
 
       const error = yield* Effect.flip(
-        updater.updateProvider({ provider: NATIVE_CLI_DRIVER, targetVersion: "1.0.0" }),
+        updater.updateProvider({ provider: CURSOR_DRIVER, targetVersion: "1.0.0" }),
       );
       assert.strictEqual(error.reason, "This installation can only update to the latest version.");
     }).pipe(

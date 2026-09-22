@@ -753,12 +753,15 @@ function SidebarMenuSubItem({ className, ...props }: React.ComponentProps<"li">)
 
 function SidebarMenuSubButton({
   size = "md",
+  variant = "default",
   isActive = false,
   className,
   render,
   ...props
 }: useRender.ComponentProps<"a"> & {
   size?: "sm" | "md";
+  /** `quiet` is a muted affordance in the list, like "show more". */
+  variant?: "default" | "quiet";
   isActive?: boolean;
 }) {
   const defaultProps = {
@@ -767,6 +770,8 @@ function SidebarMenuSubButton({
       "data-[active=true]:bg-sidebar-row-selected data-[active=true]:text-sidebar-foreground",
       size === "sm" && "text-xs",
       size === "md" && "text-sm",
+      variant === "quiet" &&
+        "h-8 w-full translate-x-0 justify-start text-sidebar-muted-foreground/75",
       "group-data-[collapsible=icon]:hidden",
       className,
     ),

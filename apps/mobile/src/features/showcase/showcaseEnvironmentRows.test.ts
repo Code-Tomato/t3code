@@ -34,9 +34,9 @@ it("presents showcase transports as remote endpoints", () => {
   assert.deepStrictEqual(
     environments.map(({ displayUrl }) => displayUrl),
     [
-      "https://moonbase.tail9f3a.ts.net/",
-      "https://suspense-vps.hel1.t3.sh/",
-      "http://100.82.16.5:3773/",
+      "https://moonbase.tail0000000.ts.net/",
+      "https://suspense-vps.hel1.example/",
+      "http://100.64.0.5:3773/",
     ],
   );
 });
@@ -55,15 +55,15 @@ it("does not persist a cosmetic showcase URL when only the label is saved", () =
   assert.equal(
     resolveShowcaseEnvironmentUpdateDisplayUrl({
       actualDisplayUrl: "http://127.0.0.1:3773/",
-      presentedDisplayUrl: "https://moonbase.tail9f3a.ts.net/",
-      submittedDisplayUrl: "https://moonbase.tail9f3a.ts.net/",
+      presentedDisplayUrl: "https://moonbase.tail0000000.ts.net/",
+      submittedDisplayUrl: "https://moonbase.tail0000000.ts.net/",
     }),
     "http://127.0.0.1:3773/",
   );
   assert.equal(
     resolveShowcaseEnvironmentUpdateDisplayUrl({
       actualDisplayUrl: "http://127.0.0.1:3773/",
-      presentedDisplayUrl: "https://moonbase.tail9f3a.ts.net/",
+      presentedDisplayUrl: "https://moonbase.tail0000000.ts.net/",
       submittedDisplayUrl: "https://new-host.example.com/",
     }),
     "https://new-host.example.com/",

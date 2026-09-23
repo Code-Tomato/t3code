@@ -6,6 +6,8 @@ import {
   healthyBoundaryState,
   inspectorResetKeys,
   screenFallbackExit,
+  shouldRethrowAsFatal,
+  threadFeedResetKeys,
   workspaceInspectorContentIdentity,
 } from "./render-error-boundary-model";
 
@@ -150,6 +152,74 @@ describe("inspectorResetKeys", () => {
     expect(
       inspectorResetKeys(workspaceInspectorContentIdentity({ ...base, source: "files" }), render),
     ).not.toEqual(crashed);
+  });
+  it("cannot collide on delimiter-joined parts", () => {
+    const render = () => null;
+    const a = workspaceInspectorContentIdentity({
+      source: "files",
+      workspaceKey: "env1|t1",
+      cwd: "/repo:a",
+      contentId: "b",
+    });
+    const b = workspaceInspectorContentIdentity({
+      source: "files",
+      workspaceKey: "env1|t1",
+      cwd: "/repo",
+      contentId: "a:b",
+    });
+    expect(a).not.toBe(b);
+    // Absent and the literal string "none" are different facts.
+    expect(
+      workspaceInspectorContentIdentity({
+        source: "review",
+        workspaceKey: "w",
+        cwd: null,
+        contentId: null,
+      }),
+    ).not.toBe(
+      workspaceInspectorContentIdentity({
+        source: "review",
+        workspaceKey: "w",
+        cwd: null,
+        contentId: "none",
+      }),
+    );
+    expect(inspectorResetKeys(a, render)).not.toEqual(inspectorResetKeys(b, render));
+  });
+});
+
+describe("threadFeedResetKeys", () => {
+  it("treats a same-thread worktree move as new content", () => {
+    expect(threadFeedResetKeys("env1|t1", "/wt/a")).not.toEqual(
+      threadFeedResetKeys("env1|t1", "/wt/b"),
+    );
+    expect(threadFeedResetKeys("env1|t1", "/wt/a")).toEqual(
+      threadFeedResetKeys("env1|t1", "/wt/a"),
+    );
+    expect(threadFeedResetKeys("env1|t1", null)).toEqual(threadFeedResetKeys("env1|t1", undefined));
+  });
+});
+
+describe("shouldRethrowAsFatal", () => {
+  it("keeps a never-painted Home crash fatal so OTA rollback can run", () => {
+    // Bad-OTA cold launch: Home throws before ever committing healthy
+    // children — that is exactly the failure expo-updates' rollback exists
+    // for, so it must not be swallowed into a fallback.
+    expect(shouldRethrowAsFatal({ fatalIfFirstPaintFails: true, childCommitted: false })).toBe(
+      true,
+    );
+  });
+
+  it("recovers in-session failures after the first successful paint", () => {
+    expect(shouldRethrowAsFatal({ fatalIfFirstPaintFails: true, childCommitted: true })).toBe(
+      false,
+    );
+  });
+
+  it("never rethrows for screens without the cold-launch valve", () => {
+    expect(shouldRethrowAsFatal({ fatalIfFirstPaintFails: false, childCommitted: false })).toBe(
+      false,
+    );
   });
 });
 

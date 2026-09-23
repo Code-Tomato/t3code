@@ -73,6 +73,7 @@ import type { DraftComposerAttachment } from "../../lib/composerImages";
 import { CHAT_CONTENT_MAX_WIDTH, type LayoutVariant } from "../../lib/layout";
 import { IOS_NAV_BAR_HEIGHT } from "../../lib/layoutMetrics";
 import { RenderErrorBoundary } from "../../components/RenderErrorBoundary";
+import { threadFeedResetKeys } from "../../components/render-error-boundary-model";
 import { editPendingThreadMessage } from "../../state/edit-pending-thread-message";
 import { deviceEnvironment } from "../../state/device";
 import { useEnvironmentQuery } from "../../state/query";
@@ -899,7 +900,7 @@ export const ThreadDetailScreen = memo(function ThreadDetailScreen(props: Thread
           <RenderErrorBoundary
             scope="thread-feed"
             subject="The conversation"
-            resetKeys={[selectedThreadKey]}
+            resetKeys={threadFeedResetKeys(selectedThreadKey, props.threadCwd)}
           >
             <ThreadFeed
               key={selectedThreadKey}

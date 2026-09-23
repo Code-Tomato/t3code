@@ -44,6 +44,37 @@ export function boundaryResetFromProps(
 }
 
 /**
+ * Reset keys for the thread feed boundary. The feed renders entries AND the
+ * worktree setup card for a cwd, so a same-thread worktree move (cwd change
+ * under a stable thread key) is new content and must clear a stale failure.
+ */
+export function threadFeedResetKeys(
+  threadKey: string,
+  cwd: string | null | undefined,
+): ReadonlyArray<unknown> {
+  return [threadKey, cwd ?? null];
+}
+
+/**
+ * Cold-launch safety valve for the Home seam. A bad OTA that crashes Home
+ * before it has ever painted would otherwise strand the user on the fallback
+ * forever: the launch update check runs inside HomeRouteScreen's effect
+ * (which never ran) and expo-updates' ErrorRecovery rollback only fires for
+ * fatals. So a Home boundary that has never committed healthy children
+ * rethrows — restoring the pre-boundary fatal path (ErrorRecovery rollback +
+ * its startup crash log) — while any failure after the first successful
+ * paint keeps in-session recovery. A fatal is deliberately NOT recorded in
+ * the render-error log: ErrorRecovery already logs it and Diagnostics reads
+ * that log, and recording both would double-report the same crash.
+ */
+export function shouldRethrowAsFatal(args: {
+  readonly fatalIfFirstPaintFails: boolean;
+  readonly childCommitted: boolean;
+}): boolean {
+  return args.fatalIfFirstPaintFails && !args.childCommitted;
+}
+
+/**
  * Which exit the screen-level fallback offers: normally Go back, but when the
  * crashing route is the only route (cold launch on Home), there is no previous
  * route and no back gesture — the fallback must still lead somewhere that can
@@ -98,5 +129,14 @@ export function workspaceInspectorContentIdentity(args: {
   readonly cwd: string | null | undefined;
   readonly contentId: string | null | undefined;
 }): string {
-  return `${args.source}:${args.workspaceKey ?? "none"}:${args.cwd ?? "none"}:${args.contentId ?? "none"}`;
+  // JSON tuple, not ':'-joined: paths and ids contain ':' and users can
+  // legitimately have a content id of "none", so delimiter joining (and
+  // null-mapping to "none") can collide — and a collision re-arms the
+  // failed-over-inspector bug this identity exists to prevent.
+  return JSON.stringify([
+    args.source,
+    args.workspaceKey ?? null,
+    args.cwd ?? null,
+    args.contentId ?? null,
+  ]);
 }

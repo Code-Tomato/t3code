@@ -14,6 +14,7 @@ import {
   boundaryResetFromProps,
   failedBoundaryState,
   healthyBoundaryState,
+  shouldRethrowAsFatal,
   type BoundaryState,
 } from "./render-error-boundary-model";
 
@@ -25,6 +26,13 @@ interface RenderErrorBoundaryProps {
   readonly resetKeys?: ReadonlyArray<unknown> | undefined;
   /** Subject noun for the default fallback's headline, e.g. "The conversation". */
   readonly subject?: string;
+  /**
+   * Cold-launch safety valve (Home seam only): a failure before the guarded
+   * subtree has ever committed rethrows to the global handler so expo-updates'
+   * ErrorRecovery rollback and its startup crash log behave exactly as before
+   * boundaries existed. See shouldRethrowAsFatal.
+   */
+  readonly fatalIfFirstPaintFails?: boolean | undefined;
   /** Forwarded to a custom `fallback` so it can adapt per route (screen seam). */
   readonly routeName?: string | undefined;
   /**
@@ -79,12 +87,39 @@ export class RenderErrorBoundary extends Component<
   }
 
   override componentDidCatch(error: unknown, info: { componentStack?: string }) {
+    if (
+      shouldRethrowAsFatal({
+        fatalIfFirstPaintFails: this.props.fatalIfFirstPaintFails === true,
+        childCommitted: this.childCommitted,
+      })
+    ) {
+      // Rethrowing inside the error phase would re-enter the boundary; the
+      // macrotask throw reaches the global handler (dev redbox in dev,
+      // expo-updates ErrorRecovery fatal + rollback in store builds). Not
+      // recorded here: ErrorRecovery logs the fatal itself, and Diagnostics
+      // already surfaces that log — recording it too would double-report.
+      setTimeout(() => {
+        throw error;
+      }, 0);
+      return;
+    }
     recordRenderError(error, this.props.scope, { componentStack: info.componentStack });
     // Keep the component path for the recovery view's "Copy details" too —
     // in release builds it may be the only component stack anyone ever sees.
     if (info.componentStack !== undefined) {
       this.setState({ componentStack: info.componentStack });
     }
+  }
+
+  // A healthy commit of the guarded subtree ends the "first paint" window.
+  private childCommitted = false;
+
+  override componentDidMount() {
+    if (!this.state.failed) this.childCommitted = true;
+  }
+
+  override componentDidUpdate() {
+    if (!this.state.failed) this.childCommitted = true;
   }
 
   private readonly retry = () => {

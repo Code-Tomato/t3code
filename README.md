@@ -54,6 +54,26 @@ winget install T3Tools.T3Code
 brew install --cask t3-code
 ```
 
+#### Debian, Ubuntu, Linux Mint
+
+Download the `.deb` from the [download page](https://t3.codes/download), then:
+
+```bash
+sudo apt install ./t3code_*.deb
+```
+
+The package adds the T3 Code apt repository, so `sudo apt upgrade` installs new versions.
+
+#### Fedora, RHEL
+
+Download the `.rpm` from the [download page](https://t3.codes/download), then:
+
+```bash
+sudo dnf install ./t3code_*.rpm
+```
+
+The package adds the T3 Code dnf repository, so `sudo dnf upgrade` installs new versions.
+
 #### Arch Linux (AUR)
 
 Stable:
@@ -68,7 +88,7 @@ Nightly:
 yay -S t3code-nightly-bin
 ```
 
-The AUR packaging is maintained in this repository under [`packaging/aur`](./packaging/aur).
+The Linux packaging is maintained in this repository under [`packaging/linux`](./packaging/linux) and [`packaging/aur`](./packaging/aur).
 
 ## Some notes
 

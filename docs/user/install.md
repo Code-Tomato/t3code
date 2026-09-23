@@ -58,12 +58,22 @@ update it with `git pull` and a rebuild.
 Download a release from [GitHub Releases](https://github.com/pingdotgg/t3code/releases),
 or use a package manager:
 
-| Platform           | Install                         |
-| ------------------ | ------------------------------- |
-| Windows            | `winget install T3Tools.T3Code` |
-| macOS              | `brew install --cask t3-code`   |
-| Arch Linux         | `yay -S t3code-bin`             |
-| Arch Linux nightly | `yay -S t3code-nightly-bin`     |
+| Platform             | Install                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| Windows              | `winget install T3Tools.T3Code`                             |
+| macOS                | `brew install --cask t3-code`                               |
+| Debian, Ubuntu, Mint | Download the `.deb`, then `sudo apt install ./t3code_*.deb` |
+| Fedora, RHEL         | Download the `.rpm`, then `sudo dnf install ./t3code_*.rpm` |
+| Arch Linux           | `yay -S t3code-bin`                                         |
+| Arch Linux nightly   | `yay -S t3code-nightly-bin`                                 |
+
+The `.deb` and `.rpm` packages add the T3 Code package repository, so
+`sudo apt upgrade` or `sudo dnf upgrade` installs new versions. The app does
+not update itself in these installs. The nightly packages are named
+`t3code-nightly`; only one of stable and nightly can be installed at a time.
+
+The AppImage runs on any distribution and updates itself. It needs FUSE; if it
+does not start, install your distribution's `fuse3` package.
 
 ### Windows Subsystem for Linux
 

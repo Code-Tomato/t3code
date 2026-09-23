@@ -91,17 +91,43 @@ const imageProps = {
           <h2 class="platform-name">Linux</h2>
         </div>
         <div class="download-cards">
+          <a class="download-card" data-asset="amd64.deb" data-optional hidden href={RELEASES_URL}>
+            <span class="card-icon">
+              <Image class="card-icon--stable" src={iconStable} width={28} height={28} loading="lazy" {...imageProps} />
+              <Image class="card-icon--nightly" src={iconNightly} width={28} height={28} loading="lazy" {...imageProps} />
+            </span>
+            <span class="card-text">
+              <span class="card-arch">Debian, Ubuntu</span>
+              <span class="card-format">.deb</span>
+            </span>
+          </a>
+          <a class="download-card" data-asset="x86_64.rpm" data-optional hidden href={RELEASES_URL}>
+            <span class="card-icon">
+              <Image class="card-icon--stable" src={iconStable} width={28} height={28} loading="lazy" {...imageProps} />
+              <Image class="card-icon--nightly" src={iconNightly} width={28} height={28} loading="lazy" {...imageProps} />
+            </span>
+            <span class="card-text">
+              <span class="card-arch">Fedora, RHEL</span>
+              <span class="card-format">.rpm</span>
+            </span>
+          </a>
           <a class="download-card" data-asset="x86_64.AppImage" href={RELEASES_URL}>
             <span class="card-icon">
               <Image class="card-icon--stable" src={iconStable} width={28} height={28} loading="lazy" {...imageProps} />
               <Image class="card-icon--nightly" src={iconNightly} width={28} height={28} loading="lazy" {...imageProps} />
             </span>
             <span class="card-text">
-              <span class="card-arch">x86_64</span>
+              <span class="card-arch">Any distribution</span>
               <span class="card-format">AppImage</span>
             </span>
           </a>
         </div>
+        <p class="intel-note">
+          On ARM? Download the arm64
+          <a data-asset="arm64.deb" data-optional hidden href={RELEASES_URL}>.deb</a>
+          <a data-asset="aarch64.rpm" data-optional hidden href={RELEASES_URL}>.rpm</a>
+          <a data-asset="arm64.AppImage" href={RELEASES_URL}>AppImage</a>
+        </p>
       </section>
 
       <!-- Mobile. Stable only, there is no nightly mobile build. -->
@@ -159,6 +185,8 @@ const imageProps = {
   const releasesPageLink = document.getElementById("releases-page-link") as HTMLAnchorElement;
   const tabs = page.querySelectorAll<HTMLButtonElement>(".channel-toggle button");
   // Only release-asset links; mobile store cards have no data-asset and keep their href.
+  // data-optional links stay hidden unless the release has their asset, so a
+  // release without Linux packages shows no dead .deb or .rpm links.
   const cards = page.querySelectorAll<HTMLAnchorElement>("a[data-asset]");
 
   function readChannel(): ReleaseChannel {
@@ -182,6 +210,7 @@ const imageProps = {
     versionLabel.textContent = "\u00a0";
     cards.forEach((card) => {
       card.href = fallback;
+      card.hidden = card.dataset.optional !== undefined;
     });
 
     try {
@@ -196,8 +225,13 @@ const imageProps = {
           : release.tag_name;
       if (release.html_url) changelogLink.href = release.html_url;
       cards.forEach((card) => {
-        const match = (release.assets ?? []).find((a) => a.name.endsWith(`-${card.dataset.asset}`));
+        // Installers end in -<arch>.<ext>; Linux packages end in _<arch>.<ext>.
+        const match = (release.assets ?? []).find(
+          (a) =>
+            a.name.endsWith(`-${card.dataset.asset}`) || a.name.endsWith(`_${card.dataset.asset}`),
+        );
         card.href = match?.browser_download_url ?? fallback;
+        card.hidden = card.dataset.optional !== undefined && !match;
       });
     } catch {
       if (page.dataset.channel === channel) versionLabel.textContent = "Releases";
@@ -463,6 +497,11 @@ const imageProps = {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
+  }
+
+  .download-card[hidden],
+  .intel-note a[hidden] {
+    display: none;
   }
 
   .download-card {

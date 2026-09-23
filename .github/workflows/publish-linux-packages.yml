@@ -1,0 +1,136 @@
+name: Publish Linux packages
+
+# See packaging/linux/README.md.
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+    # Optional so releases keep working before the one-time setup in
+    # packaging/linux/README.md is done; the job then skips with a warning.
+    secrets:
+      LINUX_PACKAGES_GPG_PRIVATE_KEY:
+        required: false
+      CLOUDFLARE_API_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to package"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Each run rewrites its channel's index from the previous one, so runs for a
+# channel must not overlap. Stable and nightly write separate indexes, and a
+# separate group keeps a queued nightly from replacing a queued stable run.
+concurrency:
+  group: publish-linux-packages-${{ contains(inputs.release_tag, '-nightly.') && 'nightly' || 'stable' }}
+  cancel-in-progress: false
+
+env:
+  NFPM_VERSION: 2.47.0
+  NFPM_SHA256: 0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783
+
+jobs:
+  publish:
+    name: Build, sign, and publish
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout packaging sources
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github/actions
+            packaging/linux
+
+      - id: setup
+        name: Check one-time setup
+        env:
+          LINUX_PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.LINUX_PACKAGES_GPG_PRIVATE_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [[ -z "$LINUX_PACKAGES_GPG_PRIVATE_KEY" || -z "$CLOUDFLARE_API_TOKEN" ||
+                ! -f packaging/linux/t3code-archive-keyring.asc ]]; then
+            echo "::warning::Linux packages are not set up yet. See packaging/linux/README.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/setup-apt-mirrors
+        if: steps.setup.outputs.ready == 'true'
+
+      - name: Install packaging tools
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils createrepo-c squashfs-tools
+          curl -fsSL -o "$RUNNER_TEMP/nfpm.tar.gz" \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          echo "${NFPM_SHA256}  $RUNNER_TEMP/nfpm.tar.gz" | sha256sum --check
+          sudo tar -xzf "$RUNNER_TEMP/nfpm.tar.gz" -C /usr/local/bin nfpm
+
+      - name: Import signing key
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          LINUX_PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.LINUX_PACKAGES_GPG_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$LINUX_PACKAGES_GPG_PRIVATE_KEY" > "$RUNNER_TEMP/signing-key.asc"
+          gpg --batch --import "$RUNNER_TEMP/signing-key.asc"
+          # The key in the packages must be the key that signs the repository.
+          expected="$(gpg --with-colons --import-options show-only --import packaging/linux/t3code-archive-keyring.asc | awk -F: '/^fpr/ { print $10; exit }')"
+          gpg --batch --list-secret-keys --with-colons | grep -q "^fpr:::::::::${expected}:" \
+            || { echo "The signing key does not match packaging/linux/t3code-archive-keyring.asc." >&2; exit 1; }
+          echo "GPG_KEY_ID=$expected" >> "$GITHUB_ENV"
+
+      - name: Build packages
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RPM_SIGNING_KEY_FILE: ${{ runner.temp }}/signing-key.asc
+          OUT_DIR: ${{ runner.temp }}/packages
+        run: |
+          for arch in x64 arm64; do
+            ARCH="$arch" packaging/linux/scripts/build-packages.sh
+          done
+
+      - name: Attach packages to the release
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          shopt -s nullglob
+          packages=("$RUNNER_TEMP"/packages/*.deb "$RUNNER_TEMP"/packages/*.rpm)
+          if [[ ${#packages[@]} -eq 0 ]]; then
+            echo "Release $RELEASE_TAG publishes no Linux packages."
+            exit 0
+          fi
+          gh release upload "$RELEASE_TAG" "${packages[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Update and upload repository indexes
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          source packaging/linux/scripts/channel.sh
+          resolve_channel "$RELEASE_TAG" || exit 0
+          site="$RUNNER_TEMP/site"
+          packaging/linux/scripts/sync-repo.sh pull "$site" "$channel"
+          REPO_DIR="$site" PACKAGE_DIR="$RUNNER_TEMP/packages" packaging/linux/scripts/publish-repos.sh
+          packaging/linux/scripts/sync-repo.sh push "$site" "$channel"
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signing-key.asc"

@@ -879,6 +879,19 @@ jobs:
     secrets:
       AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
 
+  publish_linux_packages:
+    name: Publish Linux packages
+    needs: [preflight, release]
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
+    uses: ./.github/workflows/publish-linux-packages.yml
+    permissions:
+      contents: write
+    with:
+      release_tag: ${{ needs.preflight.outputs.tag }}
+    secrets:
+      LINUX_PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.LINUX_PACKAGES_GPG_PRIVATE_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
   deploy_web:
     name: Deploy hosted web app
     needs: [preflight, relay_public_config, release]

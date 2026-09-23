@@ -79,6 +79,9 @@
     "infra/relay": {
       "entry": ["alchemy.run.ts!", "src/persistence/schema.ts!"],
     },
+    "infra/packages": {
+      "entry": ["alchemy.run.ts!", "src/worker.ts!"],
+    },
     "packages/*": {
       // These workspace packages are private to this monorepo.
       "includeEntryExports": true,

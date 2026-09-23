@@ -615,6 +615,7 @@ public struct FeatureMessage: Identifiable, Sendable, Equatable, Hashable, Codab
     public var workLogImagePaths: [String]?
     public var activeWorkLabel: String?
     public var toolPresentation: ToolActivityPresentation? = nil
+    public var timelineOrdinal: Int? = nil
 
     public init(
         id: String,
@@ -638,6 +639,19 @@ public struct FeatureMessage: Identifiable, Sendable, Equatable, Hashable, Codab
         self.workLogImagePaths = workLogImagePaths
         self.activeWorkLabel = activeWorkLabel
         self.context = context
+    }
+}
+
+// V2 providers can reuse a run's start time for every item. The durable item
+// ordinal, unlike timestamps or update times, also stays fixed while streaming.
+extension FeatureMessage {
+    static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
+        if let left = lhs.timelineOrdinal, let right = rhs.timelineOrdinal {
+            return left < right
+        }
+        if lhs.timelineOrdinal != nil { return true }
+        if rhs.timelineOrdinal != nil { return false }
+        return lhs.createdAt < rhs.createdAt
     }
 }
 

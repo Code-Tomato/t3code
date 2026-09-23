@@ -516,6 +516,7 @@ public struct OrchestrationThreadShell: Codable, Identifiable, Equatable, Sendab
 }
 
 public struct OrchestrationMessage: Codable, Identifiable, Equatable, Sendable {
+    public var timelineOrdinal: Int? = nil
     public let id: String
     public let role: String
     public let text: String
@@ -537,6 +538,7 @@ public struct ChatAttachment: Codable, Identifiable, Equatable, Sendable {
 }
 
 public struct OrchestrationActivity: Codable, Identifiable, Equatable, Sendable {
+    public var timelineOrdinal: Int? = nil
     public let id: String
     public let tone: String
     public let kind: String

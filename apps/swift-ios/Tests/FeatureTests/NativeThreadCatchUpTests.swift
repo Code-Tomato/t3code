@@ -4,6 +4,62 @@ import XCTest
 
 @MainActor
 final class NativeThreadCatchUpTests: XCTestCase {
+    func testV2ItemOrderSurvivesSharedRunTimestampsStreamingAndHistory() async throws {
+        let fixture = try await CatchUpFixture.make()
+        defer { fixture.cleanUp() }
+        let start = "2026-09-02T12:00:00Z"
+        func item(_ ordinal: Int, _ type: String, _ text: String, date: String? = nil) -> JSONValue {
+            .object([
+                "id": .string("item-\(ordinal)"), "messageId": .string("message-\(ordinal)"),
+                "threadId": .string("first"), "runId": .string("run"),
+                "type": .string(type), "ordinal": .number(Double(ordinal)),
+                "text": .string(text), "status": .string("completed"),
+                "startedAt": .string(date ?? start), "updatedAt": .string("2026-09-02T12:05:00Z"),
+            ])
+        }
+        func rows(_ items: [JSONValue]) -> JSONValue {
+            .array(items.enumerated().map { .object(["position": .number(Double($0.offset)), "item": $0.element]) })
+        }
+        let recent = [
+            item(20, "user_message", "Steering", date: "2026-09-02T12:01:00Z"),
+            item(25, "compaction", "", date: "2026-09-02T12:02:00Z"),
+            item(30, "assistant_message", "After compaction"),
+            item(40, "assistant_message", "Final reply"),
+        ]
+        let thread = multiEnvironmentDetail(projectID: "project", threadID: "first").thread
+        let raw: JSONValue = .object([
+            "snapshotSequence": .number(2), "historyCursor": .string("older"), "hasMoreHistory": .bool(true),
+            "projection": .object(["thread": try .encode(thread), "visibleTurnItems": rows(recent)]),
+        ])
+        await fixture.http.setV2Snapshot(raw)
+        var requests = fixture.requests.makeAsyncIterator()
+        var events = fixture.client.events().makeAsyncIterator()
+        let initial = try await fixture.client.loadThread(id: fixture.firstID)
+        XCTAssertEqual(initial.messages.map(\.timelineOrdinal), [20, 25, 30, 40])
+        XCTAssertEqual(initial.messages.last?.text, "Final reply")
+        let stream = try await nextThreadRequest(&requests)
+        try await stream.synchronize()
+        _ = await messagesBeforeLive(&events, threadID: fixture.firstID)
+        try await stream.socket.chunk(id: stream.id, values: [
+            .object(["kind": .string("event"), "event": .object([
+                "type": .string("turn-item.updated"), "threadId": .string("first"),
+                "sequence": .number(3), "occurredAt": .string("2026-09-02T12:06:00Z"),
+                "payload": item(50, "assistant_message", "Live reply"),
+            ])]),
+            .object(["kind": .string("synchronized")]),
+        ])
+        let live = try await requestsBeforeLive(&events, threadID: fixture.firstID)
+        XCTAssertEqual(live.messages.map(\.timelineOrdinal), [20, 25, 30, 40, 50])
+        await fixture.http.setV2History(.object([
+            "snapshotSequence": .number(3), "nextCursor": .null, "hasMoreHistory": .bool(false),
+            "items": rows([item(1, "user_message", "Original request"), item(10, "assistant_message", "Earlier reply")]),
+        ]))
+        let expanded = try await fixture.client.loadEarlierThreadTurns(id: fixture.firstID)
+        XCTAssertEqual(expanded?.messages.map(\.timelineOrdinal), [1, 10, 20, 25, 30, 40, 50])
+        XCTAssertEqual(expanded?.messages.last?.text, "Live reply")
+        await fixture.client.disconnect()
+    }
+
     func testLegacyReplayPublishesOncePerReceivedBatchAndResumesAfterAppliedEvents() async throws {
         for batchSize in [1, 16, 500] {
             let fixture = try await CatchUpFixture.make(completionMarker: false)
@@ -1161,6 +1217,10 @@ private actor CatchUpHTTPTransport: HTTPTransport {
     private var page: OrchestrationThreadDetailPage?
     private var sequence = 2
     private var holdsThreadReads = false
+    private var v2Snapshot: JSONValue?
+    private var v2History: JSONValue?
+    func setV2Snapshot(_ value: JSONValue) { v2Snapshot = value }
+    func setV2History(_ value: JSONValue) { v2History = value }
     private let heldReadContinuation: AsyncStream<CatchUpHTTPRead>.Continuation
     nonisolated let heldRequests: AsyncStream<CatchUpHTTPRead>
 
@@ -1214,7 +1274,7 @@ private actor CatchUpHTTPTransport: HTTPTransport {
             )
             var thread = snapshot.thread
             thread.activities = activities
-            value = try .encode(OrchestrationThreadDetailSnapshot(
+            value = try (path.last == "history" ? v2History : v2Snapshot) ?? .encode(OrchestrationThreadDetailSnapshot(
                 snapshotSequence: snapshot.snapshotSequence, thread: thread, page: page ?? snapshot.page
             ))
         }

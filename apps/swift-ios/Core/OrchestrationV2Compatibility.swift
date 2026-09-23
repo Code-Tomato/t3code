@@ -147,6 +147,7 @@ public enum OrchestrationV2Compatibility {
         return .object([
             "id": item["messageId"] ?? item["id"] ?? .string(""),
             "role": .string(type == "user_message" ? "user" : "assistant"),
+            "timelineOrdinal": item["ordinal"] ?? .null,
             "text": item["text"] ?? .string(""),
             "attachments": item["attachments"] ?? emptyArray,
             "turnId": item["runId"] ?? .null,
@@ -184,7 +185,7 @@ public enum OrchestrationV2Compatibility {
             tone = status == "failed" ? "error" : "info"
         }
         let summary = item["title"]?.stringValue ?? item["prompt"]?.stringValue
-            ?? item["input"]?.stringValue ?? item["message"]?.stringValue
+            ?? item["toolName"]?.stringValue ?? item["input"]?.stringValue ?? item["message"]?.stringValue
             ?? item["failure"]?["message"]?.stringValue ?? type.replacingOccurrences(of: "_", with: " ")
         var payload = fields(item)
         payload["title"] = .string(summary)
@@ -198,6 +199,7 @@ public enum OrchestrationV2Compatibility {
             "payload": .object(payload),
             "turnId": item["runId"] ?? .null,
             "sequence": item["ordinal"] ?? .null,
+            "timelineOrdinal": item["ordinal"] ?? .null,
             "createdAt": firstDate(item["startedAt"], item["updatedAt"]),
         ])
     }

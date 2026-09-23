@@ -958,10 +958,7 @@ public struct ThreadDetailView: View {
     private func timelineMessages(_ messages: [FeatureMessage]) -> [FeatureMessage] {
         guard !feedbackMessages.isEmpty else { return messages }
         return (messages + feedbackMessages).sorted {
-            if $0.createdAt == $1.createdAt {
-                return $0.id < $1.id
-            }
-            return $0.createdAt < $1.createdAt
+            FeatureMessage.precedes($0, $1)
         }
     }
 

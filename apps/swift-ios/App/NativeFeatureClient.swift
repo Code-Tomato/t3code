@@ -5923,12 +5923,12 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
                 thread.activities,
                 sessionIsLive: sessionIsLive
             ))
-                .sorted { $0.createdAt < $1.createdAt }
+                .sorted(by: FeatureMessage.precedes)
             seedWorkLogs(thread.activities, sessionIsLive: sessionIsLive, cache: cache)
             cache.subagents.reset(with: thread.activities)
             let messages = thread.messages.compactMap { cache.messagesByID[$0.id] }
             cache.mergedMessages = (messages + activityMessages)
-                .sorted { $0.createdAt < $1.createdAt }
+                .sorted(by: FeatureMessage.precedes)
             rebuildMergedIndexes(cache)
             cache.isInitialized = true
         } else if let mutations {
@@ -6091,7 +6091,7 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         let mergedMessages = (
             olderMessages.filter { !loadedMessageIDs.contains($0.id) }
                 + currentDetail.messages
-        ).sorted { $0.createdAt < $1.createdAt }
+        ).sorted(by: FeatureMessage.precedes)
 
         activeRawThread = mergedThread
         activeThreadPage = featurePage(snapshot.page)
@@ -6135,7 +6135,7 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
             NativeActivityNotice.message($0, createdAt: parseDate($0.createdAt))
         }
             + collapsedWorkLogs(thread.activities, sessionIsLive: workIsLive)
-        return (messages + activities).sorted { $0.createdAt < $1.createdAt }
+        return (messages + activities).sorted(by: FeatureMessage.precedes)
     }
 
     private func mergingOlderHistory(
@@ -6202,11 +6202,11 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
             cache.mergedMessages[index] = message
             return
         }
-        if let last = cache.mergedMessages.last, last.createdAt > message.createdAt {
+        if let last = cache.mergedMessages.last, FeatureMessage.precedes(message, last) {
             // Out-of-order events are rare; preserve correctness while keeping
             // the normal append path independent of transcript size.
             cache.mergedMessages.append(message)
-            cache.mergedMessages.sort { $0.createdAt < $1.createdAt }
+            cache.mergedMessages.sort(by: FeatureMessage.precedes)
             rebuildMergedIndexes(cache)
             return
         }
@@ -6271,7 +6271,10 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
             decorated.append((index, parseDate(activity.createdAt), activity))
         }
         decorated.sort { lhs, rhs in
-            lhs.date != rhs.date ? lhs.date < rhs.date : lhs.index < rhs.index
+            if let left = lhs.activity.timelineOrdinal, let right = rhs.activity.timelineOrdinal {
+                return left != right ? left < right : lhs.index < rhs.index
+            }
+            return lhs.date != rhs.date ? lhs.date < rhs.date : lhs.index < rhs.index
         }
         return decorated.map(\.activity)
     }
@@ -6404,7 +6407,7 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         _ message: OrchestrationMessage,
         environmentID: String
     ) -> FeatureMessage {
-        FeatureMessage(
+        var mapped = FeatureMessage(
             id: message.id,
             role: mapRole(message.role),
             text: message.text,
@@ -6422,6 +6425,8 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
             },
             context: message.context
         )
+        mapped.timelineOrdinal = message.timelineOrdinal
+        return mapped
     }
 
     /// Lifecycle updates can number in the thousands on a long turn. Keep the
@@ -7427,6 +7432,9 @@ enum NativeQuestionAnswerHistory {
 
 enum NativeActivityNotice {
     static func accepts(_ activity: OrchestrationActivity) -> Bool {
+        // V2 tool failures belong in the expandable work log, just like
+        // successful tool results. Only runtime errors are conversation notices.
+        if activity.timelineOrdinal != nil && activity.kind.hasPrefix("tool.") { return false }
         guard activity.tone == "error" || activity.kind == "runtime.warning"
             || activity.kind == "context-compaction" else { return false }
         if NativeActivityFilters.isNoContentRuntimeWarning(activity) { return false }
@@ -7448,7 +7456,7 @@ enum NativeActivityNotice {
         } else {
             text = activity.summary
         }
-        return FeatureMessage(
+        var message = FeatureMessage(
             id: "activity-\(activity.id)",
             role: .system,
             text: text,
@@ -7456,6 +7464,8 @@ enum NativeActivityNotice {
             state: .complete,
             toolName: activity.kind
         )
+        message.timelineOrdinal = activity.timelineOrdinal
+        return message
     }
 }
 
@@ -7563,6 +7573,7 @@ struct NativeWorkLogAccumulator {
     private(set) var count = 0
     private var visibleLines: [String] = []
     private var createdAt = Date.distantPast
+    private var timelineOrdinal: Int?
     private var activeEntries: [String: String] = [:]
     private var activeOrder: [String] = []
     private var imagePaths: [String] = []
@@ -7574,7 +7585,7 @@ struct NativeWorkLogAccumulator {
 
     static func accepts(_ activity: OrchestrationActivity) -> Bool {
         guard activeKinds.contains(activity.kind)
-            || (activity.tone != "error" && terminalKinds.contains(activity.kind)) else {
+            || ((activity.tone != "error" || activity.timelineOrdinal != nil) && terminalKinds.contains(activity.kind)) else {
             return false
         }
         if NativeActivityFilters.isPlanBoundaryTool(activity) { return false }
@@ -7589,6 +7600,7 @@ struct NativeWorkLogAccumulator {
     ) {
         if count == 0 && activeEntries.isEmpty {
             self.createdAt = createdAt
+            self.timelineOrdinal = activity.timelineOrdinal
         }
         let key = Self.lifecycleKey(activity)
         toolPresentation = ToolActivityPresentation(payload: activity.payload) ?? activePresentations[key]
@@ -7606,9 +7618,10 @@ struct NativeWorkLogAccumulator {
             activeEntries[key] = nil
             activePresentations[key] = nil
             activeOrder.removeAll { $0 == key }
-            guard activity.tone != "error" else { return }
+            guard activity.tone != "error" || activity.timelineOrdinal != nil else { return }
             count += 1
-            visibleLines.append("• \(preview ?? activity.summary)")
+            let failure = activity.tone == "error" ? "Failed: " : ""
+            visibleLines.append("• \(failure)\(preview ?? activity.summary)")
             if visibleLines.count > 40 {
                 visibleLines.removeFirst(visibleLines.count - 40)
             }
@@ -7641,6 +7654,7 @@ struct NativeWorkLogAccumulator {
             workLogImagePaths: imagePaths.isEmpty ? nil : imagePaths,
             activeWorkLabel: activeOrder.last.flatMap { activeEntries[$0] }
         )
+        message.timelineOrdinal = timelineOrdinal
         message.toolPresentation = activeOrder.last.flatMap { activePresentations[$0] } ?? toolPresentation
         return message
     }

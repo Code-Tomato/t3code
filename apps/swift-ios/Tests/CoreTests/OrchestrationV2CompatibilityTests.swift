@@ -43,6 +43,24 @@ final class OrchestrationV2CompatibilityTests: XCTestCase {
         XCTAssertEqual(snapshot.page?.hasMore, false)
     }
 
+    func testFailedV2ToolStaysInWorkLogWithItsNameAndOrder() throws {
+        let activity = try XCTUnwrap(OrchestrationV2Compatibility.activityValue(.object([
+            "id": .string("failed-tool"), "type": .string("dynamic_tool"),
+            "toolName": .string("xcodebuildmcp.test_sim"), "status": .string("failed"),
+            "ordinal": .number(42), "runId": .string("run"),
+            "startedAt": .string("2026-09-02T12:00:00Z"),
+        ]), pending: false))
+        XCTAssertEqual(activity.summary, "xcodebuildmcp.test_sim")
+        XCTAssertNil(NativeActivityNotice.message(activity, createdAt: .distantPast))
+        XCTAssertTrue(NativeWorkLogAccumulator.accepts(activity))
+        var log = NativeWorkLogAccumulator()
+        log.append(activity, preview: nil, createdAt: .distantPast)
+        let message = log.message(groupID: "run")
+        XCTAssertEqual(message.timelineOrdinal, 42)
+        XCTAssertEqual(message.text, "• Failed: xcodebuildmcp.test_sim")
+        XCTAssertEqual(message.toolName, "Work log · 1")
+    }
+
     func testV2CommandsCarryRequiredFields() throws {
         let command = try OrchestrationCommands.sendTurn(
             threadID: "thread-1", text: "Hello", runtimeMode: .fullAccess,

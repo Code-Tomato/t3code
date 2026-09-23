@@ -21,7 +21,7 @@ import {
   getRenderErrorRecords,
   subscribeToRenderErrors,
   type RenderErrorRecord,
-} from "./render-error-log";
+} from "../../lib/render-error-log";
 
 // expo-updates keeps its persistent log this long. Reading any further back
 // returns nothing, so this is the whole available window.

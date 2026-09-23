@@ -5,11 +5,7 @@ import { SymbolView } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { MaterialButton } from "./MaterialButton";
 import { tryCopyTextWithHaptic } from "../lib/copyTextWithHaptic";
-import {
-  describeRenderError,
-  readErrorStack,
-  recordRenderError,
-} from "../features/diagnostics/render-error-log";
+import { describeRenderError, readErrorStack, recordRenderError } from "../lib/render-error-log";
 import {
   boundaryResetFromProps,
   failedBoundaryState,

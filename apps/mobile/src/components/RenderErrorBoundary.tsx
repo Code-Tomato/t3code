@@ -5,6 +5,7 @@ import { SymbolView } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { MaterialButton } from "./MaterialButton";
 import { tryCopyTextWithHaptic } from "../lib/copyTextWithHaptic";
+import { hasAppRootCommitted } from "./app-first-commit";
 import {
   describeRenderError,
   readErrorStack,
@@ -117,6 +118,7 @@ export class RenderErrorBoundary extends Component<
         shouldRethrowAsFatal({
           fatalIfFirstPaintFails: this.props.fatalIfFirstPaintFails === true,
           childCommitted: this.childCommitted,
+          appRootCommitted: hasAppRootCommitted(),
         })
       ) {
         // Cold-launch Home failure: rethrow inside this failed render pass.

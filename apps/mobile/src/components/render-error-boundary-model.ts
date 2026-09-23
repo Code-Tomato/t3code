@@ -71,12 +71,20 @@ export function threadFeedResetKeys(
  * in-session recovery. A fatal is deliberately NOT recorded in the
  * render-error log: ErrorRecovery already logs it and Diagnostics reads
  * that log, and recording both would double-report the same crash.
+ *
+ * `appRootCommitted` closes a timing hole: CONTENT_APPEARED rides the first
+ * commit ANYWHERE in the root tree (providers above the seam mount native
+ * views too), not the first Home commit. If any frame has already painted,
+ * a rethrow would arrive after expo disarmed its recovery tasks — strictly
+ * worse than the fallback — so the valve only fires while nothing has ever
+ * committed.
  */
 export function shouldRethrowAsFatal(args: {
   readonly fatalIfFirstPaintFails: boolean;
   readonly childCommitted: boolean;
+  readonly appRootCommitted: boolean;
 }): boolean {
-  return args.fatalIfFirstPaintFails && !args.childCommitted;
+  return args.fatalIfFirstPaintFails && !args.childCommitted && !args.appRootCommitted;
 }
 
 /**

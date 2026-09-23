@@ -804,10 +804,13 @@ function GuardedScreenLayout(props: {
       scope={`screen:${props.route.name}`}
       routeName={props.route.name}
       // Cold-launch OTA lockout guard: Home hosts checkForAppUpdateOnLaunch,
-      // so if Home crashes before ever painting, let it stay fatal (rethrow →
-      // ErrorRecovery rollback + its startup log) instead of stranding the
-      // user on a fallback whose update check can never run. Once Home has
-      // painted, failures recover in-session like every other screen.
+      // so if Home crashes before ANY frame has ever painted, let it stay
+      // fatal (rethrow from the failed render pass → expo-updates' full
+      // startup-error pipeline) instead of stranding the user on a fallback
+      // whose update check can never run. FirstCommitSentinel in App.tsx
+      // disarms this once any commit has painted, because expo disarms its
+      // recovery tasks at that same first-view marker. Any later failure
+      // recovers in-session like every other screen.
       fatalIfFirstPaintFails={props.route.name === "Home"}
       // In split view the Thread route stays mounted while a sidebar selection
       // swaps its params; new params are new input and must not inherit a

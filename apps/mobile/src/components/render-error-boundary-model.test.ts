@@ -205,21 +205,47 @@ describe("shouldRethrowAsFatal", () => {
     // Bad-OTA cold launch: Home throws before ever committing healthy
     // children — that is exactly the failure expo-updates' rollback exists
     // for, so it must not be swallowed into a fallback.
-    expect(shouldRethrowAsFatal({ fatalIfFirstPaintFails: true, childCommitted: false })).toBe(
-      true,
-    );
+    expect(
+      shouldRethrowAsFatal({
+        fatalIfFirstPaintFails: true,
+        childCommitted: false,
+        appRootCommitted: false,
+      }),
+    ).toBe(true);
   });
 
   it("recovers in-session failures after the first successful paint", () => {
-    expect(shouldRethrowAsFatal({ fatalIfFirstPaintFails: true, childCommitted: true })).toBe(
-      false,
-    );
+    expect(
+      shouldRethrowAsFatal({
+        fatalIfFirstPaintFails: true,
+        childCommitted: true,
+        appRootCommitted: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("disarms once any frame has painted elsewhere in the root tree", () => {
+    // CONTENT_APPEARED rides the first commit ANYWHERE (providers above the
+    // seam mount native views too). After that a rethrow is a plain crash
+    // with expo's recovery tasks already removed — strictly worse than the
+    // fallback — so a Home-specific non-commit must not re-fire the valve.
+    expect(
+      shouldRethrowAsFatal({
+        fatalIfFirstPaintFails: true,
+        childCommitted: false,
+        appRootCommitted: true,
+      }),
+    ).toBe(false);
   });
 
   it("never rethrows for screens without the cold-launch valve", () => {
-    expect(shouldRethrowAsFatal({ fatalIfFirstPaintFails: false, childCommitted: false })).toBe(
-      false,
-    );
+    expect(
+      shouldRethrowAsFatal({
+        fatalIfFirstPaintFails: false,
+        childCommitted: false,
+        appRootCommitted: false,
+      }),
+    ).toBe(false);
   });
 });
 

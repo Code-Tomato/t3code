@@ -164,10 +164,10 @@ const clampToContainer = (
   position: PreviewMiniPlayerPosition,
   container: PreviewMiniPlayerSize,
   player: PreviewMiniPlayerSize,
-  bottom = container.height,
+  minimumX = PREVIEW_MINI_PLAYER_EDGE_GAP,
 ): PreviewMiniPlayerPosition => ({
   x: Math.min(
-    Math.max(position.x, PREVIEW_MINI_PLAYER_EDGE_GAP),
+    Math.max(position.x, minimumX, PREVIEW_MINI_PLAYER_EDGE_GAP),
     Math.max(
       PREVIEW_MINI_PLAYER_EDGE_GAP,
       container.width - player.width - PREVIEW_MINI_PLAYER_EDGE_GAP,
@@ -175,7 +175,10 @@ const clampToContainer = (
   ),
   y: Math.min(
     Math.max(position.y, PREVIEW_MINI_PLAYER_EDGE_GAP),
-    Math.max(PREVIEW_MINI_PLAYER_EDGE_GAP, bottom - player.height - PREVIEW_MINI_PLAYER_EDGE_GAP),
+    Math.max(
+      PREVIEW_MINI_PLAYER_EDGE_GAP,
+      container.height - player.height - PREVIEW_MINI_PLAYER_EDGE_GAP,
+    ),
   ),
 });
 
@@ -192,14 +195,16 @@ const overlapsObstacle = (
  * player is pushed out along whichever side needs the smaller move, so a drag
  * slides along the composer into the margin beside it instead of stopping at
  * its top edge; when no side leaves it fully clear it sits above the composer.
+ * minimumX reserves room to the player's left without changing its size.
  */
 export function clampPreviewMiniPlayerPosition(
   position: PreviewMiniPlayerPosition,
   container: PreviewMiniPlayerSize,
   player: PreviewMiniPlayerSize,
   obstacles: PreviewMiniPlayerObstacles = NO_PREVIEW_MINI_PLAYER_OBSTACLES,
+  minimumX = PREVIEW_MINI_PLAYER_EDGE_GAP,
 ): PreviewMiniPlayerPosition {
-  const inside = clampToContainer(position, container, player);
+  const inside = clampToContainer(position, container, player, minimumX);
   const { composer } = obstacles;
   if (!composer || !overlapsObstacle(inside, player, container, obstacles)) return inside;
   const gap = PREVIEW_MINI_PLAYER_EDGE_GAP;
@@ -208,10 +213,10 @@ export function clampPreviewMiniPlayerPosition(
     { x: composer.left - gap - player.width, y: inside.y },
     { x: composer.right + gap, y: inside.y },
   ];
-  let best = clampToContainer(above, container, player);
+  let best = clampToContainer(above, container, player, minimumX);
   let bestDistance = Math.abs(best.y - inside.y);
   for (const candidate of beside) {
-    const clamped = clampToContainer(candidate, container, player);
+    const clamped = clampToContainer(candidate, container, player, minimumX);
     if (clamped.x !== candidate.x || overlapsObstacle(candidate, player, container, obstacles)) {
       continue;
     }

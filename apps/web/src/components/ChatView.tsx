@@ -374,6 +374,7 @@ import type { AssistantCitationRequest } from "./chat/AssistantCitationSource";
 import { resolveTimelineIsAtEnd, worktreeSetupAgentStarted } from "./chat/MessagesTimeline.logic";
 import { resolveComposerTimelineInset, resolveScrollToEndClearance } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
+import { ChatCanvas } from "./chat/ChatCanvas";
 import { PanelLayoutControls, RightPanelMaximizeControl } from "./chat/PanelLayoutControls";
 import { expandedImageKey, type ExpandedImagePreview } from "./chat/ExpandedImagePreview";
 import { NoActiveThreadState } from "./NoActiveThreadState";
@@ -9852,8 +9853,8 @@ export default function ChatView(props: ChatViewProps) {
         {/* Main content area with optional plan sidebar */}
         <div className="flex min-h-0 min-w-0 flex-1">
           {/* Chat column */}
-          <div
-            className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+          <ChatCanvas
+            composerOverlayElement={isDraftHeroState ? null : composerOverlayElement}
             data-chat-workspace-drop-target="true"
             onDragEnter={workspaceFileDropHandlers.onDragEnter}
             onDragOver={workspaceFileDropHandlers.onDragOver}
@@ -9981,7 +9982,7 @@ export default function ChatView(props: ChatViewProps) {
               {/* scroll to end pill — shown when user has scrolled away from the live edge */}
               {showScrollToBottom && (
                 <div
-                  className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 justify-center py-1.5"
+                  className="chat-scroll-to-bottom pointer-events-none absolute z-30 flex justify-center py-1.5"
                   style={{ bottom: scrollToEndClearance + 4 }}
                 >
                   <Button
@@ -10013,13 +10014,10 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
-              <div
-                ref={attachDraftHeroTransitionGroupRef}
-                className="w-full ps-[calc(env(safe-area-inset-left)+0.75rem)] pe-[calc(env(safe-area-inset-right)+0.75rem)] sm:ps-[calc(env(safe-area-inset-left)+1.25rem)] sm:pe-[calc(env(safe-area-inset-right)+1.25rem)]"
-              >
+              <div ref={attachDraftHeroTransitionGroupRef} className="chat-composer-lane w-full">
                 <div
                   data-chat-composer-stack="true"
-                  className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-3xl"
+                  className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
                 >
                   {isDraftHeroState ? (
                     <div className="absolute inset-x-0 bottom-full z-0">
@@ -10253,7 +10251,6 @@ export default function ChatView(props: ChatViewProps) {
                 key={`${activeThreadKey}:${previewMiniPlayerSourceKey(activePreviewMiniPlayer.source)}`}
                 threadRef={activeThreadRef}
                 miniPlayer={activePreviewMiniPlayer}
-                composerOverlayElement={isDraftHeroState ? null : composerOverlayElement}
               />
             ) : null}
 
@@ -10303,7 +10300,7 @@ export default function ChatView(props: ChatViewProps) {
                 onPrepared={handlePreparedPullRequestThread}
               />
             ) : null}
-          </div>
+          </ChatCanvas>
           {/* end chat column */}
         </div>
         {/* end horizontal flex container */}

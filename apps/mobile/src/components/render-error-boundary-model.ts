@@ -56,38 +56,6 @@ export function threadFeedResetKeys(
 }
 
 /**
- * Cold-launch safety valve for the Home seam. A bad OTA that crashes Home
- * before it has ever painted would otherwise strand the user on the fallback
- * forever: the launch update check runs inside HomeRouteScreen's effect
- * (which never ran), and expo-updates 57's startup error pipeline (wait for
- * a remote fix, else relaunch the cached older update, else crash — see its
- * ErrorRecoveryHandler) removes the two recovery tasks at RN's CONTENT_APPEARED
- * marker, the first root view render. A first-paint Home failure therefore
- * rethrows from the boundary's own render pass, so React discards the commit,
- * content never appears, and the pipeline stays armed exactly as it was
- * before boundaries existed. (It also skips cached-older-update fallback for
- * an update that has launched successfully before — a pre-existing expo rule,
- * unaffected by this PR.) Any failure after the first successful paint keeps
- * in-session recovery. A fatal is deliberately NOT recorded in the
- * render-error log: ErrorRecovery already logs it and Diagnostics reads
- * that log, and recording both would double-report the same crash.
- *
- * `appRootCommitted` closes a timing hole: CONTENT_APPEARED rides the first
- * commit ANYWHERE in the root tree (providers above the seam mount native
- * views too), not the first Home commit. If any frame has already painted,
- * a rethrow would arrive after expo disarmed its recovery tasks — strictly
- * worse than the fallback — so the valve only fires while nothing has ever
- * committed.
- */
-export function shouldRethrowAsFatal(args: {
-  readonly fatalIfFirstPaintFails: boolean;
-  readonly childCommitted: boolean;
-  readonly appRootCommitted: boolean;
-}): boolean {
-  return args.fatalIfFirstPaintFails && !args.childCommitted && !args.appRootCommitted;
-}
-
-/**
  * Which exit the screen-level fallback offers: normally Go back, but when the
  * crashing route is the only route (cold launch on Home), there is no previous
  * route and no back gesture — the fallback must still lead somewhere that can

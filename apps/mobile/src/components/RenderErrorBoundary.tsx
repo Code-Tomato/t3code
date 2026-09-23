@@ -5,7 +5,6 @@ import { SymbolView } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { MaterialButton } from "./MaterialButton";
 import { tryCopyTextWithHaptic } from "../lib/copyTextWithHaptic";
-import { hasAppRootCommitted } from "./app-first-commit";
 import {
   describeRenderError,
   readErrorStack,
@@ -15,7 +14,6 @@ import {
   boundaryResetFromProps,
   failedBoundaryState,
   healthyBoundaryState,
-  shouldRethrowAsFatal,
   type BoundaryState,
 } from "./render-error-boundary-model";
 
@@ -27,14 +25,6 @@ interface RenderErrorBoundaryProps {
   readonly resetKeys?: ReadonlyArray<unknown> | undefined;
   /** Subject noun for the default fallback's headline, e.g. "The conversation". */
   readonly subject?: string;
-  /**
-   * Cold-launch safety valve (Home seam only): a failure before the guarded
-   * subtree has ever committed rethrows to the global handler so expo-updates'
-   * ErrorRecovery's startup error pipeline (wait briefly for a remote fix,
-   * else fall back to the cached older update, else crash) stays available
-   * exactly as before boundaries existed. See shouldRethrowAsFatal.
-   */
-  readonly fatalIfFirstPaintFails?: boolean | undefined;
   /** Forwarded to a custom `fallback` so it can adapt per route (screen seam). */
   readonly routeName?: string | undefined;
   /**
@@ -97,44 +87,12 @@ export class RenderErrorBoundary extends Component<
     }
   }
 
-  // A healthy commit of the guarded subtree ends the "first paint" window.
-  private childCommitted = false;
-
-  override componentDidMount() {
-    if (!this.state.failed) this.childCommitted = true;
-  }
-
-  override componentDidUpdate() {
-    if (!this.state.failed) this.childCommitted = true;
-  }
-
   private readonly retry = () => {
     this.setState(healthyBoundaryState(this.state.resetKeys));
   };
 
   override render() {
     if (this.state.failed) {
-      if (
-        shouldRethrowAsFatal({
-          fatalIfFirstPaintFails: this.props.fatalIfFirstPaintFails === true,
-          childCommitted: this.childCommitted,
-          appRootCommitted: hasAppRootCommitted(),
-        })
-      ) {
-        // Cold-launch Home failure: rethrow inside this failed render pass.
-        // Nothing above the seam catches, so React unwinds the whole
-        // in-progress commit and nothing ever paints. That matters because
-        // expo-updates 57 disarms its recovery tasks at RN's CONTENT_APPEARED
-        // marker (Android ReactRootView.onViewAdded — the first root view
-        // render; ExpoUpdatesKit is symmetric), and a discarded commit never
-        // reaches it. So the full startup error pipeline (brief wait for a
-        // remote fix, else cached-older-update fallback, else crash) runs,
-        // exactly as for any pre-boundary render throw. componentDidCatch
-        // never runs for this pass (the commit is discarded), so the fatal is
-        // not also recorded in the render-error log — Diagnostics reads the
-        // ErrorRecovery log instead.
-        throw this.state.error;
-      }
       if (this.props.fallback) {
         const Fallback = this.props.fallback;
         return (

@@ -1,6 +1,6 @@
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect } from "react";
 import { StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -20,7 +20,6 @@ import {
 import { RootStack } from "./Stack";
 import { appAtomRegistry } from "./state/atom-registry";
 import { OverlayPortalHost } from "./components/OverlayPortal";
-import { markAppRootCommitted } from "./components/app-first-commit";
 import { shouldHandleAppLink } from "./lib/appLinking";
 import { useMobileNavigationTheme } from "./lib/useMobileNavigationTheme";
 import { SubscriptionUsageCoordinator } from "./widgets/SubscriptionUsageCoordinator";
@@ -54,21 +53,6 @@ function SplashScreenCoordinator() {
   return null;
 }
 
-/**
- * Records the first completed commit of the app tree. expo-updates disarms
- * OTA startup-error recovery at RN's first-native-view marker, which rides
- * ANY commit — so the Home boundary's first-paint fatal valve must know
- * whether a frame has ever painted anywhere, not just inside Home. A layout
- * effect runs inside the commit itself: if a render-phase throw discards the
- * first commit, this never fires and the valve stays armed.
- */
-function FirstCommitSentinel() {
-  useLayoutEffect(() => {
-    markAppRootCommitted();
-  }, []);
-  return null;
-}
-
 export default function App() {
   return (
     <RegistryContext.Provider value={appAtomRegistry}>
@@ -87,7 +71,6 @@ function AppContent() {
 
   return (
     <>
-      <FirstCommitSentinel />
       <SplashScreenCoordinator />
       <SubscriptionUsageCoordinator />
       <GestureHandlerRootView className="flex-1">

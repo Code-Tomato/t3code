@@ -29,8 +29,9 @@ interface RenderErrorBoundaryProps {
   /**
    * Cold-launch safety valve (Home seam only): a failure before the guarded
    * subtree has ever committed rethrows to the global handler so expo-updates'
-   * ErrorRecovery rollback and its startup crash log behave exactly as before
-   * boundaries existed. See shouldRethrowAsFatal.
+   * ErrorRecovery's startup error pipeline (wait briefly for a remote fix,
+   * else fall back to the cached older update, else crash) stays available
+   * exactly as before boundaries existed. See shouldRethrowAsFatal.
    */
   readonly fatalIfFirstPaintFails?: boolean | undefined;
   /** Forwarded to a custom `fallback` so it can adapt per route (screen seam). */
@@ -120,14 +121,16 @@ export class RenderErrorBoundary extends Component<
       ) {
         // Cold-launch Home failure: rethrow inside this failed render pass.
         // Nothing above the seam catches, so React unwinds the whole
-        // in-progress commit and nothing ever paints — no fallback frame, no
-        // first-content signal for expo-updates to treat the launch as
-        // successful. This is deliberately the exact same code path a render
-        // throw took before boundaries existed, so ErrorRecovery's startup
-        // failure handling (cached-update rollback + its crash log) behaves
-        // identically to pre-PR. componentDidCatch never runs for this pass
-        // (the commit is discarded), so the fatal is not also recorded in the
-        // render-error log — Diagnostics reads the ErrorRecovery log instead.
+        // in-progress commit and nothing ever paints. That matters because
+        // expo-updates 57 disarms its recovery tasks at RN's CONTENT_APPEARED
+        // marker (Android ReactRootView.onViewAdded — the first root view
+        // render; ExpoUpdatesKit is symmetric), and a discarded commit never
+        // reaches it. So the full startup error pipeline (brief wait for a
+        // remote fix, else cached-older-update fallback, else crash) runs,
+        // exactly as for any pre-boundary render throw. componentDidCatch
+        // never runs for this pass (the commit is discarded), so the fatal is
+        // not also recorded in the render-error log — Diagnostics reads the
+        // ErrorRecovery log instead.
         throw this.state.error;
       }
       if (this.props.fallback) {

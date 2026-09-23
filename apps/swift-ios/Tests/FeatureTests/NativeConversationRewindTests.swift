@@ -5,14 +5,16 @@ import Testing
 @Suite("Conversation rewind")
 struct NativeConversationRewindTests {
     @Test
-    func keepFilesUsesACommandOlderServersCannotTreatAsFileRestore() {
-        let command = OrchestrationCommands.revertConversation(
-            threadID: "thread", turnCount: 4, commandID: "command", createdAt: "2026-09-13T00:00:00Z"
+    func keepFilesUsesTheV2CheckpointRollbackTarget() {
+        let command = OrchestrationCommands.rollback(
+            threadID: "thread", scopeID: "scope", checkpointID: "checkpoint",
+            restoreFiles: false, commandID: "command"
         )
         #expect(command == .object([
-            "type": .string("thread.conversation.revert"),
-            "threadId": .string("thread"), "turnCount": .number(4),
-            "commandId": .string("command"), "createdAt": .string("2026-09-13T00:00:00Z"),
+            "type": .string("checkpoint.rollback"),
+            "threadId": .string("thread"), "scopeId": .string("scope"),
+            "checkpointId": .string("checkpoint"), "restoreFiles": .bool(false),
+            "commandId": .string("command"),
         ]))
     }
 

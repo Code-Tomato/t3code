@@ -58,14 +58,14 @@ final class NativeRetryIdentityTests: XCTestCase {
             }
             let commands = await connection.dispatchCommands() + transport.dispatchCommands()
             XCTAssertEqual(commands.count, committed ? 1 : 2)
-            XCTAssertTrue(commands.allSatisfy { $0["bootstrap"]?["prepareWorktree"] != nil })
+            XCTAssertTrue(commands.allSatisfy { $0["workspaceStrategy"]?["type"] == .string("worktree") })
             for command in commands {
                 XCTAssertEqual(command["threadId"]?.stringValue, identity.threadID)
                 XCTAssertEqual(command["commandId"]?.stringValue, identity.commandID)
-                XCTAssertEqual(command["message"]?["messageId"]?.stringValue, identity.messageID)
+                XCTAssertEqual(command["initialMessage"]?["messageId"]?.stringValue, identity.messageID)
             }
             if let first = commands.first, let last = commands.last {
-                XCTAssertEqual(first["bootstrap"]?["prepareWorktree"], last["bootstrap"]?["prepareWorktree"])
+                XCTAssertEqual(first["workspaceStrategy"], last["workspaceStrategy"])
             }
             await client.disconnect()
         }
@@ -180,14 +180,14 @@ final class NativeRetryIdentityTests: XCTestCase {
         XCTAssertEqual(commands.count, 4)
         for prompt in ["First task", "Second task"] {
             let matching = commands.filter {
-                $0["message"]?["text"]?.stringValue == prompt
+                $0["initialMessage"]?["text"]?.stringValue == prompt
             }
             XCTAssertEqual(matching.count, 2, "Expected an initial attempt and one retry.")
             XCTAssertEqual(matching.first?["threadId"], matching.last?["threadId"])
             XCTAssertEqual(matching.first?["commandId"], matching.last?["commandId"])
             XCTAssertEqual(
-                matching.first?["message"]?["messageId"],
-                matching.last?["message"]?["messageId"]
+                matching.first?["initialMessage"]?["messageId"],
+                matching.last?["initialMessage"]?["messageId"]
             )
         }
         await client.disconnect()
@@ -274,7 +274,7 @@ final class NativeRetryIdentityTests: XCTestCase {
             + transport.dispatchCommands()
         XCTAssertEqual(commands.count, 4)
         let turnCommands = commands.filter {
-            $0["message"]?["text"]?.stringValue == "Retry without duplicating"
+            $0["text"]?.stringValue == "Retry without duplicating"
         }
         XCTAssertEqual(turnCommands.count, 2)
         let initialTurn = try XCTUnwrap(turnCommands.first)
@@ -282,24 +282,24 @@ final class NativeRetryIdentityTests: XCTestCase {
         assertStableIdentity(initialTurn, retriedTurn, includesThreadID: false)
         XCTAssertEqual(initialTurn["commandId"]?.stringValue, turnIdentity.commandID)
         XCTAssertEqual(
-            initialTurn["message"]?["messageId"]?.stringValue,
+            initialTurn["messageId"]?.stringValue,
             turnIdentity.messageID
         )
         let bootstrapCommands = commands.filter {
-            $0["message"]?["text"]?.stringValue == "Create exactly one task"
+            $0["initialMessage"]?["text"]?.stringValue == "Create exactly one task"
         }
         XCTAssertEqual(bootstrapCommands.count, 2)
         let initialBootstrap = try XCTUnwrap(bootstrapCommands.first)
         let retriedBootstrap = try XCTUnwrap(bootstrapCommands.dropFirst().first)
         XCTAssertNotEqual(initialBootstrap["commandId"], retriedBootstrap["commandId"])
         XCTAssertNotEqual(
-            initialBootstrap["message"]?["messageId"],
-            retriedBootstrap["message"]?["messageId"]
+            initialBootstrap["initialMessage"]?["messageId"],
+            retriedBootstrap["initialMessage"]?["messageId"]
         )
         XCTAssertNotEqual(initialBootstrap["threadId"], retriedBootstrap["threadId"])
         for command in turnCommands {
-            XCTAssertEqual(command["runtimeMode"]?.stringValue, "approval-required")
-            XCTAssertEqual(command["interactionMode"]?.stringValue, "default")
+            XCTAssertEqual(command["type"]?.stringValue, "message.dispatch")
+            XCTAssertEqual(command["dispatchMode"]?["type"]?.stringValue, "start_immediately")
         }
         for command in bootstrapCommands {
             XCTAssertEqual(command["runtimeMode"]?.stringValue, "auto-accept-edits")
@@ -367,13 +367,13 @@ final class NativeRetryIdentityTests: XCTestCase {
         let commands = await connection.dispatchCommands()
             + transport.dispatchCommands()
         XCTAssertEqual(commands.count, 2)
-        let bootstrap = try XCTUnwrap(commands.first { $0["bootstrap"] != nil })
-        let finalTurn = try XCTUnwrap(commands.first { $0["bootstrap"] == nil })
+        let bootstrap = try XCTUnwrap(commands.first { $0["initialMessage"] != nil })
+        let finalTurn = try XCTUnwrap(commands.first { $0["type"] == .string("message.dispatch") })
         assertStableIdentity(bootstrap, finalTurn, includesThreadID: true)
         XCTAssertEqual(bootstrap["threadId"]?.stringValue, identity.threadID)
         XCTAssertEqual(bootstrap["commandId"]?.stringValue, identity.commandID)
         XCTAssertEqual(
-            bootstrap["message"]?["messageId"]?.stringValue,
+            bootstrap["initialMessage"]?["messageId"]?.stringValue,
             identity.messageID
         )
         let wireID = try XCTUnwrap(bootstrap["threadId"]?.stringValue)
@@ -391,8 +391,10 @@ final class NativeRetryIdentityTests: XCTestCase {
         includesThreadID: Bool
     ) {
         XCTAssertEqual(first["commandId"], second["commandId"])
-        XCTAssertEqual(first["message"]?["messageId"], second["message"]?["messageId"])
-        XCTAssertEqual(first["createdAt"], second["createdAt"])
+        XCTAssertEqual(
+            first["messageId"] ?? first["initialMessage"]?["messageId"],
+            second["messageId"] ?? second["initialMessage"]?["messageId"]
+        )
         if includesThreadID {
             XCTAssertEqual(first["threadId"], second["threadId"])
         }
@@ -453,7 +455,8 @@ private actor ConcurrentBootstrapWebSocketConnection: WebSocketConnection {
             enqueue(response)
             return
         }
-        guard request["tag"]?.stringValue == RPCMethod.dispatchCommand.rawValue,
+        guard let tag = request["tag"]?.stringValue,
+              tag == RPCMethod.dispatchCommand.rawValue || tag == "orchestration.launchThread",
               let payload = request["payload"] else {
             return
         }
@@ -685,7 +688,9 @@ private actor PartialBootstrapHTTPTransport: HTTPTransport {
             )
         }
         if path.hasPrefix("/api/orchestration/threads/") {
-            let threadID = request.url?.lastPathComponent.removingPercentEncoding ?? "thread"
+            let components = request.url?.pathComponents ?? []
+            let threadID = (components.last == "bounded" ? components.dropLast().last : components.last)?
+                .removingPercentEncoding ?? "thread"
             let snapshot = retryEmptyThreadDetail(id: threadID, messages: committedMessages)
             return (try JSONEncoder.t3.encode(snapshot), retryHTTPResponse(request))
         }
@@ -732,7 +737,8 @@ private actor AmbiguousDispatchWebSocketConnection: WebSocketConnection {
             enqueue(response)
             return
         }
-        if request["tag"]?.stringValue == RPCMethod.dispatchCommand.rawValue,
+        if let tag = request["tag"]?.stringValue,
+           tag == RPCMethod.dispatchCommand.rawValue || tag == "orchestration.launchThread",
            let payload = request["payload"] {
             commands.append(payload)
             throw URLError(.networkConnectionLost)
@@ -788,7 +794,8 @@ private actor PartialBootstrapWebSocketConnection: WebSocketConnection {
             connectionWaiters.forEach { $0.resume() }
             connectionWaiters.removeAll()
         }
-        guard request["tag"]?.stringValue == RPCMethod.dispatchCommand.rawValue,
+        guard let tag = request["tag"]?.stringValue,
+              tag == RPCMethod.dispatchCommand.rawValue || tag == "orchestration.launchThread",
               let payload = request["payload"] else {
             if request["tag"]?.stringValue == RPCMethod.serverGetConfig.rawValue
                 || request["tag"]?.stringValue == RPCMethod.subscribeServerConfig.rawValue,
@@ -798,7 +805,7 @@ private actor PartialBootstrapWebSocketConnection: WebSocketConnection {
             return
         }
         commands.append(payload)
-        if payload["bootstrap"] != nil {
+        if payload["initialMessage"] != nil {
             throw URLError(.networkConnectionLost)
         }
         guard case let .number(requestID) = request["id"] else { return }

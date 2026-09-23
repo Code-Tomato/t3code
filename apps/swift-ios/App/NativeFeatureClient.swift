@@ -2026,15 +2026,11 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         activeThreadPage = nil
         activeRawThread = nil
         activeThreadSequence = nil
-        let supportsPagination = serverConfigsByEnvironmentID[
-            environment.id
-        ]?.threadSnapshotPagination == true
         let supportsResume = serverConfigsByEnvironmentID[
             environment.id
         ]?.threadResumeCompletionMarker == true
         if !fresh, supportsResume,
            let cached = threadResumeStates[route.uiID], cached.client === client,
-           cached.page == nil || supportsPagination,
            var detail = latestDetails[route.uiID],
            detailRenderCaches[route.uiID]?.isInitialized == true {
             let currentConnectionID = await client.currentConnectionID()
@@ -2060,7 +2056,7 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         do {
             snapshot = try await client.threadSnapshot(
                 id: route.wireID,
-                turnLimit: supportsPagination ? Self.initialThreadUserTurnLimit : nil,
+                turnLimit: Self.initialThreadUserTurnLimit,
                 timeoutInterval: threadSnapshotTimeoutInterval
             )
         } catch {
@@ -2098,9 +2094,6 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         let route = try threadRoute(for: id)
         guard activeThreadID == route.uiID,
               activeThreadEnvironmentID == route.environmentID,
-              serverConfigsByEnvironmentID[
-                  route.environmentID
-              ]?.threadSnapshotPagination == true,
               var page = activeThreadPage,
               page.hasMore,
               !page.isLoading,
@@ -2402,9 +2395,9 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         do {
             let accepted: DispatchResult
             do {
-                accepted = try await route.client.dispatch(OrchestrationCommands.revertConversation(
+                accepted = try await route.client.revertConversation(
                     threadID: route.wireID, turnCount: turnCount
-                ))
+                )
             } catch let error as RPCError {
                 if case .remote = error {
                     throw FeatureConversationRewindError(message: error.localizedDescription, didNotRevert: true)
@@ -3801,6 +3794,10 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
                                     generation: generation,
                                     refreshActiveThread: true
                                 )
+                            case let .projectMetadata(projects):
+                                await self.consume(deltas: deltas, client: activeClient, generation: generation)
+                                deltas.removeAll(keepingCapacity: true)
+                                self.consume(projectMetadata: projects, client: activeClient)
                             case .projectUpserted, .projectRemoved, .threadUpserted, .threadRemoved:
                                 deltas.append(item)
                             case .refreshRequired:
@@ -4183,6 +4180,26 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         scheduleDetailRefresh(threadID: threadID, client: client)
     }
 
+    private func consume(projectMetadata updates: [OrchestrationProject], client: T3Client) {
+        guard let current = latestShell, !updates.isEmpty else { return }
+        var projects = current.projects
+        for project in updates {
+            if let index = projects.firstIndex(where: { $0.id == project.id }) {
+                projects[index] = project
+            }
+        }
+        guard projects != current.projects else { return }
+        let shell = OrchestrationShellSnapshot(
+            snapshotSequence: current.snapshotSequence,
+            projects: projects,
+            threads: current.threads,
+            updatedAt: current.updatedAt
+        )
+        latestShell = shell
+        shellsByEnvironmentID[client.environment.id] = shell
+        scheduleShellPublish(client)
+    }
+
     private func consume(deltas: [ShellStreamItem], client: T3Client, generation: Int) async {
         guard !deltas.isEmpty, !Task.isCancelled,
               isCurrentSession(client: client, generation: generation) else { return }
@@ -4207,7 +4224,7 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
             case let .projectUpserted(value, _), let .projectRemoved(value, _),
                  let .threadUpserted(value, _), let .threadRemoved(value, _):
                 nextSequence = value
-            case .snapshot, .synchronized, .refreshRequired:
+            case .snapshot, .projectMetadata, .synchronized, .refreshRequired:
                 continue
             }
 
@@ -4258,7 +4275,7 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
                     threadHistoryEpoch &+= 1
                     pendingOlderThreadPage = nil
                 }
-            case .snapshot, .synchronized, .refreshRequired:
+            case .snapshot, .projectMetadata, .synchronized, .refreshRequired:
                 continue
             }
         }
@@ -4386,9 +4403,6 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
                 // The next connection resumes from applied state, not from
                 // the cursor captured when the user first opened the thread.
                 let sequence = self?.activeRawThread == nil ? nil : self?.activeThreadSequence
-                let supportsPagination = self?.serverConfigsByEnvironmentID[
-                    route.environmentID
-                ]?.threadSnapshotPagination == true
                 let subscriptionEpoch = self?.threadHistoryEpoch ?? 0
                 var failedConnectionID: UUID?
                 do {
@@ -4398,7 +4412,7 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
                     let subscription = try await route.client.threadEventBatches(
                         threadID: route.wireID,
                         after: sequence,
-                        turnLimit: supportsPagination ? Self.initialThreadUserTurnLimit : nil
+                        turnLimit: Self.initialThreadUserTurnLimit
                     )
                     let subscriptionConnectionID = subscription.connectionID
                     failedConnectionID = subscriptionConnectionID
@@ -5107,12 +5121,9 @@ final class NativeFeatureClient: FeatureClient, FeatureDeviceManaging,
         let environment = route.client.environment
         let generation = environmentGeneration
         let historyEpoch = threadHistoryEpoch
-        let supportsPagination = serverConfigsByEnvironmentID[
-            environment.id
-        ]?.threadSnapshotPagination == true
         let snapshot = try await client.threadSnapshot(
             id: route.wireID,
-            turnLimit: supportsPagination ? Self.initialThreadUserTurnLimit : nil,
+            turnLimit: Self.initialThreadUserTurnLimit,
             timeoutInterval: threadSnapshotTimeoutInterval
         )
         guard !Task.isCancelled,
@@ -7706,7 +7717,9 @@ enum NativeThreadDetailReducer {
               let occurredAt = object["occurredAt"]?.stringValue,
               let sequence = intValue(object["sequence"]),
               let payload = object["payload"],
-              payload["threadId"]?.stringValue == thread.id else {
+              (event["threadId"]?.stringValue == thread.id
+                || payload["threadId"]?.stringValue == thread.id
+                || payload["id"]?.stringValue == thread.id) else {
             return NativeThreadDetailReduction(
                 sequence: -1,
                 result: .refresh,
@@ -7717,19 +7730,112 @@ enum NativeThreadDetailReducer {
         let result: NativeThreadDetailReductionResult
         var renderMutation = NativeDetailRenderMutation.metadata
         switch type {
-        case "thread.settled":
-            result = reduceSettled(payload: payload, thread: thread)
-        case "thread.unsettled":
-            result = reduceUnsettled(payload: payload, thread: thread)
+        case "turn-item.updated":
+            guard let item = payload["type"]?.stringValue else {
+                result = .refresh
+                renderMutation = .full
+                break
+            }
+            if item == "user_message" || item == "assistant_message" {
+                if let message = try? OrchestrationV2Compatibility.messageValue(payload) {
+                    var messages = thread.messages
+                    if let index = messages.firstIndex(where: { $0.id == message.id }) {
+                        messages[index] = message
+                    } else {
+                        messages.append(message)
+                    }
+                    result = .updated(replacing(thread, messages: messages, updatedAt: occurredAt))
+                    renderMutation = .message(message)
+                } else {
+                    result = .refresh
+                    renderMutation = .full
+                }
+            } else if let activity = try? OrchestrationV2Compatibility.activityValue(
+                payload,
+                pending: payload["status"]?.stringValue == "waiting"
+                    || payload["status"]?.stringValue == "pending"
+            ) {
+                var activities = thread.activities
+                if let index = activities.firstIndex(where: { $0.id == activity.id }) {
+                    activities[index] = activity
+                } else {
+                    activities.append(activity)
+                }
+                result = .updated(replacing(thread, activities: activities, updatedAt: occurredAt))
+                renderMutation = .full
+            } else {
+                result = .unchanged
+                renderMutation = .none
+            }
+        case "run.created", "run.updated":
+            if let updated = try? OrchestrationV2Compatibility.updateRun(
+                payload, in: thread, occurredAt: occurredAt
+            ) {
+                result = .updated(updated)
+            } else {
+                result = .refresh
+                renderMutation = .full
+            }
+        case "runtime-request.updated":
+            if payload["status"]?.stringValue == "pending" {
+                result = .unchanged
+                renderMutation = .none
+            } else {
+                let requestID = payload["id"]?.stringValue
+                var activities = thread.activities
+                if let index = activities.firstIndex(where: {
+                    $0.payload["requestId"]?.stringValue == requestID
+                }) {
+                    let old = activities[index]
+                    let kind = old.kind == "approval.requested"
+                        ? "approval.resolved" : "user-input.resolved"
+                    activities[index] = OrchestrationActivity(
+                        id: old.id, tone: old.tone, kind: kind, summary: old.summary,
+                        payload: old.payload, turnId: old.turnId,
+                        sequence: old.sequence, createdAt: old.createdAt
+                    )
+                }
+                result = .updated(replacing(thread, activities: activities, updatedAt: occurredAt))
+                renderMutation = .full
+            }
+        case "thread.metadata-updated", "thread.archived", "thread.unarchived",
+             "thread.snoozed", "thread.unsnoozed",
+             "thread.pinned", "thread.unpinned", "thread.pin-reordered",
+             "thread.active-reordered", "thread.runtime-mode-updated",
+             "thread.interaction-mode-updated", "thread.model-selection-updated",
+             "thread.provider-switched":
+            if let updated = try? OrchestrationV2Compatibility.updateMetadata(payload, in: thread) {
+                result = .updated(updated)
+            } else {
+                result = .refresh
+                renderMutation = .full
+            }
+        case "thread.settled", "thread.unsettled", "thread.pull-request-synced":
+            if payload["projectId"] != nil {
+                if let updated = try? OrchestrationV2Compatibility.updateMetadata(payload, in: thread) {
+                    result = .updated(updated)
+                } else {
+                    result = .refresh
+                    renderMutation = .full
+                }
+            } else if type == "thread.settled" {
+                result = reduceSettled(payload: payload, thread: thread)
+            } else if type == "thread.unsettled" {
+                result = reduceUnsettled(payload: payload, thread: thread)
+            } else {
+                result = reducePullRequest(type: type, payload: payload, thread: thread)
+            }
+        case "message.updated", "plan.updated", "node.updated", "subagent.updated",
+             "provider-session.attached", "provider-session.updated",
+             "provider-session.detached", "provider-thread.updated", "provider-turn.updated",
+             "run-attempt.created", "run-attempt.updated", "checkpoint-scope.created",
+             "checkpoint.captured", "context-handoff.updated", "context-transfer.created",
+             "context-transfer.updated", "thread.visited", "thread.marked-unread":
+            result = .unchanged
+            renderMutation = .none
         case "thread.meta-updated":
             result = reduceMetadata(payload: payload, occurredAt: occurredAt, thread: thread)
-        case "thread.pin-reordered":
-            result = reducePinReordered(
-                payload: payload,
-                occurredAt: occurredAt,
-                thread: thread
-            )
-        case "thread.pull-request-linked", "thread.pull-request-unlinked", "thread.pull-request-synced":
+        case "thread.pull-request-linked", "thread.pull-request-unlinked":
             result = reducePullRequest(type: type, payload: payload, thread: thread)
         case "thread.message-sent":
             result = reduceMessage(

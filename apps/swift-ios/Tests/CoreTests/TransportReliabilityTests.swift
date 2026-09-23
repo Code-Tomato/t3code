@@ -107,7 +107,13 @@ final class TransportReliabilityTests: XCTestCase {
             )
         )
         let transport = RecordingHTTPTransport { request in
-            (body, transportResponse(request))
+            if request.url?.path.hasSuffix("/history") == true {
+                return (
+                    Data(#"{"snapshotSequence":42,"items":[],"nextCursor":"next-cursor","hasMoreHistory":true}"#.utf8),
+                    transportResponse(request)
+                )
+            }
+            return (body, transportResponse(request))
         }
         let api = EnvironmentAPI(transport: transport, credentials: credentials)
 
@@ -119,16 +125,19 @@ final class TransportReliabilityTests: XCTestCase {
         )
 
         XCTAssertEqual(snapshot.page?.beforeCursor, "next-cursor")
-        XCTAssertEqual(snapshot.page?.threadSequence, 40)
+        XCTAssertEqual(snapshot.page?.threadSequence, 42)
         let requests = await transport.requests
         let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.url?.path, "/api/orchestration/threads/thread-1/history")
+        XCTAssertEqual(requests.last?.url?.path, "/api/orchestration/threads/thread-1/bounded")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "x-t3-orchestration-protocol"), "2")
         let query = try XCTUnwrap(URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false))
             .queryItems
         XCTAssertEqual(
             Dictionary(uniqueKeysWithValues: (query ?? []).compactMap { item in
                 item.value.map { (item.name, $0) }
             }),
-            ["turnLimit": "20", "beforeCursor": "current-cursor"]
+            ["cursor": "current-cursor"]
         )
     }
 
@@ -189,17 +198,17 @@ final class TransportReliabilityTests: XCTestCase {
         )
         await client.disconnect()
 
-        XCTAssertEqual(result.sequence, 42)
+        XCTAssertEqual(result.sequence, 0)
         let requests = await connection.requests()
         XCTAssertEqual(requests.count, 1)
-        XCTAssertEqual(requests.first?["tag"]?.stringValue, "orchestration.dispatchCommand")
+        XCTAssertEqual(requests.first?["tag"]?.stringValue, "orchestration.launchThread")
         XCTAssertEqual(
-            requests.first?["payload"]?["bootstrap"]?["createThread"]?["projectId"]?.stringValue,
+            requests.first?["payload"]?["projectId"]?.stringValue,
             "project-1"
         )
         XCTAssertEqual(requests.first?["payload"]?["commandId"]?.stringValue, "stable-command")
         XCTAssertEqual(
-            requests.first?["payload"]?["message"]?["messageId"]?.stringValue,
+            requests.first?["payload"]?["initialMessage"]?["messageId"]?.stringValue,
             "stable-message"
         )
 
@@ -281,13 +290,13 @@ final class TransportReliabilityTests: XCTestCase {
         let socketRequests = await connection.requests()
         XCTAssertEqual(socketRequests.map { $0["tag"]?.stringValue }, [
             "attachments.createUploadUrl",
-            "orchestration.dispatchCommand",
+            "orchestration.launchThread",
         ])
         XCTAssertEqual(
             socketRequests[0]["payload"]?["sizeBytes"],
             .number(4)
         )
-        guard case let .array(attachments)? = socketRequests[1]["payload"]?["message"]?["attachments"],
+        guard case let .array(attachments)? = socketRequests[1]["payload"]?["initialMessage"]?["attachments"],
               let attachment = attachments.first else {
             return XCTFail("Expected an uploaded attachment")
         }
@@ -344,8 +353,8 @@ final class TransportReliabilityTests: XCTestCase {
         await client.disconnect()
 
         let requests = await connection.requests()
-        XCTAssertEqual(requests.map { $0["tag"]?.stringValue }, ["orchestration.dispatchCommand"])
-        guard case let .array(attachments)? = requests[0]["payload"]?["message"]?["attachments"] else {
+        XCTAssertEqual(requests.map { $0["tag"]?.stringValue }, ["orchestration.launchThread"])
+        guard case let .array(attachments)? = requests[0]["payload"]?["initialMessage"]?["attachments"] else {
             return XCTFail("Expected an inline image")
         }
         XCTAssertEqual(attachments.first?["dataUrl"]?.stringValue, "data:image/png;base64,iVBORw==")
@@ -557,7 +566,7 @@ final class TransportReliabilityTests: XCTestCase {
 
         let socketRequests = await connection.requests()
         XCTAssertEqual(socketRequests[0]["payload"]?["type"]?.stringValue, "file")
-        guard case let .array(sent)? = socketRequests[1]["payload"]?["message"]?["attachments"] else {
+        guard case let .array(sent)? = socketRequests[1]["payload"]?["initialMessage"]?["attachments"] else {
             return XCTFail("Expected an uploaded file reference")
         }
         XCTAssertEqual(sent.first?["type"]?.stringValue, "file")
@@ -693,7 +702,7 @@ final class TransportReliabilityTests: XCTestCase {
         XCTAssertNil(requests[1]["payload"]?["reason"])
     }
 
-    func testUnsentCommandsFallBackToHTTPButBootstrapDoesNot() async throws {
+    func testV2CommandsRequireSocketAndNeverUseLegacyHTTPDispatch() async throws {
         let environment = Environment(
             id: "environment-1",
             label: "Studio",
@@ -728,8 +737,11 @@ final class TransportReliabilityTests: XCTestCase {
             rpcConnectionWaitTimeout: .milliseconds(30)
         )
 
-        let rename = try await client.rename(threadID: "thread-1", title: "Renamed")
-        XCTAssertEqual(rename.sequence, 9)
+        do {
+            _ = try await client.rename(threadID: "thread-1", title: "Renamed")
+            XCTFail("V2 commands require the socket")
+        } catch RPCError.connectionUnavailable {
+        }
 
         do {
             _ = try await client.createThreadAndSend(
@@ -740,7 +752,7 @@ final class TransportReliabilityTests: XCTestCase {
                 model: ModelSelection(instanceId: "codex", model: "gpt-5.4"),
                 runtimeMode: .fullAccess
             )
-            XCTFail("Bootstrap must not use the HTTP endpoint that cannot expand it.")
+            XCTFail("Thread launch requires the socket")
         } catch let error as RPCError {
             guard case .connectionUnavailable = error else {
                 return XCTFail("Unexpected RPC error: \(error)")
@@ -752,12 +764,7 @@ final class TransportReliabilityTests: XCTestCase {
         let dispatchRequests = requests.filter {
             $0.url?.path == "/api/orchestration/dispatch"
         }
-        XCTAssertEqual(dispatchRequests.count, 1)
-        let command = try JSONDecoder.t3.decode(
-            JSONValue.self,
-            from: try XCTUnwrap(dispatchRequests.first?.httpBody)
-        )
-        XCTAssertEqual(command["type"]?.stringValue, "thread.meta.update")
+        XCTAssertTrue(dispatchRequests.isEmpty)
     }
 
     /// Set `T3_SWIFT_WS_DEFLATE_ECHO_URL` to a WebSocket endpoint that rejects

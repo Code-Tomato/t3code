@@ -465,7 +465,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         XCTAssertTrue(restored.messages.contains { $0.text == "Finished on the computer" })
         let resumed = try await nextThreadRequest(&requests)
         XCTAssertEqual(resumed.payload["afterSequence"], .number(3))
-        XCTAssertEqual(resumed.payload["turnLimit"], .number(10))
+        XCTAssertEqual(resumed.payload["acceptBoundedSnapshot"], .bool(true))
         XCTAssertEqual(resumed.payload["requestCompletionMarker"], .bool(true))
         let resumedState = await nextSyncState(&events, threadID: fixture.firstID)
         XCTAssertEqual(resumedState, .live, "A completed warm thread must not flash catch-up status.")
@@ -1206,8 +1206,11 @@ private actor CatchUpHTTPTransport: HTTPTransport {
                 throw URLError(.unsupportedURL)
             }
             threadRequests.append(request)
+            let path = request.url!.pathComponents
+            let threadID = path.last == "bounded" || path.last == "history"
+                ? path[path.count - 2] : request.url!.lastPathComponent
             let snapshot = multiEnvironmentDetail(
-                projectID: "project", threadID: request.url!.lastPathComponent,
+                projectID: "project", threadID: threadID,
                 snapshotSequence: sequence, messages: messages
             )
             var thread = snapshot.thread
@@ -1372,10 +1375,13 @@ private actor CatchUpSocket: WebSocketConnection {
 
     func send(_ data: Data) throws {
         guard !closed else { throw URLError(.networkConnectionLost) }
-        let request = try JSONDecoder.t3.decode(JSONValue.self, from: data)
-        if request["_tag"]?.stringValue == "Ping" {
+        let frame = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if frame?["_tag"] as? String == "Ping" {
             try enqueue(.object(["_tag": .string("Pong")]))
+            return
         }
+        guard frame?["_tag"] as? String == "Request" else { return }
+        let request = try JSONDecoder.t3.decode(JSONValue.self, from: data)
         guard let tag = request["tag"]?.stringValue, case let .number(id) = request["id"] else { return }
         if tag == RPCMethod.assetsCreateURL.rawValue { assetRequestCount += 1 }
         if tag == RPCMethod.subscribeServerConfig.rawValue {

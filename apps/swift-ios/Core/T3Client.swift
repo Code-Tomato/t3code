@@ -64,6 +64,7 @@ public actor T3Client {
             var query = components.queryItems ?? []
             query.removeAll {
                 $0.name == "wsTicket"
+                    || $0.name == "orchestrationProtocol"
                     || $0.name == "clientSurface"
                     || $0.name == "clientAppVersion"
                     || $0.name == "clientOs"
@@ -71,6 +72,7 @@ public actor T3Client {
                     || $0.name == "clientDeviceModel"
             }
             query.append(URLQueryItem(name: "wsTicket", value: ticket.ticket))
+            query.append(URLQueryItem(name: "orchestrationProtocol", value: "2"))
             query.append(URLQueryItem(name: "clientSurface", value: "mobile"))
             query.append(URLQueryItem(name: "clientOs", value: "iOS"))
             query.append(URLQueryItem(
@@ -130,10 +132,11 @@ public actor T3Client {
     }
 
     public func archivedShellSnapshot() async throws -> OrchestrationShellSnapshot {
-        try await rpc.request(
+        let raw = try await rpc.request(
             RPCMethod.getArchivedShellSnapshot.rawValue,
-            as: OrchestrationShellSnapshot.self
+            as: JSONValue.self
         )
+        return try OrchestrationV2Compatibility.archivedShell(raw)
     }
 
     public func threadSnapshot(
@@ -149,6 +152,27 @@ public actor T3Client {
             beforeCursor: beforeCursor,
             timeoutInterval: timeoutInterval
         )
+    }
+
+    public func revertConversation(threadID: String, turnCount: Int) async throws -> DispatchResult {
+        let projection = try await rpc.request(
+            "orchestration.getThreadProjection",
+            payload: .object(["threadId": .string(threadID)]),
+            as: JSONValue.self
+        )
+        guard case let .array(checkpoints)? = projection["checkpoints"],
+              let checkpoint = checkpoints.last(where: {
+                  $0["status"]?.stringValue == "ready"
+                    && $0["appRunOrdinal"] == .number(Double(turnCount))
+              }),
+              let scopeID = checkpoint["scopeId"]?.stringValue,
+              let checkpointID = checkpoint["id"]?.stringValue else {
+            throw RPCError.protocolViolation("No rollback checkpoint is available for this turn.")
+        }
+        return try await dispatch(OrchestrationCommands.rollback(
+            threadID: threadID, scopeID: scopeID, checkpointID: checkpointID,
+            restoreFiles: false
+        ))
     }
 
     public func serverConfig() async throws -> ServerConfigSnapshot {
@@ -648,7 +672,7 @@ public actor T3Client {
             "requestCompletionMarker": .bool(true),
         ]
         if let sequence { payload["afterSequence"] = .number(Double(sequence)) }
-        if let turnLimit { payload["turnLimit"] = .number(Double(turnLimit)) }
+        if turnLimit != nil { payload["acceptBoundedSnapshot"] = .bool(true) }
         return try await rpc.subscribeBatchesOnCurrentConnection(
             RPCMethod.subscribeThread.rawValue,
             payload: .object(payload),
@@ -658,16 +682,7 @@ public actor T3Client {
 
     @discardableResult
     public func dispatch(_ command: JSONValue) async throws -> DispatchResult {
-        guard await rpc.isConnected() else {
-            return try await api.dispatch(command, environment: environment)
-        }
-        do {
-            return try await dispatchOverWebSocket(command)
-        } catch RPCError.connectionUnavailable {
-            // The request provably never crossed the socket, so HTTP is a safe
-            // fallback without risking duplicate side effects.
-            return try await api.dispatch(command, environment: environment)
-        }
+        try await dispatchOverWebSocket(command)
     }
 
     @discardableResult
@@ -716,17 +731,10 @@ public actor T3Client {
         branch: String? = nil,
         worktreePath: String? = nil
     ) async throws -> DispatchResult {
-        try await dispatch(
-            try OrchestrationCommands.createThread(
-                threadID: threadID,
-                projectID: projectID,
-                title: title,
-                model: model,
-                runtimeMode: runtimeMode,
-                interactionMode: interactionMode,
-                branch: branch,
-                worktreePath: worktreePath
-            )
+        try await launchThread(
+            threadID: threadID, projectID: projectID, title: title,
+            model: model, runtimeMode: runtimeMode, interactionMode: interactionMode,
+            branch: branch, worktreePath: worktreePath
         )
     }
 
@@ -755,27 +763,72 @@ public actor T3Client {
             text: text, context: context, attachments: attachments, uploadedAttachments: uploadedAttachments,
             supportsContext: (latestServerEnvironment ?? environment.descriptor)?.capabilities.inlineMessageContext == true
         )
-        return try await dispatchOverWebSocket(
-            try OrchestrationCommands.createThreadAndSend(
-                threadID: threadID,
-                projectID: projectID,
-                title: title,
-                text: preparedMessage.text,
-                model: model,
-                runtimeMode: runtimeMode,
-                interactionMode: interactionMode,
-                branch: branch,
-                worktreePath: worktreePath,
-                worktreePreparation: worktreePreparation,
-                attachments: attachments,
-                uploadedAttachments: uploadedAttachments,
-                context: preparedMessage.context,
-                commandID: commandID,
-                messageID: messageID,
-                createdAt: createdAt
-            ),
-            responseDeadline: worktreePreparation == nil ? .standard : .none
+        return try await launchThread(
+            threadID: threadID, projectID: projectID, title: title,
+            model: model, runtimeMode: runtimeMode, interactionMode: interactionMode,
+            branch: branch, worktreePath: worktreePath,
+            worktreePreparation: worktreePreparation, text: preparedMessage.text,
+            attachments: uploadedAttachments ?? attachments.map(\.jsonValue),
+            context: preparedMessage.context, commandID: commandID, messageID: messageID
         )
+    }
+
+    private func launchThread(
+        threadID: String, projectID: String, title: String,
+        model: ModelSelection, runtimeMode: RuntimeMode, interactionMode: InteractionMode,
+        branch: String?, worktreePath: String?,
+        worktreePreparation: ThreadWorktreePreparation? = nil,
+        text: String? = nil, attachments: [JSONValue] = [],
+        context: OrchestrationMessageContext? = nil,
+        commandID: String = UUID().uuidString,
+        messageID: String = UUID().uuidString
+    ) async throws -> DispatchResult {
+        let strategy: JSONValue
+        if let worktreePreparation {
+            strategy = .object([
+                "type": .string("worktree"),
+                "baseRef": .string(worktreePreparation.baseBranch),
+                "branch": .string(worktreePreparation.branch),
+                "startFromOrigin": .bool(worktreePreparation.startFromOrigin),
+            ])
+        } else if let worktreePath {
+            var fields: [String: JSONValue] = [
+                "type": .string("existing_worktree"),
+                "worktreePath": .string(worktreePath),
+            ]
+            if let branch { fields["branch"] = .string(branch) }
+            strategy = .object(fields)
+        } else {
+            var fields: [String: JSONValue] = ["type": .string("root")]
+            if let branch { fields["branch"] = .string(branch) }
+            strategy = .object(fields)
+        }
+        var input: [String: JSONValue] = [
+            "commandId": .string(commandID),
+            "creationSource": .string("mobile"),
+            "threadId": .string(threadID),
+            "projectId": .string(projectID),
+            "title": .string(title),
+            "modelSelection": try .encode(model),
+            "runtimeMode": .string(runtimeMode.rawValue),
+            "interactionMode": .string(interactionMode.rawValue),
+            "workspaceStrategy": strategy,
+        ]
+        if let text {
+            var message: [String: JSONValue] = [
+                "messageId": .string(messageID),
+                "text": .string(text),
+                "attachments": .array(attachments),
+            ]
+            if let context { message["context"] = try .encode(context) }
+            input["initialMessage"] = .object(message)
+        }
+        _ = try await rpc.request(
+            "orchestration.launchThread", payload: .object(input),
+            responseDeadline: worktreePreparation == nil ? .standard : .none,
+            as: JSONValue.self
+        )
+        return DispatchResult(sequence: 0)
     }
 
     private func dispatchOverWebSocket(
@@ -798,15 +851,18 @@ public actor T3Client {
         defaultModel: ModelSelection? = nil,
         createWorkspaceRootIfMissing: Bool = false
     ) async throws -> DispatchResult {
-        try await dispatch(
-            try OrchestrationCommands.createProject(
+        _ = try await rpc.request(
+            "projects.mutate",
+            payload: try OrchestrationCommands.createProject(
                 projectID: projectID,
                 title: title,
                 workspaceRoot: workspaceRoot,
                 defaultModel: defaultModel,
                 createWorkspaceRootIfMissing: createWorkspaceRootIfMissing
-            )
+            ),
+            as: JSONValue.self
         )
+        return DispatchResult(sequence: 0)
     }
 
     @discardableResult
@@ -831,8 +887,18 @@ public actor T3Client {
 
     @discardableResult
     public func interrupt(threadID: String, turnID: String? = nil) async throws -> DispatchResult {
-        try await dispatch(
-            OrchestrationCommands.interrupt(threadID: threadID, turnID: turnID)
+        let runID: String
+        if let turnID {
+            runID = turnID
+        } else {
+            let snapshot = try await threadSnapshot(id: threadID)
+            guard let active = snapshot.thread.session?.activeTurnId else {
+                return DispatchResult(sequence: snapshot.snapshotSequence)
+            }
+            runID = active
+        }
+        return try await dispatch(
+            OrchestrationCommands.interrupt(threadID: threadID, turnID: runID)
         )
     }
 
@@ -2070,19 +2136,20 @@ public enum RPCMethod: String, Sendable {
 }
 
 public enum OrchestrationCommands {
-    /// A distinct command makes older servers reject this action without restoring files.
-    public static func revertConversation(
+    public static func rollback(
         threadID: String,
-        turnCount: Int,
-        commandID: String = UUID().uuidString,
-        createdAt: String = now()
+        scopeID: String,
+        checkpointID: String,
+        restoreFiles: Bool,
+        commandID: String = UUID().uuidString
     ) -> JSONValue {
         .object([
-            "type": .string("thread.conversation.revert"),
+            "type": .string("checkpoint.rollback"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
-            "turnCount": .number(Double(turnCount)),
-            "createdAt": .string(createdAt),
+            "scopeId": .string(scopeID),
+            "checkpointId": .string(checkpointID),
+            "restoreFiles": .bool(restoreFiles),
         ])
     }
 
@@ -2100,6 +2167,8 @@ public enum OrchestrationCommands {
     ) throws -> JSONValue {
         .object([
             "type": .string("thread.create"),
+            "createdBy": .string("user"),
+            "creationSource": .string("mobile"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
             "projectId": .string(projectID),
@@ -2152,20 +2221,19 @@ public enum OrchestrationCommands {
         messageID: String = UUID().uuidString,
         createdAt: String = now()
     ) throws -> JSONValue {
-        var message: [String: JSONValue] = [
-            "messageId": .string(messageID), "role": .string("user"), "text": .string(text),
-            "attachments": .array(uploadedAttachments ?? attachments.map(\.jsonValue)),
-        ]
-        if let context { message["context"] = try .encode(context) }
         var command: [String: JSONValue] = [
-            "type": .string("thread.turn.start"),
+            "type": .string("message.dispatch"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
-            "message": .object(message),
-            "runtimeMode": .string(runtimeMode.rawValue),
-            "interactionMode": .string(interactionMode.rawValue),
-            "createdAt": .string(createdAt),
+            "createdBy": .string("user"),
+            "creationSource": .string("mobile"),
+            "messageId": .string(messageID),
+            "text": .string(text),
+            "attachments": .array(uploadedAttachments ?? attachments.map(\.jsonValue)),
+            "deliveryIntent": .string("auto"),
+            "dispatchMode": .object(["type": .string("start_immediately")]),
         ]
+        if let context { command["context"] = try .encode(context) }
         if let model {
             command["modelSelection"] = try .encode(model)
         }
@@ -2258,7 +2326,7 @@ public enum OrchestrationCommands {
         commandID: String = UUID().uuidString
     ) -> JSONValue {
         .object([
-            "type": .string("thread.meta.update"),
+            "type": .string("thread.metadata.update"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
             "title": .string(title),
@@ -2270,7 +2338,7 @@ public enum OrchestrationCommands {
         commandID: String = UUID().uuidString
     ) -> JSONValue {
         .object([
-            "type": .string("thread.meta.update"),
+            "type": .string("thread.metadata.update"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
             "regenerateTitle": .bool(true),
@@ -2284,12 +2352,11 @@ public enum OrchestrationCommands {
         createdAt: String = now()
     ) -> JSONValue {
         var value: [String: JSONValue] = [
-            "type": .string("thread.turn.interrupt"),
+            "type": .string("run.interrupt"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
-            "createdAt": .string(createdAt),
         ]
-        if let turnID { value["turnId"] = .string(turnID) }
+        if let turnID { value["runId"] = .string(turnID) }
         return .object(value)
     }
 
@@ -2301,12 +2368,11 @@ public enum OrchestrationCommands {
         createdAt: String = now()
     ) -> JSONValue {
         .object([
-            "type": .string("thread.approval.respond"),
+            "type": .string("runtime-request.respond"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
             "requestId": .string(requestID),
             "decision": .string(decision),
-            "createdAt": .string(createdAt),
         ])
     }
 
@@ -2325,12 +2391,11 @@ public enum OrchestrationCommands {
             completeAnswers[questionID] = .string("")
         }
         var payload: [String: JSONValue] = [
-            "type": .string("thread.user-input.respond"),
+            "type": .string("runtime-request.respond"),
             "commandId": .string(commandID),
             "threadId": .string(threadID),
             "requestId": .string(requestID),
             "answers": .object(completeAnswers),
-            "createdAt": .string(createdAt),
         ]
         if !attachments.isEmpty {
             payload["attachmentsByQuestionId"] = .object(attachments.mapValues(JSONValue.array))
@@ -2349,7 +2414,6 @@ public enum OrchestrationCommands {
             "commandId": .string(commandID),
             "threadId": .string(threadID),
             "requestId": .string(requestID),
-            "createdAt": .string(createdAt),
         ])
     }
 

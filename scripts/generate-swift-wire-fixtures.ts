@@ -5,7 +5,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import {
-  ClientOrchestrationCommand,
+  OrchestrationV2Command,
   ProviderConsumeResetCreditInput,
   ProviderConsumeResetCreditResult,
   ServerProviderResetCredits,
@@ -121,13 +121,12 @@ const fixtures = new Map<string, string>([
   [
     "question-attachment-command.json",
     serializeFixture(
-      Schema.encodeSync(ClientOrchestrationCommand)(
-        Schema.decodeUnknownSync(ClientOrchestrationCommand)({
-          type: "thread.user-input.respond",
+      Schema.encodeSync(OrchestrationV2Command)(
+        Schema.decodeUnknownSync(OrchestrationV2Command)({
+          type: "runtime-request.respond",
           commandId: "command-fixture",
           threadId: threadShell.id,
           requestId: "question-fixture",
-          createdAt: timestamp,
           answers: { scope: "Server and Web" },
           attachmentsByQuestionId: {
             scope: [
@@ -182,13 +181,12 @@ const fixtures = new Map<string, string>([
   [
     "question-dismiss-command.json",
     serializeFixture(
-      Schema.encodeSync(ClientOrchestrationCommand)(
-        Schema.decodeUnknownSync(ClientOrchestrationCommand)({
+      Schema.encodeSync(OrchestrationV2Command)(
+        Schema.decodeUnknownSync(OrchestrationV2Command)({
           type: "thread.user-input.dismiss",
           commandId: "command-fixture",
           threadId: threadShell.id,
           requestId: "question-fixture",
-          createdAt: timestamp,
         }),
       ),
     ),

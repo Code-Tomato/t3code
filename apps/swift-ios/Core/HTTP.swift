@@ -225,13 +225,14 @@ public actor EnvironmentAPI {
     ) async throws
         -> OrchestrationShellSnapshot
     {
-        try await authorized(
+        let raw = try await authorized(
             environment: environment,
             path: "/api/orchestration/shell",
             method: "GET",
             timeoutInterval: timeoutInterval,
-            as: OrchestrationShellSnapshot.self
+            as: JSONValue.self
         )
+        return try OrchestrationV2Compatibility.shell(raw)
     }
 
     public func readModel(for environment: Environment) async throws -> OrchestrationReadModel {
@@ -251,21 +252,29 @@ public actor EnvironmentAPI {
         timeoutInterval: TimeInterval? = nil
     ) async throws -> OrchestrationThreadDetailSnapshot {
         let encodedID = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-        var queryItems: [URLQueryItem] = []
-        if let turnLimit {
-            queryItems.append(URLQueryItem(name: "turnLimit", value: String(turnLimit)))
-        }
         if let beforeCursor {
-            queryItems.append(URLQueryItem(name: "beforeCursor", value: beforeCursor))
+            let page = try await authorized(
+                environment: environment,
+                path: "/api/orchestration/threads/\(encodedID)/history",
+                queryItems: [URLQueryItem(name: "cursor", value: beforeCursor)],
+                method: "GET",
+                timeoutInterval: timeoutInterval,
+                as: JSONValue.self
+            )
+            let current = try await threadSnapshot(
+                id: id, environment: environment, turnLimit: turnLimit,
+                timeoutInterval: timeoutInterval
+            )
+            return try OrchestrationV2Compatibility.historyPage(page, thread: current.thread)
         }
-        return try await authorized(
+        let raw = try await authorized(
             environment: environment,
-            path: "/api/orchestration/threads/\(encodedID)",
-            queryItems: queryItems,
+            path: "/api/orchestration/threads/\(encodedID)/bounded",
             method: "GET",
             timeoutInterval: timeoutInterval,
-            as: OrchestrationThreadDetailSnapshot.self
+            as: JSONValue.self
         )
+        return try OrchestrationV2Compatibility.detail(raw)
     }
 
     public func dispatch(
@@ -532,6 +541,9 @@ public actor EnvironmentAPI {
         request.httpBody = body
         if body != nil {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        if path.hasPrefix("/api/orchestration/") {
+            request.setValue("2", forHTTPHeaderField: "x-t3-orchestration-protocol")
         }
         return request
     }

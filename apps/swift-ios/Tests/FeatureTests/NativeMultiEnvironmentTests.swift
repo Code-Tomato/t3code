@@ -96,8 +96,8 @@ final class NativeMultiEnvironmentTests: XCTestCase {
         let project = try XCTUnwrap(snapshot.projects.first { $0.environmentID == "two" })
         XCTAssertEqual(project.defaultSelection?.modelID, environmentDefault.model)
         _ = try await fixture.client.createThread(projectID: project.id, title: "Task", selection: nil)
-        let creates = await fixture.transport.dispatchRecords().filter { $0.command["type"] == .string("thread.create") }
-        XCTAssertEqual(creates.last?.command["modelSelection"], try JSONValue.encode(environmentDefault))
+        let launches = await server.launchRequests()
+        XCTAssertEqual(launches.last?.input["modelSelection"], try JSONValue.encode(environmentDefault))
         await fixture.client.disconnect()
     }
 
@@ -322,7 +322,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
     }
 
     func testSnapshotMergesEnvironmentsAndRoutesThreadWorkToItsOwner() async throws {
-        let fixture = try await Self.makeFixture()
+        let fixture = try await Self.makeFixture(useV2Socket: true)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
 
         let snapshot = try await fixture.client.initialSnapshot()
@@ -365,6 +365,9 @@ final class NativeMultiEnvironmentTests: XCTestCase {
 
         let records = await fixture.transport.dispatchRecords()
         XCTAssertEqual(records.map(\.host), ["two.example", "two.example"])
+        XCTAssertEqual(records.map(\.tag), [
+            RPCMethod.dispatchCommand.rawValue, RPCMethod.dispatchCommand.rawValue,
+        ])
         let turnSelection = try XCTUnwrap(
             records.last?.command["modelSelection"]?.decode(ModelSelection.self)
         )
@@ -854,7 +857,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
     }
 
     func testThreadCreationCannotReplaceNewerEnvironmentStateWithAnOlderShell() async throws {
-        let fixture = try await Self.makeFixture()
+        let fixture = try await Self.makeFixture(useV2Socket: true)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
         _ = try await fixture.client.initialSnapshot()
 
@@ -1000,7 +1003,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
     }
 
     func testDuplicateWireIDsRemainDistinctAndRouteByEnvironment() async throws {
-        let fixture = try await Self.makeFixture(duplicateIDs: true)
+        let fixture = try await Self.makeFixture(duplicateIDs: true, useV2Socket: true)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
 
         let snapshot = try await fixture.client.initialSnapshot()
@@ -1023,7 +1026,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
     }
 
     func testPassiveCreateUsesOwningProjectDefaultAndFallbackRemainsRoutable() async throws {
-        let fixture = try await Self.makeFixture()
+        let fixture = try await Self.makeFixture(useV2Socket: true)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
 
         let snapshot = try await fixture.client.initialSnapshot()
@@ -1043,21 +1046,24 @@ final class NativeMultiEnvironmentTests: XCTestCase {
 
         let records = await fixture.transport.dispatchRecords()
         XCTAssertEqual(records.map(\.host), ["two.example", "two.example"])
-        XCTAssertEqual(records[0].command["type"]?.stringValue, "thread.create")
-        XCTAssertEqual(records[0].command["projectId"]?.stringValue, "project-two")
+        let launch = try XCTUnwrap(records.first)
+        let rename = try XCTUnwrap(records.dropFirst().first)
+        XCTAssertEqual(launch.tag, "orchestration.launchThread")
+        XCTAssertEqual(rename.tag, RPCMethod.dispatchCommand.rawValue)
+        XCTAssertEqual(launch.command["projectId"]?.stringValue, "project-two")
         XCTAssertEqual(
-            records[0].command["modelSelection"]?["instanceId"]?.stringValue,
+            launch.command["modelSelection"]?["instanceId"]?.stringValue,
             "claudeAgent"
         )
         XCTAssertEqual(
-            records[1].command["threadId"]?.stringValue,
+            rename.command["threadId"]?.stringValue,
             created.wireID
         )
         await fixture.client.disconnect()
     }
 
     func testPassiveCreateRecoversACommittedThreadAfterItsReplyIsLost() async throws {
-        let fixture = try await Self.makeFixture()
+        let fixture = try await Self.makeFixture(useV2Socket: true)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let snapshot = try await fixture.client.initialSnapshot()
         let project = try XCTUnwrap(
@@ -1074,7 +1080,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
         XCTAssertEqual(created.title, "Recovered task")
         XCTAssertEqual(created.environmentID, "two")
         let creates = await fixture.transport.dispatchRecords().filter {
-            $0.command["type"]?.stringValue == "thread.create"
+            $0.tag == "orchestration.launchThread"
         }
         XCTAssertEqual(creates.count, 1)
         XCTAssertEqual(creates.first?.command["threadId"]?.stringValue, created.wireID)
@@ -1082,7 +1088,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
     }
 
     func testUnarchiveImmediatelyRestoresLiveThreadWhenRefreshIsUnavailable() async throws {
-        let fixture = try await Self.makeFixture()
+        let fixture = try await Self.makeFixture(useV2Socket: true)
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
         let initial = try await fixture.client.initialSnapshot()
         let thread = try XCTUnwrap(
@@ -1170,6 +1176,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
         repositoryIdentity: RepositoryIdentity? = nil,
         pullRequestsAvailable: Bool = false,
         webSocketConnector: any WebSocketConnecting = UnavailableMultiEnvironmentWebSocketConnector(),
+        useV2Socket: Bool = false,
         rpcConnectionWaitTimeout: Duration = .milliseconds(5),
         fallbackPollingInitialDelay: Duration = .seconds(3),
         fallbackPollingInterval: Duration = .seconds(2),
@@ -1256,6 +1263,11 @@ final class NativeMultiEnvironmentTests: XCTestCase {
             )
         }
         let transport = MultiEnvironmentHTTPTransport(shells: shells)
+        let connector: any WebSocketConnecting = useV2Socket
+            ? MultiEnvironmentConfigurationConnector(
+                server: MultiEnvironmentConfigurationServer(), transport: transport
+            )
+            : webSocketConnector
         var environmentCredentials = [
             "one": EnvironmentCredential(accessToken: "one-token"),
             "two": EnvironmentCredential(accessToken: "two-token"),
@@ -1267,7 +1279,7 @@ final class NativeMultiEnvironmentTests: XCTestCase {
             environmentStore: store,
             credentialStore: InMemoryCredentialStore(credentials: environmentCredentials),
             httpTransport: transport,
-            webSocketConnector: webSocketConnector,
+            webSocketConnector: connector,
             rpcConnectionWaitTimeout: rpcConnectionWaitTimeout
         )
         let settings = UserDefaults(
@@ -1782,6 +1794,7 @@ private actor MultiEnvironmentHTTPTransport: HTTPTransport {
     private var shellReadsEnabledHosts: Set<String>
     private var shellReadCounts: [String: Int] = [:]
     private var dispatched: [MultiEnvironmentDispatchRecord] = []
+    private var archivedShellsByHost: [String: [String: OrchestrationThreadShell]] = [:]
     private var hostsDroppingNextCreateReply = Set<String>()
     private var diffRequests: [(host: String, input: JSONValue)] = []
 
@@ -1837,6 +1850,59 @@ private actor MultiEnvironmentHTTPTransport: HTTPTransport {
         hostsDroppingNextCreateReply.insert(host)
     }
 
+    func socketResponse(to request: JSONValue, host: String) throws -> JSONValue? {
+        guard let tag = request["tag"]?.stringValue,
+              case let .number(id)? = request["id"] else { return nil }
+        if tag == RPCMethod.getArchivedShellSnapshot.rawValue {
+            let shell = OrchestrationShellSnapshot(
+                snapshotSequence: shells[host]?.snapshotSequence ?? 0,
+                projects: shells[host]?.projects ?? [],
+                threads: Array(archivedShellsByHost[host, default: [:]].values),
+                updatedAt: shells[host]?.updatedAt ?? "2026-09-04T12:00:00.000Z"
+            )
+            return .object([
+                "_tag": .string("Exit"), "requestId": .number(id),
+                "exit": .object(["_tag": .string("Success"), "value": try .encode(shell)]),
+            ])
+        }
+        guard tag == "orchestration.launchThread" || tag == RPCMethod.dispatchCommand.rawValue,
+              let command = request["payload"] else { return nil }
+        dispatched.append(MultiEnvironmentDispatchRecord(host: host, tag: tag, command: command))
+        if tag == RPCMethod.dispatchCommand.rawValue,
+           let threadID = command["threadId"]?.stringValue {
+            if command["type"]?.stringValue == "thread.archive",
+               let shell = shells[host]?.threads.first(where: { $0.id == threadID }),
+               case var .object(fields) = try JSONValue.encode(shell) {
+                fields["archivedAt"] = .string("2026-09-04T12:00:00.000Z")
+                archivedShellsByHost[host, default: [:]][threadID] = try JSONValue.object(fields)
+                    .decode(OrchestrationThreadShell.self)
+            } else if command["type"]?.stringValue == "thread.unarchive" {
+                archivedShellsByHost[host]?[threadID] = nil
+            }
+        }
+        if tag == "orchestration.launchThread",
+           hostsDroppingNextCreateReply.remove(host) != nil,
+           let projectID = command["projectId"]?.stringValue,
+           let threadID = command["threadId"]?.stringValue {
+            let model = command["modelSelection"]
+            shellData[host] = try JSONEncoder.t3.encode(multiEnvironmentShell(
+                projectID: projectID,
+                threadID: threadID,
+                title: command["title"]?.stringValue ?? "New thread",
+                providerID: model?["instanceId"]?.stringValue ?? "codex",
+                modelID: model?["model"]?.stringValue ?? "gpt-5.6-sol"
+            ))
+            throw URLError(.networkConnectionLost)
+        }
+        let value: JSONValue = tag == "orchestration.launchThread"
+            ? .object(["threadId": command["threadId"] ?? .null])
+            : .object(["sequence": .number(2)])
+        return .object([
+            "_tag": .string("Exit"), "requestId": .number(id),
+            "exit": .object(["_tag": .string("Success"), "value": value]),
+        ])
+    }
+
     func data(for request: URLRequest) throws -> (Data, HTTPURLResponse) {
         let host = request.url?.host ?? ""
         let path = request.url?.path ?? ""
@@ -1856,7 +1922,9 @@ private actor MultiEnvironmentHTTPTransport: HTTPTransport {
             return (data, multiEnvironmentResponse(request))
         }
         if path.hasPrefix("/api/orchestration/threads/") {
-            let threadID = request.url?.lastPathComponent.removingPercentEncoding ?? "thread"
+            let components = request.url?.pathComponents ?? []
+            let threadID = (components.last == "bounded" ? components.dropLast().last : components.last)?
+                .removingPercentEncoding ?? "thread"
             if let data = detailData[host]?[threadID] {
                 return (data, multiEnvironmentResponse(request))
             }
@@ -1874,7 +1942,9 @@ private actor MultiEnvironmentHTTPTransport: HTTPTransport {
             guard let body = request.httpBody else { throw URLError(.badServerResponse) }
             let command = try JSONDecoder.t3.decode(JSONValue.self, from: body)
             dispatched.append(
-                MultiEnvironmentDispatchRecord(host: host, command: command)
+                MultiEnvironmentDispatchRecord(
+                    host: host, tag: "legacy-http-dispatch", command: command
+                )
             )
             if command["type"]?.stringValue == "thread.create",
                hostsDroppingNextCreateReply.remove(host) != nil,
@@ -1913,6 +1983,7 @@ private actor MultiEnvironmentHTTPTransport: HTTPTransport {
 
 private struct MultiEnvironmentDispatchRecord: Sendable {
     let host: String
+    let tag: String
     let command: JSONValue
 }
 
@@ -1935,6 +2006,7 @@ private actor MultiEnvironmentConfigurationServer {
     private let routingIdentityHosts: Set<String>
     private let failPullRequestWrites: Bool
     private var prRequests: [(host: String, method: String, input: JSONValue)] = []
+    private var threadLaunches: [(host: String, input: JSONValue)] = []
 
     init(
         restartSupportHosts: Set<String> = [],
@@ -1962,6 +2034,7 @@ private actor MultiEnvironmentConfigurationServer {
     func settings(host: String) -> [String: JSONValue] { settingsByHost[host] ?? [:] }
     func fileRequests() -> [(host: String, input: JSONValue)] { directoryRequests }
     func pullRequestRequests() -> [(host: String, method: String, input: JSONValue)] { prRequests }
+    func launchRequests() -> [(host: String, input: JSONValue)] { threadLaunches }
 
     func response(to request: JSONValue, host: String) throws -> JSONValue? {
         guard let tag = request["tag"]?.stringValue,
@@ -2035,6 +2108,10 @@ private actor MultiEnvironmentConfigurationServer {
             value = try JSONValue.encode(OrchestrationShellSnapshot(
                 snapshotSequence: 0, projects: [], threads: [], updatedAt: "2026-09-04T12:00:00.000Z"
             ))
+        case "orchestration.launchThread":
+            let input = request["payload"] ?? .object([:])
+            threadLaunches.append((host, input))
+            value = .object(["threadId": input["threadId"] ?? .null])
         default:
             return nil
         }
@@ -2073,28 +2150,45 @@ private actor MultiEnvironmentConfigurationServer {
 
 private struct MultiEnvironmentConfigurationConnector: WebSocketConnecting {
     let server: MultiEnvironmentConfigurationServer
+    var transport: MultiEnvironmentHTTPTransport? = nil
 
     func connect(to url: URL) -> any WebSocketConnection {
-        MultiEnvironmentConfigurationConnection(host: url.host ?? "", server: server)
+        MultiEnvironmentConfigurationConnection(
+            host: url.host ?? "", server: server, transport: transport
+        )
     }
 }
 
 private actor MultiEnvironmentConfigurationConnection: WebSocketConnection {
     private let host: String
     private let server: MultiEnvironmentConfigurationServer
+    private let transport: MultiEnvironmentHTTPTransport?
     private var responses: [Data] = []
     private var receiver: CheckedContinuation<Data, Error>?
     private var closed = false
 
-    init(host: String, server: MultiEnvironmentConfigurationServer) {
+    init(host: String, server: MultiEnvironmentConfigurationServer,
+         transport: MultiEnvironmentHTTPTransport?) {
         self.host = host
         self.server = server
+        self.transport = transport
     }
 
     func send(_ data: Data) async throws {
         guard !closed else { throw URLError(.networkConnectionLost) }
+        let frame = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard frame?["_tag"] as? String == "Request" else { return }
         let request = try JSONDecoder.t3.decode(JSONValue.self, from: data)
-        guard let response = try await server.response(to: request, host: host) else { return }
+        let response: JSONValue?
+        if let transport,
+           let handled = try await transport.socketResponse(to: request, host: host) {
+            response = handled
+        } else if let handled = try await server.response(to: request, host: host) {
+            response = handled
+        } else {
+            response = nil
+        }
+        guard let response else { return }
         let data = try JSONEncoder.t3.encode(response)
         if let receiver {
             self.receiver = nil

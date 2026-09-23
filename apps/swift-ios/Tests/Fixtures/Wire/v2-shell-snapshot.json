@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 2,
+  "snapshotSequence": 93,
+  "threads": [
+    {
+      "createdBy": "user",
+      "creationSource": "mobile",
+      "id": "241E8876-D2D7-4F6F-8933-6E9D358A9A95",
+      "projectId": "b551d2de-75d2-4722-856a-18a905449eb3",
+      "title": "Reply with READY only.",
+      "providerInstanceId": "codex",
+      "modelSelection": {
+        "instanceId": "codex",
+        "model": "gpt-6-astra",
+        "options": [
+          {
+            "id": "reasoningEffort",
+            "value": "medium"
+          },
+          {
+            "id": "serviceTier",
+            "value": "default"
+          }
+        ]
+      },
+      "runtimeMode": "full-access",
+      "interactionMode": "default",
+      "branch": "main",
+      "worktreePath": null,
+      "pullRequests": [],
+      "lineage": {
+        "parentThreadId": null,
+        "relationshipToParent": null,
+        "rootThreadId": "241E8876-D2D7-4F6F-8933-6E9D358A9A95"
+      },
+      "forkedFrom": null,
+      "activeProviderThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3A241E8876-D2D7-4F6F-8933-6E9D358A9A95%3Aordinal%3A1",
+      "latestRunId": "run:thread:241E8876-D2D7-4F6F-8933-6E9D358A9A95:ordinal:3",
+      "latestRunRequestedAt": "2026-09-22T19:46:58.025Z",
+      "latestRunStartedAt": "2026-09-22T19:46:58.033Z",
+      "latestRunCompletedAt": "2026-09-22T19:47:07.655Z",
+      "activeRunId": null,
+      "activityRunStartedAt": null,
+      "activityRunStatus": null,
+      "status": "interrupted",
+      "lastError": null,
+      "lastErrorClass": null,
+      "usageLimitResetAt": null,
+      "pendingRuntimeRequest": null,
+      "latestVisibleMessage": null,
+      "latestUserMessageAt": "2026-09-22T19:46:58.025Z",
+      "hasActionableProposedPlan": false,
+      "pendingBackgroundTasks": [],
+      "providerInstanceHistory": [
+        "codex"
+      ],
+      "itemCount": 13,
+      "visibleItemCount": 13,
+      "createdAt": "2026-09-22T19:45:28.882Z",
+      "updatedAt": "2026-09-22T19:47:07.655Z",
+      "archivedAt": null,
+      "settledOverride": null,
+      "settledAt": null,
+      "unsettledAt": null,
+      "snoozedUntil": null,
+      "snoozedAt": null,
+      "limitRecovery": null,
+      "pinnedAt": null,
+      "pinOrderKey": null,
+      "lastVisitedAt": null,
+      "titleRegeneration": null,
+      "deletedAt": null
+    }
+  ],
+  "archivedThreads": [],
+  "projects": [
+    {
+      "id": "b551d2de-75d2-4722-856a-18a905449eb3",
+      "title": "Swift v2 test",
+      "workspaceRoot": "/workspace/swift-v2-test",
+      "repositoryIdentity": null,
+      "defaultModelSelection": null,
+      "defaultThreadEnvMode": null,
+      "autoPull": false,
+      "faviconPath": null,
+      "projectIcon": null,
+      "scripts": [],
+      "createdAt": "2026-09-22T19:43:44.202Z",
+      "updatedAt": "2026-09-22T19:43:44.202Z"
+    }
+  ]
+}

@@ -68,7 +68,7 @@ final class NativeContractExpansionTests: XCTestCase {
             createdAt: "2026-07-30T12:00:00.000Z"
         )
 
-        guard case let .array(attachments)? = command["message"]?["attachments"] else {
+        guard case let .array(attachments)? = command["attachments"] else {
             return XCTFail("Expected an attachment array")
         }
         let attachment = try XCTUnwrap(attachments.first)
@@ -114,7 +114,7 @@ final class NativeContractExpansionTests: XCTestCase {
             uploadedAttachments: [image.uploadedJSONValue(id: "attachment-1")]
         )
 
-        guard case let .array(attachments)? = command["message"]?["attachments"],
+        guard case let .array(attachments)? = command["attachments"],
               let attachment = attachments.first else {
             return XCTFail("Expected an uploaded attachment reference")
         }

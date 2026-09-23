@@ -61,9 +61,14 @@ enum NativeConversationRewind {
                                 )
                             }
                         case let .event(event):
-                            guard event["payload"]?["threadId"]?.stringValue == threadID,
+                            guard (event["threadId"]?.stringValue == threadID
+                                    || event["payload"]?["threadId"]?.stringValue == threadID),
                                   case let .number(sequence)? = event["sequence"],
                                   sequence > Double(afterSequence) else { continue }
+                            if event["type"]?.stringValue == "run.updated",
+                               event["payload"]?["status"]?.stringValue == "rolled_back",
+                               case let .number(ordinal)? = event["payload"]?["ordinal"],
+                               ordinal > Double(turnCount) { return Int(sequence) }
                             if event["type"]?.stringValue == "thread.activity-appended",
                                let activity = event["payload"]?["activity"],
                                activity["kind"]?.stringValue == "checkpoint.revert.failed",

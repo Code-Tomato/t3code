@@ -1,5 +1,5 @@
 {
-  "type": "thread.user-input.respond",
+  "type": "runtime-request.respond",
   "commandId": "command-fixture",
   "threadId": "thread-fixture",
   "requestId": "question-fixture",
@@ -16,6 +16,5 @@
         "sizeBytes": 2
       }
     ]
-  },
-  "createdAt": "2026-08-07T12:00:00.000Z"
+  }
 }

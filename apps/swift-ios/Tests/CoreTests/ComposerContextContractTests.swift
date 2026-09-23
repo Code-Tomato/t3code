@@ -72,7 +72,7 @@ struct ComposerContextContractTests {
             threadID: "thread", text: ComposerContextReferences.format(record), runtimeMode: .fullAccess,
             context: context
         )
-        #expect(try command["message"]?["context"]?.decode(OrchestrationMessageContext.self) == context)
+        #expect(try command["context"]?.decode(OrchestrationMessageContext.self) == context)
     }
 
     @Test func pastedTextSourceTravelsOnUploadedFileReference() throws {

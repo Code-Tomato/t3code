@@ -232,7 +232,7 @@ final class CoreContractTests: XCTestCase {
         XCTAssertEqual(
             command,
             .object([
-                "type": .string("thread.meta.update"),
+                "type": .string("thread.metadata.update"),
                 "commandId": .string("command-title"),
                 "threadId": .string("thread-1"),
                 "regenerateTitle": .bool(true),

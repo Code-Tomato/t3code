@@ -648,6 +648,7 @@ public struct OrchestrationThreadDetailPage: Codable, Equatable, Sendable {
 public enum ShellStreamItem: Decodable, Sendable {
     case synchronized
     case snapshot(OrchestrationShellSnapshot)
+    case projectMetadata([OrchestrationProject])
     case projectUpserted(sequence: Int, project: OrchestrationProject)
     case projectRemoved(sequence: Int, projectID: String)
     case threadUpserted(sequence: Int, thread: OrchestrationThreadShell)
@@ -657,7 +658,8 @@ public enum ShellStreamItem: Decodable, Sendable {
     case refreshRequired
 
     private enum CodingKeys: String, CodingKey {
-        case kind, sequence, snapshot, project, projectId, thread, threadId
+        case kind, sequence, snapshot, project, projectId, thread, threadId,
+             resolvedRepositoryIdentityRoots
     }
 
     public init(from decoder: any Decoder) throws {
@@ -667,20 +669,20 @@ public enum ShellStreamItem: Decodable, Sendable {
         case "synchronized":
             self = .synchronized
         case "snapshot":
-            guard let snapshot = try? container.decode(
-                OrchestrationShellSnapshot.self,
-                forKey: .snapshot
-            ) else {
+            guard let raw = try? container.decode(JSONValue.self, forKey: .snapshot),
+                  let snapshot = try? OrchestrationV2Compatibility.shell(raw) else {
                 self = .refreshRequired
                 return
             }
-            self = .snapshot(snapshot)
-        case "project-upserted":
+            if container.contains(.resolvedRepositoryIdentityRoots) {
+                self = .projectMetadata(snapshot.projects)
+            } else {
+                self = .snapshot(snapshot)
+            }
+        case "project.updated", "project-upserted":
             guard let sequence = try? container.decode(Int.self, forKey: .sequence),
-                  let project = try? container.decode(
-                      OrchestrationProject.self,
-                      forKey: .project
-                  ) else {
+                  let raw = try? container.decode(JSONValue.self, forKey: .project),
+                  let project = try? OrchestrationV2Compatibility.projectValue(raw) else {
                 self = .refreshRequired
                 return
             }
@@ -688,7 +690,7 @@ public enum ShellStreamItem: Decodable, Sendable {
                 sequence: sequence,
                 project: project
             )
-        case "project-removed":
+        case "project.removed", "project-removed":
             guard let sequence = try? container.decode(Int.self, forKey: .sequence),
                   let projectID = try? container.decode(String.self, forKey: .projectId) else {
                 self = .refreshRequired
@@ -698,12 +700,10 @@ public enum ShellStreamItem: Decodable, Sendable {
                 sequence: sequence,
                 projectID: projectID
             )
-        case "thread-upserted":
+        case "thread.updated", "thread-upserted":
             guard let sequence = try? container.decode(Int.self, forKey: .sequence),
-                  let thread = try? container.decode(
-                      OrchestrationThreadShell.self,
-                      forKey: .thread
-                  ) else {
+                  let raw = try? container.decode(JSONValue.self, forKey: .thread),
+                  let thread = try? OrchestrationV2Compatibility.shellThreadValue(raw) else {
                 self = .refreshRequired
                 return
             }
@@ -711,7 +711,7 @@ public enum ShellStreamItem: Decodable, Sendable {
                 sequence: sequence,
                 thread: thread
             )
-        case "thread-removed":
+        case "thread.removed", "thread-removed":
             guard let sequence = try? container.decode(Int.self, forKey: .sequence),
                   let threadID = try? container.decode(String.self, forKey: .threadId) else {
                 self = .refreshRequired
@@ -732,7 +732,10 @@ public enum ThreadStreamItem: Decodable, Sendable {
     case snapshot(OrchestrationThreadDetailSnapshot)
     case event(JSONValue)
 
-    private enum CodingKeys: String, CodingKey { case kind, snapshot, event }
+    private enum CodingKeys: String, CodingKey {
+        case kind, snapshot, event, sequence, snapshotSequence, projection,
+             historyCursor, hasMoreHistory
+    }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -741,16 +744,31 @@ public enum ThreadStreamItem: Decodable, Sendable {
         case "synchronized":
             self = .synchronized
         case "snapshot":
-            guard let snapshot = try? container.decode(
-                OrchestrationThreadDetailSnapshot.self,
-                forKey: .snapshot
-            ) else {
+            let raw: JSONValue
+            if let wrapped = try? container.decode(JSONValue.self, forKey: .snapshot) {
+                raw = wrapped
+            } else {
+                raw = .object([
+                    "snapshotSequence": (try? container.decode(JSONValue.self, forKey: .snapshotSequence)) ?? .number(0),
+                    "projection": (try? container.decode(JSONValue.self, forKey: .projection)) ?? .null,
+                    "historyCursor": (try? container.decode(JSONValue.self, forKey: .historyCursor)) ?? .null,
+                    "hasMoreHistory": (try? container.decode(JSONValue.self, forKey: .hasMoreHistory)) ?? .bool(false),
+                ])
+            }
+            guard let snapshot = try? OrchestrationV2Compatibility.detail(raw) else {
                 self = .event(.null)
                 return
             }
             self = .snapshot(snapshot)
         case "event":
-            self = .event((try? container.decode(JSONValue.self, forKey: .event)) ?? .null)
+            let raw = (try? container.decode(JSONValue.self, forKey: .event)) ?? .null
+            if case var .object(fields) = raw {
+                fields["sequence"] = (try? container.decode(JSONValue.self, forKey: .sequence))
+                    ?? fields["sequence"] ?? .null
+                self = .event(.object(fields))
+            } else {
+                self = .event(.null)
+            }
         default:
             // The detail reducer already treats an unrecognized event as an
             // authoritative-refresh request. Reuse that path without adding a

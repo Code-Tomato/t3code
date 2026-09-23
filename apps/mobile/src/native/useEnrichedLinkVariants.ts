@@ -128,20 +128,21 @@ export function useEnrichedLinkVariants(
           return [
             enrichedLinkVariantPattern(url),
             {
-              pill: true,
-              label: link.label,
-              iconUri: iconUri(link.icon, downloaded),
-              iconTintColor: link.iconTintColor,
+              pill: {
+                label: link.label,
+                iconUri: iconUri(link.icon, downloaded),
+                iconTintColor: link.iconTintColor,
+                borderColor:
+                  props.textStyle.contextChipBorderColor ?? themeColorWithAlpha(color, 0.2),
+                borderWidth: 0.5,
+                borderRadius: 6,
+                paddingHorizontal: 5,
+                paddingVertical: 2,
+              },
               fontFamily: props.textStyle.fontFamily,
               color,
               underline: false,
               backgroundColor: themeColorWithAlpha(color, 0.08),
-              borderColor:
-                props.textStyle.contextChipBorderColor ?? themeColorWithAlpha(color, 0.2),
-              borderWidth: 0.5,
-              borderRadius: 6,
-              paddingHorizontal: 5,
-              paddingVertical: 2,
             },
           ];
         }),

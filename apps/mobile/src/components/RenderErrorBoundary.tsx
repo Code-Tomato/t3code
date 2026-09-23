@@ -87,22 +87,6 @@ export class RenderErrorBoundary extends Component<
   }
 
   override componentDidCatch(error: unknown, info: { componentStack?: string }) {
-    if (
-      shouldRethrowAsFatal({
-        fatalIfFirstPaintFails: this.props.fatalIfFirstPaintFails === true,
-        childCommitted: this.childCommitted,
-      })
-    ) {
-      // Rethrowing inside the error phase would re-enter the boundary; the
-      // macrotask throw reaches the global handler (dev redbox in dev,
-      // expo-updates ErrorRecovery fatal + rollback in store builds). Not
-      // recorded here: ErrorRecovery logs the fatal itself, and Diagnostics
-      // already surfaces that log — recording it too would double-report.
-      setTimeout(() => {
-        throw error;
-      }, 0);
-      return;
-    }
     recordRenderError(error, this.props.scope, { componentStack: info.componentStack });
     // Keep the component path for the recovery view's "Copy details" too —
     // in release builds it may be the only component stack anyone ever sees.
@@ -128,6 +112,24 @@ export class RenderErrorBoundary extends Component<
 
   override render() {
     if (this.state.failed) {
+      if (
+        shouldRethrowAsFatal({
+          fatalIfFirstPaintFails: this.props.fatalIfFirstPaintFails === true,
+          childCommitted: this.childCommitted,
+        })
+      ) {
+        // Cold-launch Home failure: rethrow inside this failed render pass.
+        // Nothing above the seam catches, so React unwinds the whole
+        // in-progress commit and nothing ever paints — no fallback frame, no
+        // first-content signal for expo-updates to treat the launch as
+        // successful. This is deliberately the exact same code path a render
+        // throw took before boundaries existed, so ErrorRecovery's startup
+        // failure handling (cached-update rollback + its crash log) behaves
+        // identically to pre-PR. componentDidCatch never runs for this pass
+        // (the commit is discarded), so the fatal is not also recorded in the
+        // render-error log — Diagnostics reads the ErrorRecovery log instead.
+        throw this.state.error;
+      }
       if (this.props.fallback) {
         const Fallback = this.props.fallback;
         return (

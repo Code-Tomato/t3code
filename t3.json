@@ -4,7 +4,7 @@
   "scripts": [
     {
       "name": "Setup Worktree",
-      "command": "if command -v vp >/dev/null 2>&1; then vp i; else \"$T3CODE_PROJECT_ROOT/node_modules/.bin/vp\" i; fi && ln -sf \"$T3CODE_PROJECT_ROOT/.env\" .env && ln -sf \"$T3CODE_PROJECT_ROOT/infra/relay/.env\" infra/relay/.env && node apps/web/scripts/warm-dep-cache.ts",
+      "command": "sh -c 'if command -v vp >/dev/null 2>&1; then vp i; else \"$T3CODE_PROJECT_ROOT/node_modules/.bin/vp\" i; fi' && ln -sf \"$T3CODE_PROJECT_ROOT/.env\" .env && ln -sf \"$T3CODE_PROJECT_ROOT/infra/relay/.env\" infra/relay/.env && node apps/web/scripts/warm-dep-cache.ts",
       "icon": "configure",
       "runOnWorktreeCreate": true
     },

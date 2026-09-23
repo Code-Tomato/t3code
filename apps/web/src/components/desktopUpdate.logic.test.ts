@@ -346,4 +346,15 @@ describe("getDesktopUpdateButtonTooltip", () => {
       "Up to date",
     );
   });
+
+  it("shows the disabled reason instead of 'Up to date' when updates are off", () => {
+    const disabled: DesktopUpdateState = { ...baseState, enabled: false, status: "disabled" };
+    expect(
+      getDesktopUpdateButtonTooltip({
+        ...disabled,
+        message: "T3 Code was installed with dnf. Update it with: sudo dnf upgrade",
+      }),
+    ).toBe("T3 Code was installed with dnf. Update it with: sudo dnf upgrade");
+    expect(getDesktopUpdateButtonTooltip(disabled)).toBe("Automatic updates are off.");
+  });
 });

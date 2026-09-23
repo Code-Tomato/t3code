@@ -809,6 +809,15 @@ enum MarkdownCodeBlockWrapping {
     }
 }
 
+enum MarkdownLinkInteractionPolicy {
+    static func shouldOpenURL(for interaction: UITextItemInteraction) -> Bool {
+        if #available(iOS 17.0, *) {
+            return false
+        }
+        return interaction == .invokeDefaultAction
+    }
+}
+
 private struct MarkdownInlineText: UIViewRepresentable {
     @SwiftUI.Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @SwiftUI.Environment(\.openURL) private var openURL
@@ -1086,6 +1095,7 @@ private struct MarkdownInlineText: UIViewRepresentable {
             return UIMenu(children: suggestedActions + [copyMessage])
         }
 
+        @available(iOS 17.0, *)
         func textView(
             _ textView: UITextView,
             primaryActionFor textItem: UITextItem,
@@ -1095,6 +1105,19 @@ private struct MarkdownInlineText: UIViewRepresentable {
             return UIAction { [weak self] _ in
                 self?.onOpenURL?(url)
             }
+        }
+
+        func textView(
+            _ textView: UITextView,
+            shouldInteractWith url: URL,
+            in characterRange: NSRange,
+            interaction: UITextItemInteraction
+        ) -> Bool {
+            guard MarkdownLinkInteractionPolicy.shouldOpenURL(for: interaction) else {
+                return true
+            }
+            onOpenURL?(url)
+            return false
         }
 
         private func copyMessage() {

@@ -1,13 +1,13 @@
 # T3 Code (SwiftUI)
 
-A native SwiftUI client for T3 Code. The project targets iOS 17 and later on
+A native SwiftUI client for T3 Code. The project targets iOS 16.2 and later on
 iPhone and iPad. It has its own bundle identifier and can be installed beside the
 React Native T3 Code app.
 
 ## Requirements
 
 - A current Xcode release with an iOS Simulator runtime.
-- iOS 17 or later for physical-device builds.
+- iOS 16.2 or later for physical-device builds.
 - A T3 pairing URL for direct connections. T3 Connect builds additionally need
   the cloud settings below.
 

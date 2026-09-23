@@ -1,6 +1,6 @@
+import Combine
 import ClerkKit
 import Foundation
-import Observation
 import OSLog
 
 public extension Notification.Name {
@@ -50,8 +50,7 @@ protocol T3ConnectDeviceManaging: AnyObject {
 }
 
 @MainActor
-@Observable
-public final class T3ConnectController: T3ConnectDeviceManaging {
+public final class T3ConnectController: ObservableObject, T3ConnectDeviceManaging {
     private static let logger = Logger(
         subsystem: "codes.t3.swift-ios",
         category: "T3Connect"
@@ -59,7 +58,7 @@ public final class T3ConnectController: T3ConnectDeviceManaging {
     public let resolution: T3ConnectConfigurationResolution
     public let managedAuthorizer: T3ConnectManagedEnvironmentAuthorizer
 
-    public private(set) var account: T3ConnectAccount? {
+    @Published public private(set) var account: T3ConnectAccount? {
         didSet {
             guard oldValue != account else { return }
             var accountIDs: [String: String] = [:]
@@ -76,10 +75,10 @@ public final class T3ConnectController: T3ConnectDeviceManaging {
             )
         }
     }
-    public private(set) var environments: [T3ConnectCloudEnvironment] = []
-    public private(set) var isRefreshing = false
-    public private(set) var busyEnvironmentID: String?
-    public var errorMessage: String?
+    @Published public private(set) var environments: [T3ConnectCloudEnvironment] = []
+    @Published public private(set) var isRefreshing = false
+    @Published public private(set) var busyEnvironmentID: String?
+    @Published public var errorMessage: String?
 
     private let auth: T3ConnectClerkSession?
     private let relay: T3ConnectRelayClient?

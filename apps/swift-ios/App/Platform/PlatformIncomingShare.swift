@@ -1,5 +1,5 @@
+import Combine
 import Foundation
-import Observation
 import SwiftUI
 
 enum PlatformIncomingShareError: LocalizedError, Equatable {
@@ -272,10 +272,9 @@ struct PlatformIncomingSharePipeline: Sendable {
 }
 
 @MainActor
-@Observable
-final class PlatformIncomingShareCoordinator {
-    private(set) var pendingEnvelope: T3IncomingShareEnvelope?
-    private(set) var isImporting = false
+final class PlatformIncomingShareCoordinator: ObservableObject {
+    @Published private(set) var pendingEnvelope: T3IncomingShareEnvelope?
+    @Published private(set) var isImporting = false
 
     private let pipeline: PlatformIncomingSharePipeline
     private var isRefreshing = false

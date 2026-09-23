@@ -3,7 +3,7 @@ import UIKit
 
 public struct ConnectionOnboardingView: View {
     @SwiftUI.Environment(\.scenePhase) private var scenePhase
-    @Bindable private var model: FeatureRootModel
+    @ObservedObject private var model: FeatureRootModel
 
     private let readinessChecker: any ConnectionReadinessChecking
     private let onConnected: @MainActor () -> Void
@@ -122,7 +122,7 @@ public struct ConnectionOnboardingView: View {
             stage = .details
             focusedField = .pairingCode
         }
-        .onChange(of: scenePhase) { _, newPhase in
+        .t3OnChange(of: scenePhase) { _, newPhase in
             if newPhase == .active, showsPermissionAction {
                 showsPermissionAction = false
                 errorMessage = nil
@@ -303,7 +303,7 @@ public struct ConnectionOnboardingView: View {
                         "Server address",
                         text: $endpoint,
                         prompt: Text("http://192.168.1.5:3773")
-                            .foregroundStyle(T3Colors.placeholder)
+                            .foregroundColor(T3Colors.placeholder)
                     )
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
@@ -314,7 +314,7 @@ public struct ConnectionOnboardingView: View {
                         .accessibilityIdentifier("connection-onboarding-address")
                         .submitLabel(.next)
                         .onSubmit { focusedField = .pairingCode }
-                        .onChange(of: endpoint) { _, value in
+                        .t3OnChange(of: endpoint) { _, value in
                             autofillIfPairingLink(value)
                         }
                 }
@@ -328,7 +328,7 @@ public struct ConnectionOnboardingView: View {
                         "Pairing code",
                         text: $pairingCode,
                         prompt: Text("Enter pairing code")
-                            .foregroundStyle(T3Colors.placeholder)
+                            .foregroundColor(T3Colors.placeholder)
                     )
                         .textInputAutocapitalization(.never)
                         .textContentType(.oneTimeCode)

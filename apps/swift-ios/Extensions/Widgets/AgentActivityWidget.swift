@@ -6,7 +6,6 @@ struct T3TaskLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LiveActivityAttributes.self) { context in
             T3LiveActivityLockScreenView(context: context)
-                .activityBackgroundTint(Color(uiColor: .systemBackground))
                 .activitySystemActionForegroundColor(Color(uiColor: .label))
                 .widgetURL(T3ActivityPresentation(state: context.state).deepLinkURL)
         } dynamicIsland: { context in

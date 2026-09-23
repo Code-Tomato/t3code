@@ -198,7 +198,7 @@ struct FeatureNativeMediaPreviewView: View {
             } else if let fileURL = loader.fileURL {
                 preview(fileURL)
             } else if let errorMessage = loader.errorMessage {
-                ContentUnavailableView {
+                T3ContentUnavailableView {
                     Label("Preview unavailable", systemImage: "doc.badge.ellipsis")
                 } description: { Text(errorMessage) } actions: {
                     Button("Try again") { Task { await loader.load(source: source, fileName: fileName) } }
@@ -257,7 +257,7 @@ struct FeatureNativeMediaPreviewView: View {
             if let image = UIImage(contentsOfFile: url.path) {
                 FeatureNativeZoomableImageView(image: image)
             } else {
-                ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
+                T3ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
             }
         case .video:
             FeatureVideoPlayerView(url: url)
@@ -276,7 +276,7 @@ private struct FeatureVideoPlayerView: View {
     var body: some View {
         Group {
             if playback.failed {
-                ContentUnavailableView {
+                T3ContentUnavailableView {
                     Label("Video unavailable", systemImage: "video.slash")
                 } description: { Text("The video could not load.") } actions: {
                     Button("Try again") { playback.load(url) }

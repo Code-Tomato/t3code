@@ -8,7 +8,7 @@ public struct FeatureFilesView: View {
     let initialPath: String?
     let workspaceRoot: String?
 
-    @State private var browser = FeatureFileBrowserState()
+    @StateObject private var browser = FeatureFileBrowserState()
 
     public init(
         client: any FeatureClient,
@@ -52,7 +52,7 @@ public struct FeatureFilesView: View {
 
 private struct FeatureFileDirectoryView: View {
     let client: any FeatureClient
-    let browser: FeatureFileBrowserState
+    @ObservedObject var browser: FeatureFileBrowserState
     let threadID: String
     let path: String?
     let title: String
@@ -91,14 +91,14 @@ private struct FeatureFileDirectoryView: View {
                     .foregroundStyle(T3Colors.textSecondary)
                     .listRowBackground(Color.clear)
             } else if listing.entries == nil, listing.errorMessage != nil {
-                ContentUnavailableView(
+                T3ContentUnavailableView(
                     "Files unavailable",
                     systemImage: "folder.badge.questionmark"
                 )
                 .listRowBackground(Color.clear)
             }
             if listing.entries != nil, filteredEntries.isEmpty {
-                ContentUnavailableView(
+                T3ContentUnavailableView(
                     searchText.isEmpty ? "Empty folder" : "No matches",
                     systemImage: "folder",
                     description: Text(searchText.isEmpty ? "This folder has no visible files." : "Try another search.")
@@ -272,7 +272,7 @@ private struct FeatureFilePreviewView: View {
                     }
                 }
             } else {
-                ContentUnavailableView(
+                T3ContentUnavailableView(
                     previewKind == .image ? "Image unavailable" : "File unavailable",
                     systemImage: previewKind == .image ? "photo.badge.exclamationmark" : "doc.badge.ellipsis",
                     description: Text(errorMessage ?? "The file could not be read.")

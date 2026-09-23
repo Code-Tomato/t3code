@@ -13,6 +13,7 @@ enum T3SubscriptionPeriod: String, AppEnum {
     ]
 }
 
+@available(iOS 17.0, *)
 struct T3SubscriptionUsageConfiguration: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Subscription usage"
     static let description = IntentDescription("Choose the limits shown for each provider.")
@@ -27,27 +28,48 @@ struct T3SubscriptionUsageConfiguration: WidgetConfigurationIntent {
 private struct T3SubscriptionUsageEntry: TimelineEntry {
     let date: Date
     let snapshot: T3SubscriptionUsageSnapshot
-    let configuration: T3SubscriptionUsageConfiguration
+    var codexPeriod: T3SubscriptionPeriod = .both
+    var claudePeriod: T3SubscriptionPeriod = .both
 }
 
+@available(iOS 17.0, *)
 private struct T3SubscriptionUsageProvider: AppIntentTimelineProvider {
     func placeholder(in _: Context) -> T3SubscriptionUsageEntry {
-        .init(date: Date(), snapshot: .empty, configuration: .init())
+        .init(date: Date(), snapshot: .empty)
     }
 
     func snapshot(for configuration: T3SubscriptionUsageConfiguration, in _: Context) async -> T3SubscriptionUsageEntry {
-        .init(date: Date(), snapshot: T3SubscriptionUsageSnapshotStore.load(), configuration: configuration)
+        .init(date: Date(), snapshot: T3SubscriptionUsageSnapshotStore.load(), codexPeriod: configuration.codexPeriod, claudePeriod: configuration.claudePeriod)
     }
 
     func timeline(for configuration: T3SubscriptionUsageConfiguration, in _: Context) async -> Timeline<T3SubscriptionUsageEntry> {
         let snapshot = T3SubscriptionUsageSnapshotStore.load()
         let entries = snapshot.timelineDates(from: Date()).map {
-            T3SubscriptionUsageEntry(date: $0, snapshot: snapshot, configuration: configuration)
+            T3SubscriptionUsageEntry(date: $0, snapshot: snapshot, codexPeriod: configuration.codexPeriod, claudePeriod: configuration.claudePeriod)
         }
         return Timeline(entries: entries, policy: .never)
     }
 }
 
+private struct T3StaticSubscriptionUsageProvider: TimelineProvider {
+    func placeholder(in _: Context) -> T3SubscriptionUsageEntry {
+        .init(date: Date(), snapshot: .empty)
+    }
+
+    func getSnapshot(in _: Context, completion: @escaping (T3SubscriptionUsageEntry) -> Void) {
+        completion(.init(date: Date(), snapshot: T3SubscriptionUsageSnapshotStore.load()))
+    }
+
+    func getTimeline(in _: Context, completion: @escaping (Timeline<T3SubscriptionUsageEntry>) -> Void) {
+        let snapshot = T3SubscriptionUsageSnapshotStore.load()
+        let entries = snapshot.timelineDates(from: Date()).map {
+            T3SubscriptionUsageEntry(date: $0, snapshot: snapshot)
+        }
+        completion(Timeline(entries: entries, policy: .never))
+    }
+}
+
+@available(iOS 17.0, *)
 struct T3SubscriptionUsageWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
@@ -57,6 +79,22 @@ struct T3SubscriptionUsageWidget: Widget {
         ) { entry in
             T3SubscriptionUsageView(entry: entry)
                 .containerBackground(.black, for: .widget)
+        }
+        .configurationDisplayName("Subscription usage")
+        .description("Pooled Codex and Claude limits. Open T3 to refresh.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular])
+    }
+}
+
+struct T3StaticSubscriptionUsageWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(
+            kind: T3SubscriptionUsageSnapshotStore.kind,
+            provider: T3StaticSubscriptionUsageProvider()
+        ) { entry in
+            T3SubscriptionUsageView(entry: entry)
+                .padding()
+                .background(.black)
         }
         .configurationDisplayName("Subscription usage")
         .description("Pooled Codex and Claude limits. Open T3 to refresh.")
@@ -108,7 +146,7 @@ private struct T3SubscriptionUsageView: View {
     }
 
     private func providerColumn(_ provider: T3SubscriptionUsageSnapshot.Provider) -> some View {
-        let period = provider.id == "codex" ? entry.configuration.codexPeriod : entry.configuration.claudePeriod
+        let period = provider.id == "codex" ? entry.codexPeriod : entry.claudePeriod
         let shown = provider.visibleWindows(period: period.rawValue, limit: limit, at: now, tightestOnly: accessory)
         let missingPeriod = period != .both && shown.isEmpty && provider.isFresh(at: now) && !provider.windows.isEmpty
         let detail = missingPeriod ? "No \(period.rawValue) limit reported" : provider.detail(at: now)

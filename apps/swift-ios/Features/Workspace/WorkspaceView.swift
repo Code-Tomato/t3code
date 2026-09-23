@@ -36,8 +36,9 @@ struct WorkspaceThreadSelection: Equatable {
 
 public struct WorkspaceView: View {
     @SwiftUI.Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @SwiftUI.Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
     private let navigationRequest: FeatureWorkspaceNavigationRequest?
     private let onNavigationRequestConsumed: @MainActor (UUID) -> Void
     private let submitNewTask: (NewTaskRequest) async -> FeatureThread?
@@ -63,7 +64,7 @@ public struct WorkspaceView: View {
     @State private var deletingThread: FeatureThread?
     @State private var renameTitle = ""
     @State private var sidebarBoundaryNow = Date.now
-    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
+    @State private var prefersCompactDetail = false
     @State private var homePresentationCache = HomePresentationCache()
     @FocusState private var isSearchFocused: Bool
 
@@ -82,15 +83,37 @@ public struct WorkspaceView: View {
     }
 
     public var body: some View {
-        NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
-            sidebar
-                .navigationSplitViewColumnWidth(
-                    min: T3Metrics.minimumSidebarWidth,
-                    ideal: T3Metrics.sidebarWidth,
-                    max: T3Metrics.maximumSidebarWidth
-                )
-        } detail: {
-            detail
+        Group {
+            if #available(iOS 17.0, *) {
+                NavigationSplitView(preferredCompactColumn: preferredCompactColumn) {
+                    sidebar
+                        .navigationSplitViewColumnWidth(
+                            min: T3Metrics.minimumSidebarWidth,
+                            ideal: T3Metrics.sidebarWidth,
+                            max: T3Metrics.maximumSidebarWidth
+                        )
+                } detail: {
+                    detail
+                }
+            } else if horizontalSizeClass == .compact {
+                NavigationStack {
+                    sidebar
+                        .navigationDestination(isPresented: selectedThreadPresented) {
+                            detail
+                        }
+                }
+            } else {
+                NavigationSplitView {
+                    sidebar
+                        .navigationSplitViewColumnWidth(
+                            min: T3Metrics.minimumSidebarWidth,
+                            ideal: T3Metrics.sidebarWidth,
+                            max: T3Metrics.maximumSidebarWidth
+                        )
+                } detail: {
+                    detail
+                }
+            }
         }
         .navigationSplitViewStyle(.balanced)
         .sheet(isPresented: $showingNewTask) {
@@ -174,22 +197,19 @@ public struct WorkspaceView: View {
         } message: { thread in
             Text("\"\(thread.title)\" and its terminal history will be permanently deleted.")
         }
-        .onChange(of: selectedThreadIsAvailable) { _, isAvailable in
+        .t3OnChange(of: selectedThreadIsAvailable) { _, isAvailable in
             if !isAvailable { closeSelectedThread() }
         }
-        .onChange(of: selectedThreadID) { _, newValue in
-            preferredCompactColumn = newValue == nil ? .sidebar : .detail
-        }
-        .onChange(of: selectedProjectIsAvailable) { _, isAvailable in
+        .t3OnChange(of: selectedProjectIsAvailable) { _, isAvailable in
             if !isAvailable { selectedProjectID = nil }
         }
-        .onChange(of: navigationRequest?.id, initial: true) { _, _ in
+        .t3OnChange(of: navigationRequest?.id, initial: true) { _, _ in
             consumeNavigationRequest()
         }
         // A request that arrives before its thread or project exists in the
         // snapshot stays pending; retry it as data lands so cold-start deep
         // links are not silently stranded.
-        .onChange(of: model.homePresentationRevision) { _, _ in
+        .t3OnChange(of: model.homePresentationRevision) { _, _ in
             if navigationRequest != nil { consumeNavigationRequest() }
         }
         .task(id: nextSidebarBoundary) {
@@ -220,7 +240,7 @@ public struct WorkspaceView: View {
         }
         .background(T3Colors.background)
         .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: selectedProjectID) {
+        .t3OnChange(of: selectedProjectID) {
             settledLimit = 10
         }
     }
@@ -593,6 +613,23 @@ public struct WorkspaceView: View {
         return model.snapshot.threads.contains { $0.id == selectedThreadID }
     }
 
+    private var selectedThreadPresented: Binding<Bool> {
+        Binding(
+            get: { selectedThreadID != nil },
+            set: { if !$0 { closeSelectedThread() } }
+        )
+    }
+
+    // Stored as a Bool because `NavigationSplitViewColumn` is an iOS 17 type and
+    // cannot appear in this view's stored state while iOS 16 is supported.
+    @available(iOS 17.0, *)
+    private var preferredCompactColumn: Binding<NavigationSplitViewColumn> {
+        Binding(
+            get: { prefersCompactDetail ? .detail : .sidebar },
+            set: { prefersCompactDetail = $0 == .detail }
+        )
+    }
+
     private var selectedThreadID: String? { threadSelection.selectedID }
 
     private var selectedProjectIsAvailable: Bool {
@@ -602,12 +639,12 @@ public struct WorkspaceView: View {
 
     private func openThread(_ id: String) {
         threadSelection.open(id)
-        preferredCompactColumn = .detail
+        prefersCompactDetail = true
     }
 
     private func closeSelectedThread() {
         threadSelection.close()
-        preferredCompactColumn = .sidebar
+        prefersCompactDetail = false
     }
 
     @MainActor

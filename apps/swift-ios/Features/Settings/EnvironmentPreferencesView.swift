@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EnvironmentPreferencesView: View {
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
     let environmentID: String
     @State private var settings: ServerSettingsSnapshot?
     @State private var busy = false

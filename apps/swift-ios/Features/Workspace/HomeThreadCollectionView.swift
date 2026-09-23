@@ -1170,7 +1170,7 @@ private struct HomeCollectionCellContent: View {
             .padding(.horizontal, 34)
             .frame(minHeight: T3Metrics.minimumTapTarget)
         case .searchEmpty:
-            ContentUnavailableView("No matching tasks", systemImage: "magnifyingglass")
+            T3ContentUnavailableView("No matching tasks", systemImage: "magnifyingglass")
                 .foregroundStyle(T3Colors.textSecondary)
                 .frame(maxWidth: .infinity, minHeight: 160)
         case .pinnedDivider:

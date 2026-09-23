@@ -17,7 +17,7 @@ extension EnvironmentValues {
 }
 
 struct ProvidersSettingsView: View {
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
     var environmentID: String?
 
     var body: some View {
@@ -52,7 +52,7 @@ struct ProvidersSettingsView: View {
 
 private struct ProviderSetupView: View {
     @SwiftUI.Environment(\.openURL) private var openURL
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
     let environmentID: String
     let instanceID: String
     @State private var auth: ProviderAuthState?

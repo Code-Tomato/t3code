@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConnectionsView: View {
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
 
     @State private var pendingEnabledValues: [String: Bool] = [:]
     @State private var showingAddConnection = false
@@ -500,7 +500,7 @@ struct ConnectionsView: View {
 
 private struct ConnectionDetailView: View {
     @SwiftUI.Environment(\.dismiss) private var dismiss
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
     let environmentID: String
     @Binding var pendingEnabledValues: [String: Bool]
     let onRemove: () -> Void
@@ -572,7 +572,7 @@ private struct ConnectionDetailView: View {
                     }
                 }
             } else {
-                ContentUnavailableView("Connection removed", systemImage: "network.slash")
+                T3ContentUnavailableView("Connection removed", systemImage: "network.slash")
             }
         }
         .scrollContentBackground(.hidden)

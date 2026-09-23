@@ -9,7 +9,7 @@ public struct ThreadDetailView: View {
     @SwiftUI.Environment(\.openURL) private var parentOpenURL
     @SwiftUI.Environment(\.scenePhase) private var scenePhase
 
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
     let thread: FeatureThread
     let submitMessage: (FeatureMessageSubmission) async -> Bool
     let onNavigateBack: () -> Void
@@ -68,7 +68,7 @@ public struct ThreadDetailView: View {
             } else if isLoading {
                 FeatureThreadOpeningView()
             } else {
-                ContentUnavailableView {
+                T3ContentUnavailableView {
                     Label("Thread unavailable", systemImage: "exclamationmark.bubble")
                 } description: {
                     Text("The thread could not be loaded.")
@@ -125,19 +125,19 @@ public struct ThreadDetailView: View {
         .environment(\.providerSetupContext, currentThread.environmentID.map {
             ProviderSetupContext(model: model, environmentID: $0)
         })
-        .onChange(of: draft) { scheduleDraftSave() }
-        .onChange(of: selection) { scheduleDraftSave() }
-        .onChange(of: model.recoveredRewindDrafts[thread.id]) { _, recovered in
+        .t3OnChange(of: draft) { scheduleDraftSave() }
+        .t3OnChange(of: selection) { scheduleDraftSave() }
+        .t3OnChange(of: model.recoveredRewindDrafts[thread.id]) { _, recovered in
             if recovered != nil { restoreRewindDraft() }
         }
-        .onChange(of: threadConnectionState) { _, state in
+        .t3OnChange(of: threadConnectionState) { _, state in
             if state == .connected,
                case .failed = model.detailLoadStates[thread.id],
                !isLoading {
                 reloadThread()
             }
         }
-        .onChange(of: scenePhase) { _, phase in
+        .t3OnChange(of: scenePhase) { _, phase in
             if phase != .active {
                 persistDraftBeforeLeaving()
             }
@@ -762,7 +762,7 @@ public struct ThreadDetailView: View {
         return Group {
             if detail.messages.isEmpty, !hasActiveWork {
                 if refreshPresentation == nil {
-                    ContentUnavailableView(
+                    T3ContentUnavailableView(
                         "Ready for a task",
                         systemImage: "sparkles",
                         description: Text("Tell the agent what you want to build.")

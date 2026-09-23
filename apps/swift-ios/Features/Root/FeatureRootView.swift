@@ -1,12 +1,12 @@
 import SwiftUI
 
 public struct FeatureRootView: View {
-    @State private var model: FeatureRootModel
+    @StateObject private var model: FeatureRootModel
     private let navigationRequest: FeatureWorkspaceNavigationRequest?
     private let onNavigationRequestConsumed: @MainActor (UUID) -> Void
 
     public init(client: any FeatureClient) {
-        _model = State(initialValue: FeatureRootModel(client: client))
+        _model = StateObject(wrappedValue: FeatureRootModel(client: client))
         navigationRequest = nil
         onNavigationRequestConsumed = { _ in }
     }
@@ -16,7 +16,7 @@ public struct FeatureRootView: View {
         navigationRequest: FeatureWorkspaceNavigationRequest? = nil,
         onNavigationRequestConsumed: @escaping @MainActor (UUID) -> Void = { _ in }
     ) {
-        _model = State(initialValue: model)
+        _model = StateObject(wrappedValue: model)
         self.navigationRequest = navigationRequest
         self.onNavigationRequestConsumed = onNavigationRequestConsumed
     }

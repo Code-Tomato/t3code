@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 
 enum FeatureVoiceInputPhase: Equatable {
     case idle
@@ -133,22 +133,21 @@ private enum FeatureVoiceInputOperationGate {
 }
 
 @MainActor
-@Observable
-final class FeatureVoiceInputController {
+final class FeatureVoiceInputController: ObservableObject {
     static let maximumRecordingDuration: TimeInterval = 5 * 60
 
-    private(set) var phase: FeatureVoiceInputPhase = .idle
-    private(set) var errorMessage: String?
-    private(set) var errorAction: FeatureVoiceInputErrorAction?
-    private(set) var recordingStartedAt: Date?
-    private(set) var pendingCommit: FeatureVoiceTranscriptCommit?
+    @Published private(set) var phase: FeatureVoiceInputPhase = .idle
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var errorAction: FeatureVoiceInputErrorAction?
+    @Published private(set) var recordingStartedAt: Date?
+    @Published private(set) var pendingCommit: FeatureVoiceTranscriptCommit?
 
-    @ObservationIgnored private let adapter: any FeatureVoiceInputAdapter
-    @ObservationIgnored private var currentDraft: FeatureVoiceDraftSnapshot?
-    @ObservationIgnored private var capturedDraft: FeatureVoiceDraftSnapshot?
-    @ObservationIgnored private var operationID: UUID?
-    @ObservationIgnored private var operationTask: Task<Void, Never>?
-    @ObservationIgnored private var recordingLimitTask: Task<Void, Never>?
+    private let adapter: any FeatureVoiceInputAdapter
+    private var currentDraft: FeatureVoiceDraftSnapshot?
+    private var capturedDraft: FeatureVoiceDraftSnapshot?
+    private var operationID: UUID?
+    private var operationTask: Task<Void, Never>?
+    private var recordingLimitTask: Task<Void, Never>?
 
     init(adapter: any FeatureVoiceInputAdapter = FeatureVoiceInputAdapterFactory.make()) {
         self.adapter = adapter

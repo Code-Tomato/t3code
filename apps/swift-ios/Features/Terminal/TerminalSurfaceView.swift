@@ -542,14 +542,18 @@ private final class TerminalAccessoryView: UIInputView {
             stackView.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor),
         ])
         refreshAppearance()
-        registerForTraitChanges([UITraitUserInterfaceStyle.self]) {
-            (self: Self, _: UITraitCollection) in
-            self.refreshAppearance()
-        }
     }
 
     @available(*, unavailable)
     required init?(coder _: NSCoder) { nil }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) else {
+            return
+        }
+        refreshAppearance()
+    }
 
     func setRunning(_ running: Bool) {
         for (action, button) in actionButtons {

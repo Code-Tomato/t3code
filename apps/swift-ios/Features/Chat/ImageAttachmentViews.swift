@@ -182,12 +182,12 @@ struct FeatureImageAttachmentPicker: View {
                 flowIdentity = nil
             }
         }
-        .onChange(of: draftOwnerID) {
+        .t3OnChange(of: draftOwnerID) {
             generation = UUID()
             flowIdentity = nil
             pendingPhotoLibraryItems = []
         }
-        .onChange(of: environmentID) {
+        .t3OnChange(of: environmentID) {
             generation = UUID()
             flowIdentity = nil
             pendingPhotoLibraryItems = []

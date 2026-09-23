@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct SettingsView: View {
     @SwiftUI.Environment(\.dismiss) private var dismiss
-    @Bindable private var model: FeatureRootModel
+    @ObservedObject private var model: FeatureRootModel
     @State private var saveErrorMessage: String?
     @State private var isPresented = false
 
@@ -53,7 +53,7 @@ public struct SettingsView: View {
             isPresented = false
             model.setConnectionManagementPresented(false)
         }
-        .presentationBackground(T3Colors.background)
+        .t3PresentationBackground(T3Colors.background)
         .presentationDragIndicator(.visible)
         .t3CodeSizing(steps: model.snapshot.settings.codeSize.steps)
     }

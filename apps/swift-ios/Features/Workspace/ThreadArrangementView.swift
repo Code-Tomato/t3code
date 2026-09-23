@@ -5,7 +5,7 @@ import UIKit
 /// does not dismiss the sheet.
 struct ThreadArrangementView: View {
     @SwiftUI.Environment(\.dismiss) private var dismiss
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
     @State private var action: String?
     @State private var now = Date.now
 

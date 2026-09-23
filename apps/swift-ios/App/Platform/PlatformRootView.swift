@@ -2,14 +2,14 @@ import SwiftUI
 
 struct PlatformRootView: View {
     @SwiftUI.Environment(\.scenePhase) private var scenePhase
-    @Bindable private var model: FeatureRootModel
+    @ObservedObject private var model: FeatureRootModel
 
     @State private var navigationRequest: FeatureWorkspaceNavigationRequest?
     @State private var pendingRoute: PlatformRoute?
     @State private var previousThreadMembership: [PlatformRecentThreadChangeKey] = []
     @State private var previousThreadStates: [String: FeatureThreadState]?
     @State private var lastNotificationPreference: Bool?
-    @State private var incomingShareCoordinator = PlatformIncomingShareCoordinator()
+    @StateObject private var incomingShareCoordinator = PlatformIncomingShareCoordinator()
     @State private var incomingShareNeedsProject = false
     @State private var importedShareProjectID: String?
     @State private var recentThreadsPersistenceTask: Task<Void, Never>?
@@ -73,7 +73,7 @@ struct PlatformRootView: View {
                 await model.removeManagedEnvironmentsAfterAccountChange()
             }
         }
-        .onChange(of: model.isLoading, initial: true) { _, isLoading in
+        .t3OnChange(of: model.isLoading, initial: true) { _, isLoading in
             guard !isLoading else { return }
             processThreadChanges()
             synchronizeNotificationPreference()
@@ -82,13 +82,13 @@ struct PlatformRootView: View {
             consumeMailboxRouteIfAvailable()
             refreshIncomingShares()
         }
-        .onChange(of: model.homePresentationRevision) { _, _ in
+        .t3OnChange(of: model.homePresentationRevision) { _, _ in
             processThreadChanges()
         }
-        .onChange(of: model.threadRowRevision) { _, _ in
+        .t3OnChange(of: model.threadRowRevision) { _, _ in
             processThreadChanges()
         }
-        .onChange(of: scenePhase) { _, phase in
+        .t3OnChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await model.applicationDidBecomeActive() }
                 consumeMailboxRouteIfAvailable()
@@ -100,15 +100,15 @@ struct PlatformRootView: View {
                 PlatformBackgroundRefreshCoordinator.shared.schedule()
             }
         }
-        .onChange(of: model.snapshot.settings.notificationsEnabled) { _, _ in
+        .t3OnChange(of: model.snapshot.settings.notificationsEnabled) { _, _ in
             synchronizeNotificationPreference()
             synchronizeCloudDelivery()
         }
-        .onChange(of: model.snapshot.settings.liveActivitiesEnabled) { _, _ in
+        .t3OnChange(of: model.snapshot.settings.liveActivitiesEnabled) { _, _ in
             synchronizeAgentAwareness()
             synchronizeCloudDelivery()
         }
-        .onChange(of: model.snapshot.projects.map(\.id)) { _, _ in
+        .t3OnChange(of: model.snapshot.projects.map(\.id)) { _, _ in
             refreshIncomingShares()
         }
         .sheet(item: presentedIncomingShare, onDismiss: openImportedShareDraft) { envelope in

@@ -1,4 +1,4 @@
-import Observation
+import Combine
 import SwiftUI
 import UIKit
 
@@ -23,23 +23,22 @@ struct FeaturePullRequestRow: Identifiable, Equatable {
 }
 
 @MainActor
-@Observable
-final class PullRequestsModel {
-    var rows: [FeaturePullRequestRow] = []
+final class PullRequestsModel: ObservableObject {
+    @Published var rows: [FeaturePullRequestRow] = []
     private var allRows: [FeaturePullRequestRow] = []
-    var environments: [FeaturePullRequestEnvironmentList] = []
-    var state: PullRequestListState = .open
-    var involvement: PullRequestInvolvement = .all
-    var query = ""
-    var draftFilter: String?
-    var reviewFilter: String?
-    var checksFilter: String?
-    var environmentFilter: String?
-    var hostFilter: String?
-    var projectFilter: String?
-    var isLoading = false
-    var isLoadingMore = false
-    var errorMessage: String?
+    @Published var environments: [FeaturePullRequestEnvironmentList] = []
+    @Published var state: PullRequestListState = .open
+    @Published var involvement: PullRequestInvolvement = .all
+    @Published var query = ""
+    @Published var draftFilter: String?
+    @Published var reviewFilter: String?
+    @Published var checksFilter: String?
+    @Published var environmentFilter: String?
+    @Published var hostFilter: String?
+    @Published var projectFilter: String?
+    @Published var isLoading = false
+    @Published var isLoadingMore = false
+    @Published var errorMessage: String?
 
     private let client: any FeatureClient
     private var loadGeneration: UInt64 = 0
@@ -256,13 +255,13 @@ final class PullRequestsModel {
 }
 
 public struct PullRequestsView: View {
-    @Bindable private var rootModel: FeatureRootModel
-    @State private var model: PullRequestsModel
+    @ObservedObject private var rootModel: FeatureRootModel
+    @StateObject private var model: PullRequestsModel
     @State private var searchTask: Task<Void, Never>?
 
     public init(model: FeatureRootModel) {
         rootModel = model
-        _model = State(initialValue: PullRequestsModel(client: model.client))
+        _model = StateObject(wrappedValue: PullRequestsModel(client: model.client))
     }
 
     public var body: some View {
@@ -284,15 +283,15 @@ public struct PullRequestsView: View {
         }
         .t3NavigationChrome()
         .task { await model.load() }
-        .onChange(of: model.state) { reload() }
-        .onChange(of: model.involvement) { reload() }
-        .onChange(of: model.draftFilter) { reload() }
-        .onChange(of: model.reviewFilter) { reload() }
-        .onChange(of: model.checksFilter) { reload() }
-        .onChange(of: model.environmentFilter) { model.applyLocalFilters() }
-        .onChange(of: model.hostFilter) { model.applyLocalFilters() }
-        .onChange(of: model.projectFilter) { model.applyLocalFilters() }
-        .onChange(of: model.query) {
+        .t3OnChange(of: model.state) { reload() }
+        .t3OnChange(of: model.involvement) { reload() }
+        .t3OnChange(of: model.draftFilter) { reload() }
+        .t3OnChange(of: model.reviewFilter) { reload() }
+        .t3OnChange(of: model.checksFilter) { reload() }
+        .t3OnChange(of: model.environmentFilter) { model.applyLocalFilters() }
+        .t3OnChange(of: model.hostFilter) { model.applyLocalFilters() }
+        .t3OnChange(of: model.projectFilter) { model.applyLocalFilters() }
+        .t3OnChange(of: model.query) {
             searchTask?.cancel()
             searchTask = Task {
                 try? await Task.sleep(for: .milliseconds(400))
@@ -431,7 +430,7 @@ public struct PullRequestsView: View {
             PullRequestLoadingText()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = model.errorMessage, model.rows.isEmpty {
-            ContentUnavailableView("Couldn’t load pull requests", systemImage: "exclamationmark.triangle", description: Text(error))
+            T3ContentUnavailableView("Couldn’t load pull requests", systemImage: "exclamationmark.triangle", description: Text(error))
         } else {
             List {
                 ForEach(model.environments.filter { $0.errorMessage != nil }) { environment in
@@ -458,7 +457,7 @@ public struct PullRequestsView: View {
                 }
 
                 if model.rows.isEmpty {
-                    ContentUnavailableView(
+                    T3ContentUnavailableView(
                         "No pull requests",
                         systemImage: "arrow.triangle.pull",
                         description: Text("Try another state, involvement, or search.")
@@ -534,19 +533,18 @@ private struct PullRequestRowView: View {
 }
 
 @MainActor
-@Observable
-private final class PullRequestDetailModel {
-    var detail: PullRequestDetail?
-    var activity: PullRequestActivity?
-    var diffFiles: [PullRequestDiffFile] = []
-    var isDiffIncomplete = false
-    var isLoading = true
-    var isLoadingDiff = false
-    var isActing = false
-    var errorMessage: String?
-    var reviewDrafts: [PullRequestReviewCommentDraft] = []
-    var reviewerCandidates: [PullRequestReviewerCandidate] = []
-    var isLoadingReviewers = false
+private final class PullRequestDetailModel: ObservableObject {
+    @Published var detail: PullRequestDetail?
+    @Published var activity: PullRequestActivity?
+    @Published var diffFiles: [PullRequestDiffFile] = []
+    @Published var isDiffIncomplete = false
+    @Published var isLoading = true
+    @Published var isLoadingDiff = false
+    @Published var isActing = false
+    @Published var errorMessage: String?
+    @Published var reviewDrafts: [PullRequestReviewCommentDraft] = []
+    @Published var reviewerCandidates: [PullRequestReviewerCandidate] = []
+    @Published var isLoadingReviewers = false
 
     private let client: any FeatureClient
     let target: FeaturePullRequestTarget
@@ -717,9 +715,9 @@ struct PullRequestDetailView: View {
         }
     }
 
-    @Bindable var rootModel: FeatureRootModel
+    @ObservedObject var rootModel: FeatureRootModel
     let target: FeaturePullRequestTarget
-    @State private var model: PullRequestDetailModel
+    @StateObject private var model: PullRequestDetailModel
     @State private var tab: PullRequestDetailTab = .summary
     @State private var editor: PullRequestEditor?
     @State private var reviewSheet = false
@@ -734,7 +732,7 @@ struct PullRequestDetailView: View {
     init(rootModel: FeatureRootModel, target: FeaturePullRequestTarget) {
         self.rootModel = rootModel
         self.target = target
-        _model = State(initialValue: PullRequestDetailModel(client: rootModel.client, target: target))
+        _model = StateObject(wrappedValue: PullRequestDetailModel(client: rootModel.client, target: target))
     }
 
     var body: some View {
@@ -755,7 +753,7 @@ struct PullRequestDetailView: View {
                     tabContent(detail)
                 }
             } else {
-                ContentUnavailableView(
+                T3ContentUnavailableView(
                     "Couldn’t load pull request",
                     systemImage: "exclamationmark.triangle",
                     description: Text(model.errorMessage ?? "Try again.")
@@ -1001,7 +999,7 @@ struct PullRequestDetailView: View {
 private struct PullRequestSummaryView: View {
     let detail: PullRequestDetail
     let activity: PullRequestActivity?
-    @Bindable var model: PullRequestDetailModel
+    @ObservedObject var model: PullRequestDetailModel
     let onUpdateBranch: (PullRequestUpdateMethod) -> Void
 
     var body: some View {
@@ -1091,7 +1089,7 @@ private struct PullRequestSummaryView: View {
 
 private struct PullRequestActivityView: View {
     let activity: PullRequestActivity?
-    @Bindable var model: PullRequestDetailModel
+    @ObservedObject var model: PullRequestDetailModel
     @State private var replyThread: PullRequestReviewThread?
 
     var body: some View {
@@ -1154,7 +1152,7 @@ private struct PullRequestActivityView: View {
                         .font(T3Typography.supporting)
                     }
                     if activity.comments.isEmpty && activity.reviewThreads.isEmpty && activity.commits.isEmpty {
-                        ContentUnavailableView("No activity", systemImage: "text.bubble")
+                        T3ContentUnavailableView("No activity", systemImage: "text.bubble")
                     }
                 } else {
                     PullRequestLoadingText()
@@ -1172,7 +1170,7 @@ private struct PullRequestActivityView: View {
 
 private struct PullRequestCommentView: View {
     let comment: PullRequestComment
-    @Bindable var model: PullRequestDetailModel
+    @ObservedObject var model: PullRequestDetailModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -1262,7 +1260,7 @@ private struct PullRequestFilesView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 50)
                 } else if files.isEmpty {
-                    ContentUnavailableView("No diff available", systemImage: "doc.text.magnifyingglass")
+                    T3ContentUnavailableView("No diff available", systemImage: "doc.text.magnifyingglass")
                 } else {
                     ForEach(files) { file in
                         VStack(alignment: .leading, spacing: 0) {
@@ -1344,7 +1342,7 @@ private struct PullRequestFilesView: View {
 
 private struct PullRequestReviewSheet: View {
     @SwiftUI.Environment(\.dismiss) private var dismiss
-    @Bindable var model: PullRequestDetailModel
+    @ObservedObject var model: PullRequestDetailModel
     @State private var verdict: PullRequestReviewVerdict = .comment
     @State private var reviewBody = ""
 
@@ -1395,7 +1393,7 @@ private struct PullRequestReviewSheet: View {
 
 private struct PullRequestReviewerSheet: View {
     @SwiftUI.Environment(\.dismiss) private var dismiss
-    @Bindable var model: PullRequestDetailModel
+    @ObservedObject var model: PullRequestDetailModel
 
     var body: some View {
         NavigationStack {

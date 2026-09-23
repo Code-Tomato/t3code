@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 
 public struct FeatureAttachmentUploadKey: Hashable, Sendable {
     public let environmentID: String
@@ -19,8 +19,7 @@ public enum FeatureAttachmentUploadState: Equatable, Sendable {
 }
 
 @MainActor
-@Observable
-public final class FeatureAttachmentUploadCoordinator {
+public final class FeatureAttachmentUploadCoordinator: ObservableObject {
     typealias Upload = @MainActor @Sendable (FeatureUploadAttachment, String) async throws
         -> FeatureUploadedAttachmentReference?
     typealias Persist = @MainActor @Sendable (
@@ -43,7 +42,7 @@ public final class FeatureAttachmentUploadCoordinator {
         var deadlineTask: Task<Void, Never>?
     }
 
-    public private(set) var states: [FeatureAttachmentUploadKey: FeatureAttachmentUploadState] = [:]
+    @Published public private(set) var states: [FeatureAttachmentUploadKey: FeatureAttachmentUploadState] = [:]
     private let upload: Upload
     private let persist: Persist
     private let waitForTimeout: WaitForTimeout

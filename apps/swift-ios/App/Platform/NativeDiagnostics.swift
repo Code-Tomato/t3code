@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 import MetricKit
-import Observation
+import Combine
 
 struct NativeDiagnosticReport: Codable, Identifiable, Sendable {
     static let maximumReportBytes = 256 * 1024
@@ -31,8 +31,7 @@ struct NativeDiagnosticReport: Codable, Identifiable, Sendable {
 /// MetricKit delivers these reports during normal execution, sometimes on a later launch.
 /// Do not infer crashes from app lifecycle events or install crash handlers here.
 @MainActor
-@Observable
-final class NativeDiagnostics: NSObject, MXMetricManagerSubscriber {
+final class NativeDiagnostics: NSObject, ObservableObject, MXMetricManagerSubscriber {
     private struct Archive: Codable {
         let reports: [NativeDiagnosticReport]
         let clearedThrough: Date?
@@ -44,8 +43,8 @@ final class NativeDiagnostics: NSObject, MXMetricManagerSubscriber {
     static let maximumReports = 5
     static let maximumStorageBytes = 2 * 1024 * 1024
 
-    private(set) var reports: [NativeDiagnosticReport] = []
-    private(set) var storageError: String?
+    @Published private(set) var reports: [NativeDiagnosticReport] = []
+    @Published private(set) var storageError: String?
     private let fileURL: URL
     private var started = false
     private var clearedThrough: Date?

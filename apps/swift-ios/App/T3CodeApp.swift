@@ -4,13 +4,13 @@ import SwiftUI
 @MainActor
 struct T3CodeApp: App {
     @UIApplicationDelegateAdaptor(T3PlatformAppDelegate.self) private var appDelegate
-    @State private var model: FeatureRootModel
+    @StateObject private var model: FeatureRootModel
 
     init() {
         NativeDiagnostics.shared.start()
         let client = NativeFeatureClient()
         let model = FeatureRootModel(client: client)
-        _model = State(initialValue: model)
+        _model = StateObject(wrappedValue: model)
         PlatformCloudDeliveryCoordinator.shared.install(
             controller: client.t3ConnectController
         )

@@ -21,7 +21,7 @@ public struct DevicesView: View {
                     .font(T3Typography.supporting)
                     .foregroundStyle(T3Colors.textTertiary)
             } else if let errorMessage, sessions.isEmpty {
-                ContentUnavailableView {
+                T3ContentUnavailableView {
                     Label("Couldn’t load devices", systemImage: "exclamationmark.circle")
                 } description: {
                     Text(errorMessage)
@@ -32,7 +32,7 @@ public struct DevicesView: View {
                     .buttonStyle(.borderedProminent)
                 }
             } else if sessions.isEmpty {
-                ContentUnavailableView {
+                T3ContentUnavailableView {
                     Label("No devices found", systemImage: "laptopcomputer.and.iphone")
                 } description: {
                     Text("Device sessions will appear here when this server supports access management.")

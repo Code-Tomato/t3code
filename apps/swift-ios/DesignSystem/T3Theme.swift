@@ -98,9 +98,204 @@ enum T3Metrics {
     static let readingWidth: CGFloat = 760
 }
 
+/// Back-deploys the standard iOS 17 empty-state presentation to iOS 16.
+struct T3ContentUnavailableView: View {
+    private let label: AnyView
+    private let description: AnyView
+    private let actions: AnyView
+    private let searchText: String?
+
+    init(
+        _ title: String,
+        systemImage: String,
+        description: Text? = nil
+    ) {
+        label = AnyView(Label(title, systemImage: systemImage))
+        self.description = description.map { AnyView($0) } ?? AnyView(EmptyView())
+        actions = AnyView(EmptyView())
+        searchText = nil
+    }
+
+    init<LabelContent: View, DescriptionContent: View>(
+        @ViewBuilder label: () -> LabelContent,
+        @ViewBuilder description: () -> DescriptionContent
+    ) {
+        self.label = AnyView(label())
+        self.description = AnyView(description())
+        actions = AnyView(EmptyView())
+        searchText = nil
+    }
+
+    init<LabelContent: View, DescriptionContent: View, ActionsContent: View>(
+        @ViewBuilder label: () -> LabelContent,
+        @ViewBuilder description: () -> DescriptionContent,
+        @ViewBuilder actions: () -> ActionsContent
+    ) {
+        self.label = AnyView(label())
+        self.description = AnyView(description())
+        self.actions = AnyView(actions())
+        searchText = nil
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if #available(iOS 17.0, *) {
+            if let searchText {
+                ContentUnavailableView.search(text: searchText)
+            } else {
+                ContentUnavailableView {
+                    label
+                } description: {
+                    description
+                } actions: {
+                    actions
+                }
+            }
+        } else {
+            fallback
+        }
+    }
+
+    private var fallback: some View {
+        VStack(spacing: 12) {
+            label
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(T3Colors.textPrimary)
+            description
+                .font(T3Typography.threadBody)
+                .foregroundStyle(T3Colors.textSecondary)
+                .multilineTextAlignment(.center)
+            actions
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+
+    static func search(text: String) -> Self {
+        Self(
+            text.isEmpty ? "No results" : "No results for “\(text)”",
+            systemImage: "magnifyingglass",
+            searchText: text
+        )
+    }
+
+    private init(
+        _ title: String,
+        systemImage: String,
+        searchText: String
+    ) {
+        label = AnyView(Label(title, systemImage: systemImage))
+        description = AnyView(EmptyView())
+        actions = AnyView(EmptyView())
+        self.searchText = searchText
+    }
+}
+
 extension View {
+    @ViewBuilder
+    func t3PopoverCompactAdaptation() -> some View {
+        if #available(iOS 16.4, *) {
+            presentationCompactAdaptation(.popover)
+        } else {
+            self
+        }
+    }
+
     func t3NavigationChrome() -> some View {
         toolbarBackground(T3Colors.sheet, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+    }
+
+    @ViewBuilder
+    func t3PresentationBackground(_ color: Color) -> some View {
+        if #available(iOS 16.4, *) {
+            presentationBackground(color)
+        } else {
+            background(color)
+        }
+    }
+
+    @ViewBuilder
+    func t3ListSectionSpacing(_ spacing: CGFloat) -> some View {
+        if #available(iOS 17.0, *) {
+            listSectionSpacing(spacing)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func t3ScrollBounceBasedOnSize() -> some View {
+        if #available(iOS 16.4, *) {
+            scrollBounceBehavior(.basedOnSize)
+        } else {
+            self
+        }
+    }
+
+    /// iOS 16-compatible form of the two-value `onChange` API introduced in iOS 17.
+    /// Uses the native modifier on iOS 17; the manual tracking below exists only for iOS 16.
+    @ViewBuilder
+    func t3OnChange<Value: Equatable>(
+        of value: Value,
+        initial: Bool = false,
+        perform action: @escaping (_ oldValue: Value, _ newValue: Value) -> Void
+    ) -> some View {
+        if #available(iOS 17.0, *) {
+            onChange(of: value, initial: initial, action)
+        } else {
+            modifier(T3OnChangeModifier(value: value, initial: initial, action: action))
+        }
+    }
+
+    func t3OnChange<Value: Equatable>(
+        of value: Value,
+        initial: Bool = false,
+        perform action: @escaping (_ newValue: Value) -> Void
+    ) -> some View {
+        t3OnChange(of: value, initial: initial) { _, newValue in action(newValue) }
+    }
+
+    func t3OnChange<Value: Equatable>(
+        of value: Value,
+        initial: Bool = false,
+        perform action: @escaping () -> Void
+    ) -> some View {
+        t3OnChange(of: value, initial: initial) { _, _ in action() }
+    }
+}
+
+private struct T3OnChangeModifier<Value: Equatable>: ViewModifier {
+    let value: Value
+    let initial: Bool
+    let action: (_ oldValue: Value, _ newValue: Value) -> Void
+
+    @State private var previous: Value
+    @State private var didAppear = false
+
+    init(
+        value: Value,
+        initial: Bool,
+        action: @escaping (_ oldValue: Value, _ newValue: Value) -> Void
+    ) {
+        self.value = value
+        self.initial = initial
+        self.action = action
+        _previous = State(initialValue: value)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                guard !didAppear else { return }
+                didAppear = true
+                previous = value
+                if initial { action(value, value) }
+            }
+            .onChange(of: value) { newValue in
+                let oldValue = previous
+                previous = newValue
+                action(oldValue, newValue)
+            }
     }
 }

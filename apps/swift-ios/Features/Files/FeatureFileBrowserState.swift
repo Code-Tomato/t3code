@@ -1,10 +1,9 @@
 import Foundation
-import Observation
+import Combine
 
 /// A browser session caches only the folders the user opens, never file contents.
 @MainActor
-@Observable
-final class FeatureFileBrowserState {
+final class FeatureFileBrowserState: ObservableObject {
     struct Directory: Hashable {
         // Native thread IDs include their environment ID.
         let threadID: String
@@ -19,7 +18,7 @@ final class FeatureFileBrowserState {
         fileprivate var requestID: UUID?
     }
 
-    private var listings: [Directory: Listing] = [:]
+    @Published private var listings: [Directory: Listing] = [:]
 
     func listing(for directory: Directory) -> Listing {
         listings[directory] ?? Listing()

@@ -355,7 +355,7 @@ struct FeatureComposerUserInputPanel: View {
                 .opacity(isResponding || isSubmittingAnswer ? 0.56 : 1)
             }
         }
-        .onChange(of: input.id) {
+        .t3OnChange(of: input.id) {
             answers = [:]
             questionIndex = 0
             restoredInputID = nil
@@ -380,7 +380,7 @@ struct FeatureComposerUserInputPanel: View {
                 draftError = "Could not restore question attachments."
             }
         }
-        .onChange(of: attachmentsByQuestionID) { _, current in
+        .t3OnChange(of: attachmentsByQuestionID) { _, current in
             guard restoredInputID == input.id else { return }
             let key = FeatureQuestionAttachmentDraft.key(inputID: input.id)
             let previousWrite = draftWrite
@@ -396,7 +396,7 @@ struct FeatureComposerUserInputPanel: View {
                 }
             }
         }
-        .onChange(of: questionIDs) { previousIDs, currentIDs in
+        .t3OnChange(of: questionIDs) { previousIDs, currentIDs in
             questionIndex = FeatureComposerQuestionReconciliation.index(
                 current: questionIndex,
                 previousQuestionIDs: previousIDs,

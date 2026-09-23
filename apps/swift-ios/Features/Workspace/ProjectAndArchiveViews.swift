@@ -24,7 +24,7 @@ public struct AddProjectView: View {
     }
 
     @SwiftUI.Environment(\.dismiss) private var dismiss
-    @Bindable var model: FeatureRootModel
+    @ObservedObject var model: FeatureRootModel
 
     @State private var selectedEnvironmentID: String?
     @State private var mode = ProjectMode.folder
@@ -86,7 +86,7 @@ public struct AddProjectView: View {
                     }
                     .scrollDismissesKeyboard(.interactively)
                 } else {
-                    ContentUnavailableView(
+                    T3ContentUnavailableView(
                         "Environment unavailable",
                         systemImage: "server.rack",
                         description: Text("Reconnect a T3 environment before adding a project.")
@@ -104,17 +104,17 @@ public struct AddProjectView: View {
             }
         }
         .onAppear(perform: selectEnvironmentIfNeeded)
-        .onChange(of: model.snapshot.environments) {
+        .t3OnChange(of: model.snapshot.environments) {
             selectEnvironmentIfNeeded()
         }
-        .onChange(of: source) {
+        .t3OnChange(of: source) {
             resolvedRepository = nil
             pendingCloneRegistration = nil
             cloneRequestID = nil
             updateSuggestedDestination()
             errorMessage = nil
         }
-        .onChange(of: repositoryInput) {
+        .t3OnChange(of: repositoryInput) {
             resolvedRepository = nil
             pendingCloneRegistration = nil
             cloneRequestID = nil

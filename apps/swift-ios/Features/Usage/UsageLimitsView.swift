@@ -51,7 +51,7 @@ struct UsageLimitsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 64)
                 } else if environments.isEmpty {
-                    ContentUnavailableView {
+                    T3ContentUnavailableView {
                         Label("No limits available", systemImage: "chart.bar.xaxis")
                     } description: {
                         Text("Connect an environment to see subscription limits.")
@@ -93,7 +93,7 @@ struct UsageLimitsView: View {
                 }
             }
         }
-        .onChange(of: isActive, initial: true) { _, active in
+        .t3OnChange(of: isActive, initial: true) { _, active in
             if active { hasActivated = true }
         }
         .task(id: hasActivated ? subscriptionID : nil) {
@@ -407,7 +407,7 @@ private struct UsageAccountLabel: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isRevealed ? "Hide account label" : "Reveal account label")
-            .onChange(of: value) { isRevealed = false }
+            .t3OnChange(of: value) { isRevealed = false }
         } else {
             Text(value)
         }

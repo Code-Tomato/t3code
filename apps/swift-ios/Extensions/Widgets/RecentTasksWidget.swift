@@ -29,11 +29,31 @@ struct T3RecentTasksWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: T3TaskWidgetProvider()) { entry in
             T3TaskWidgetView(entry: entry)
-                .containerBackground(Color(uiColor: .systemBackground), for: .widget)
+                .t3WidgetBackground()
         }
         .configurationDisplayName("T3 Code Tasks")
         .description("See active and recent T3 Code tasks at a glance.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func t3LegacyWidgetContentMargins() -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            self
+        } else {
+            padding()
+        }
+    }
+
+    @ViewBuilder
+    func t3WidgetBackground() -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            containerBackground(Color(uiColor: .systemBackground), for: .widget)
+        } else {
+            background(Color(uiColor: .systemBackground))
+        }
     }
 }
 
@@ -88,6 +108,7 @@ private struct T3TaskWidgetView: View {
             }
         }
         .widgetURL(orderedTasks.first?.nativeDeepLinkURL ?? T3WidgetURLs.newTask)
+        .t3LegacyWidgetContentMargins()
     }
 
     private var mediumView: some View {
@@ -128,6 +149,7 @@ private struct T3TaskWidgetView: View {
                 }
             }
         }
+        .t3LegacyWidgetContentMargins()
     }
 
     private var accessoryView: some View {

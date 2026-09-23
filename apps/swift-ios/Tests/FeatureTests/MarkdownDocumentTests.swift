@@ -588,6 +588,21 @@ struct MarkdownDocumentTests {
         #expect(runs.contains { $0.link == URL(string: "https://example.com") })
     }
 
+    @Test
+    func legacyLinkInteractionOnlyHandlesDefaultActionBeforeIOS17() {
+        let handlesDefaultAction = MarkdownLinkInteractionPolicy.shouldOpenURL(
+            for: .invokeDefaultAction
+        )
+
+        if #available(iOS 17.0, *) {
+            #expect(!handlesDefaultAction)
+        } else {
+            #expect(handlesDefaultAction)
+        }
+        #expect(!MarkdownLinkInteractionPolicy.shouldOpenURL(for: .presentActions))
+        #expect(!MarkdownLinkInteractionPolicy.shouldOpenURL(for: .preview))
+    }
+
     @Test @MainActor
     func selectableTextAttributesPreserveInlineFormatting() throws {
         let revision = MarkdownContentRevision(

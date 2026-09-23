@@ -64,9 +64,19 @@ extension View {
 /// Removing the override at zero preserves the reader's system Dynamic Type setting.
 private struct T3AppTextSize: ViewModifier {
     let steps: Int
+    @SwiftUI.Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var systemCategory = UIApplication.shared.preferredContentSizeCategory
 
     func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            windowSized(content: content)
+        } else {
+            content.dynamicTypeSize(dynamicTypeSize.t3Shifted(by: steps))
+        }
+    }
+
+    @available(iOS 17.0, *)
+    private func windowSized(content: Content) -> some View {
         content
             .onAppear { apply() }
             .onChange(of: steps) { _, _ in apply() }
@@ -83,6 +93,7 @@ private struct T3AppTextSize: ViewModifier {
             }
     }
 
+    @available(iOS 17.0, *)
     @MainActor
     private func apply() {
         let category = T3TextSizing.contentSizeCategory(system: systemCategory, steps: steps)

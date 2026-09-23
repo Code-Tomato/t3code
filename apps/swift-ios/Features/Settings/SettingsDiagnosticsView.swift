@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SettingsDiagnosticsView: View {
-    private let diagnostics = NativeDiagnostics.shared
+    @ObservedObject private var diagnostics = NativeDiagnostics.shared
     @State private var confirmingClear = false
 
     var body: some View {

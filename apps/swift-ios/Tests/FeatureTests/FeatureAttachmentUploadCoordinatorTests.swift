@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 import Testing
 @testable import T3Code
 
@@ -44,7 +44,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         #expect(coordinator.state(environmentID: "one", attachmentID: id) == .uploading)
 
         uploads.complete(id, environmentID: "one", attachmentID: "new")
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             coordinator.state(environmentID: "one", attachmentID: id)
                 == .ready(.init(environmentID: "one", attachmentID: "new"))
         }
@@ -82,7 +82,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         coordinator.syncOwner(draftKey: "draft", environmentID: "one", attachments: [value])
         _ = await uploads.nextStart()
         uploads.complete(value.id, environmentID: "one")
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             if case .failed = coordinator.state(environmentID: "one", attachmentID: value.id) {
                 return true
             }
@@ -93,7 +93,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         coordinator.retry(environmentID: "one", attachmentID: value.id)
         _ = await uploads.nextStart()
         uploads.complete(value.id, environmentID: "one", attachmentID: "retry")
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             coordinator.state(environmentID: "one", attachmentID: value.id)
                 == .ready(.init(environmentID: "one", attachmentID: "retry"))
         }
@@ -110,7 +110,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         _ = await uploads.nextStart()
         uploads.complete(value.id, environmentID: "one")
 
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             if case .failed = coordinator.state(environmentID: "one", attachmentID: value.id) {
                 return true
             }
@@ -132,7 +132,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         coordinator.syncOwner(draftKey: "draft", environmentID: "one", attachments: [value])
         _ = await uploads.nextStart()
         deadlines.expire(await deadlines.nextStart())
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             coordinator.state(environmentID: "one", attachmentID: value.id)
                 == .failed("Upload timed out. Check the connection and retry.")
         }
@@ -147,7 +147,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         #expect(uploads.maximumActive == 1)
         #expect(persistence.callCount == 0)
         uploads.complete(value.id, environmentID: "one", attachmentID: "retry")
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             coordinator.state(environmentID: "one", attachmentID: value.id)
                 == .ready(.init(environmentID: "one", attachmentID: "retry"))
         }
@@ -176,7 +176,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         let expected = FeatureAttachmentUploadState.failed(
             "Upload timed out. Check the connection and retry."
         )
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             coordinator.state(environmentID: "one", attachmentID: first) == expected
         }
         // A stalled disk save must not block the next network transfer.
@@ -188,7 +188,7 @@ struct FeatureAttachmentUploadCoordinatorTests {
         }
 
         uploads.complete(second, environmentID: "one")
-        await waitUntilObserved {
+        await waitUntilObserved(coordinator) {
             coordinator.state(environmentID: "one", attachmentID: second)
                 == .ready(.init(environmentID: "one", attachmentID: "uploaded"))
         }
@@ -215,39 +215,24 @@ struct FeatureAttachmentUploadCoordinatorTests {
         )
     }
 
-    private func waitUntilObserved(_ condition: @escaping @MainActor () -> Bool) async {
-        await CoordinatorObservationWaiter(condition: condition).wait()
-    }
-}
-
-@MainActor
-private final class CoordinatorObservationWaiter {
-    private let condition: @MainActor () -> Bool
-    private var continuation: CheckedContinuation<Void, Never>?
-
-    init(condition: @escaping @MainActor () -> Bool) {
-        self.condition = condition
-    }
-
-    func wait() async {
+    private func waitUntilObserved(
+        _ coordinator: FeatureAttachmentUploadCoordinator,
+        _ condition: @escaping @MainActor () -> Bool
+    ) async {
         guard !condition() else { return }
+        var observation: AnyCancellable?
         await withCheckedContinuation { continuation in
-            self.continuation = continuation
-            check()
-        }
-    }
-
-    private func check() {
-        guard continuation != nil else { return }
-        withObservationTracking {
-            guard condition(), let continuation else { return }
-            self.continuation = nil
-            continuation.resume()
-        } onChange: { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.check()
+            var completed = false
+            observation = coordinator.$states.sink { _ in
+                // Published sends before storage changes; inspect on the next actor turn.
+                Task { @MainActor in
+                    guard !completed, condition() else { return }
+                    completed = true
+                    continuation.resume()
+                }
             }
         }
+        withExtendedLifetime(observation) {}
     }
 }
 

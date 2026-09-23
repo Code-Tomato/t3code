@@ -1,5 +1,5 @@
+import Combine
 import Foundation
-import Observation
 
 private struct FeatureConnectionUnavailableError: LocalizedError {
     var errorDescription: String? {
@@ -24,8 +24,7 @@ enum FeatureThreadLoadState: Equatable {
 }
 
 @MainActor
-@Observable
-public final class FeatureRootModel {
+public final class FeatureRootModel: ObservableObject {
     private static let maximumRetainedThreadDetails = 6
 
     private struct PendingSettlementMutation {
@@ -46,45 +45,44 @@ public final class FeatureRootModel {
         }
     }
 
-    public private(set) var snapshot = FeatureSnapshot()
+    @Published public private(set) var snapshot = FeatureSnapshot()
     /// Why the last `startTask` returned nil, for the sheet that made the request.
-    public private(set) var lastTaskStartError: String?
-    private(set) var pullRequestsByThreadID: [String: HomeThreadPullRequestPresentation] = [:]
+    @Published public private(set) var lastTaskStartError: String?
+    @Published private(set) var pullRequestsByThreadID: [String: HomeThreadPullRequestPresentation] = [:]
     private var pullRequestObservationIdentities: [String: String] = [:]
-    public private(set) var details: [String: FeatureThreadDetail] = [:]
-    private(set) var detailLoadStates: [String: FeatureThreadLoadState] = [:]
-    private(set) var threadSyncStates: [String: FeatureThreadSyncState] = [:]
+    @Published public private(set) var details: [String: FeatureThreadDetail] = [:]
+    @Published private(set) var detailLoadStates: [String: FeatureThreadLoadState] = [:]
+    @Published private(set) var threadSyncStates: [String: FeatureThreadSyncState] = [:]
     private var backgroundedAt: Date?
     /// Advances when a Home shelf or order input changes (see `HomeOrderKey`)
     /// or when projects, environments, providers, or preferences change.
     /// Streaming updates to a row's own content do not advance it.
-    public private(set) var homePresentationRevision: UInt64 = 0
+    @Published public private(set) var homePresentationRevision: UInt64 = 0
     /// Advances on any thread insert, removal, or field change. Rows read this
     /// to refresh their own content without re-sorting the list.
-    public private(set) var threadRowRevision: UInt64 = 0
+    @Published public private(set) var threadRowRevision: UInt64 = 0
     /// Advances for any selected-thread metadata, message, approval, or input change.
-    public private(set) var detailRevision: UInt64 = 0
+    @Published public private(set) var detailRevision: UInt64 = 0
     /// The latest detail revision for each loaded thread.
-    public private(set) var detailRevisions: [String: UInt64] = [:]
-    private(set) var detailRenderUpdates: [String: FeatureDetailRenderUpdate] = [:]
-    public private(set) var isLoading = true
-    public private(set) var isPerformingAction = false
-    private(set) var isArrangingThreads = false
-    public private(set) var rewindingThreadIDs: Set<String> = []
-    public private(set) var recoveredRewindDrafts: [String: FeatureComposerDraft] = [:]
-    public private(set) var rewindErrors: [String: String] = [:]
-    public private(set) var pendingRewindRecoveryIDs: Set<String> = []
+    @Published public private(set) var detailRevisions: [String: UInt64] = [:]
+    @Published private(set) var detailRenderUpdates: [String: FeatureDetailRenderUpdate] = [:]
+    @Published public private(set) var isLoading = true
+    @Published public private(set) var isPerformingAction = false
+    @Published private(set) var isArrangingThreads = false
+    @Published public private(set) var rewindingThreadIDs: Set<String> = []
+    @Published public private(set) var recoveredRewindDrafts: [String: FeatureComposerDraft] = [:]
+    @Published public private(set) var rewindErrors: [String: String] = [:]
+    @Published public private(set) var pendingRewindRecoveryIDs: Set<String> = []
     /// Approval and question IDs with a response in flight. Views disable
     /// only that request, not every request in every thread.
-    public private(set) var resolvingRequestIDs: Set<String> = []
-    public private(set) var isManagingConnections = false
-    private(set) var isSigningOutT3Connect = false
-    public var errorMessage: String?
+    @Published public private(set) var resolvingRequestIDs: Set<String> = []
+    @Published public private(set) var isManagingConnections = false
+    @Published private(set) var isSigningOutT3Connect = false
+    @Published public var errorMessage: String?
 
     let client: any FeatureClient
     private let outboxStore: FeatureOutboxStore
     private let draftStore: FeatureComposerDraftStore
-    @ObservationIgnored
     public private(set) lazy var attachmentUploads = FeatureAttachmentUploadCoordinator(
         client: client,
         draftStore: draftStore

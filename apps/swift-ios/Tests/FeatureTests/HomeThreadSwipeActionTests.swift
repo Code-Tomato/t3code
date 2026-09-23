@@ -1,8 +1,25 @@
+import Combine
 import Foundation
-import Observation
 import Testing
 import UIKit
 @testable import T3Code
+
+@MainActor
+private func waitForSwipeModelChange<P: Publisher>(
+    _ publisher: P,
+    while operation: () -> Void
+) async where P.Output: Equatable, P.Failure == Never {
+    var cancellable: AnyCancellable?
+    await withCheckedContinuation { continuation in
+        cancellable = publisher
+            .removeDuplicates()
+            .dropFirst()
+            .first()
+            .sink { _ in continuation.resume() }
+        operation()
+    }
+    withExtendedLifetime(cancellable) {}
+}
 
 @MainActor
 @Suite("Home row trailing swipe actions")
@@ -374,27 +391,21 @@ struct HomeThreadSwipeActionTests {
 
         var authoritative = active
         authoritative.title = "Updated on the server"
-        let changed = AsyncStream<Void>.makeStream()
-        withObservationTracking {
-            _ = model.snapshot.threads.first?.title
-        } onChange: {
-            changed.continuation.yield()
+        await waitForSwipeModelChange(
+            model.$snapshot.map { $0.threads.first?.title }
+        ) {
+            switch event {
+            case .thread:
+                client.emit(.thread(authoritative))
+            case .detail:
+                client.emit(.detail(FeatureThreadDetail(thread: authoritative)))
+            case .detailDelta:
+                client.emit(.detailDelta(
+                    FeatureThreadDetail(thread: authoritative),
+                    FeatureDetailDelta(changedMessages: [])
+                ))
+            }
         }
-
-        switch event {
-        case .thread:
-            client.emit(.thread(authoritative))
-        case .detail:
-            client.emit(.detail(FeatureThreadDetail(thread: authoritative)))
-        case .detailDelta:
-            client.emit(.detailDelta(
-                FeatureThreadDetail(thread: authoritative),
-                FeatureDetailDelta(changedMessages: [])
-            ))
-        }
-
-        var changes = changed.stream.makeAsyncIterator()
-        await changes.next()
 
         let updated = model.snapshot.threads.first
         #expect(updated?.title == "Updated on the server")

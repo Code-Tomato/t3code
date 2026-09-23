@@ -3,7 +3,6 @@ import XCTest
 @testable import T3Code
 
 @MainActor
-@available(iOS 18.0, *)
 final class NativeThreadCatchUpTests: XCTestCase {
     func testLegacyReplayPublishesOncePerReceivedBatchAndResumesAfterAppliedEvents() async throws {
         for batchSize in [1, 16, 500] {
@@ -34,7 +33,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
                 expectedPrefix += (start..<end).map { "\($0)," }.joined()
                 // This checks replay batching, not overload recovery. Wait for
                 // applied progress instead of overflowing the bounded stream.
-                catchUp: while let event = await events.next(isolation: #isolation) {
+                catchUp: while let event = await events.next() {
                     switch event {
                     case let .detail(detail), let .detailDelta(detail, _):
                         guard detail.thread.id == fixture.firstID else { continue }
@@ -306,7 +305,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         _ iterator: inout AsyncStream<FeatureEvent>.Iterator, threadID: String
     ) async throws -> FeatureThreadDetail {
         var latest: FeatureThreadDetail?
-        while let event = await iterator.next(isolation: #isolation) {
+        while let event = await iterator.next() {
             switch event {
             case let .detail(detail), let .detailDelta(detail, _):
                 if detail.thread.id == threadID { latest = detail }
@@ -331,13 +330,13 @@ final class NativeThreadCatchUpTests: XCTestCase {
         var current = try await nextThreadRequest(&requests)
         for expectedAttempt in 1...3 {
             try await current.socket.fail(id: current.id, message: "Thread is temporarily unavailable.")
-            while let event = await events.next(isolation: #isolation) {
+            while let event = await events.next() {
                 if case let .threadSync(id, .failed(message)) = event, id == fixture.firstID {
                     XCTAssertEqual(message, "Thread is temporarily unavailable.")
                     break
                 }
             }
-            let attempt = await attempts.next(isolation: #isolation)
+            let attempt = await attempts.next()
             XCTAssertEqual(attempt, expectedAttempt)
             await retry.release()
             let next = try await nextThreadRequest(&requests)
@@ -353,7 +352,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         XCTAssertEqual(messages, ["Recovered without reconnecting"])
 
         try await current.socket.fail(id: current.id, message: "Temporarily unavailable again.")
-        let resetAttempt = await attempts.next(isolation: #isolation)
+        let resetAttempt = await attempts.next()
         XCTAssertEqual(resetAttempt, 1, "Valid stream data resets the retry backoff.")
         await fixture.client.disconnect()
     }
@@ -370,7 +369,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
             try await first.terminate(failure)
 
             var bufferedMessages: [String] = []
-            while let event = await events.next(isolation: #isolation) {
+            while let event = await events.next() {
                 switch event {
                 case let .detail(detail), let .detailDelta(detail, _):
                     if detail.thread.id == fixture.firstID {
@@ -412,7 +411,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         _ = try await fixture.client.loadThread(id: fixture.firstID)
         let first = try await nextThreadRequest(&requests)
         try await first.terminate(.malformed)
-        while let event = await events.next(isolation: #isolation) {
+        while let event = await events.next() {
             if case .threadSync(fixture.firstID, .failed) = event { break }
         }
 
@@ -496,7 +495,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         try await resumed.synchronize()
         var states: [FeatureThreadSyncState] = []
         var messages: [String] = []
-        while let event = await events.next(isolation: #isolation) {
+        while let event = await events.next() {
             if case let .threadSync(id, state) = event,
                id == fixture.firstID, let state {
                 states.append(state)
@@ -522,7 +521,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         _ = try await fixture.client.loadThread(id: fixture.firstID)
         _ = try await nextThreadRequest(&requests)
         fixture.client.releaseThread(id: fixture.firstID)
-        while let event = await events.next(isolation: #isolation) {
+        while let event = await events.next() {
             if case .threadSync(fixture.firstID, nil) = event { break }
         }
 
@@ -547,7 +546,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         fixture.client.releaseThread(id: fixture.firstID)
 
         await first.socket.close()
-        while let request = await requests.next(isolation: #isolation) {
+        while let request = await requests.next() {
             if request.socket !== first.socket { break }
         }
         _ = try await fixture.client.loadThread(id: fixture.firstID)
@@ -620,7 +619,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         await fixture.http.setResponse(text: "HTTP caught up", sequence: 20)
         await fixture.delay.release()
         var sawUpdatedMessage = false
-        while let event = await events.next(isolation: #isolation) {
+        while let event = await events.next() {
             if case let .detail(detail) = event {
                 sawUpdatedMessage = detail.messages.contains { $0.text == "HTTP caught up" }
             }
@@ -686,7 +685,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         await nextCatchUp(&events, threadID: fixture.firstID)
         let read = try await nextHeldRead(&reads)
         read.fail()
-        while let event = await events.next(isolation: #isolation) {
+        while let event = await events.next() {
             if case .threadSync(fixture.firstID, .failed) = event { break }
             if case .threadSync(fixture.firstID, .live) = event {
                 XCTFail("A failed snapshot must not mark cached content current.")
@@ -912,7 +911,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
             )
         }
         defer { resolving.cancel() }
-        while let request = await requests.next(isolation: #isolation) {
+        while let request = await requests.next() {
             if request.tag == RPCMethod.assetsCreateURL.rawValue { break }
         }
         let firstReadCount = await fixture.http.threadRequests.count
@@ -955,7 +954,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
                     attachment: .init(id: "file", name: name, mimeType: mimeType, sizeBytes: 20)
                 )
             }
-            while let request = await requests.next(isolation: #isolation) {
+            while let request = await requests.next() {
                 guard request.tag == RPCMethod.assetsCreateURL.rawValue else { continue }
                 XCTAssertEqual(request.payload["resource"]?["mimeType"], .string(mimeType))
                 try await request.socket.succeed(id: request.id, value: .object([
@@ -982,7 +981,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         let resolving = Task {
             try await fixture.client.attachmentAssetURL(threadID: fixture.firstID, attachment: attachment)
         }
-        while let request = await requests.next(isolation: #isolation) {
+        while let request = await requests.next() {
             guard request.tag == RPCMethod.assetsCreateURL.rawValue else { continue }
             XCTAssertEqual(request.payload["resource"]?["attachmentId"], .string(attachment.id))
             try await request.socket.succeed(id: request.id, value: .object([
@@ -1016,7 +1015,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
             XCTFail("The initial snapshot should fail.")
         } catch {}
         let stream = try await nextThreadRequest(&requests)
-        while let event = await events.next(isolation: #isolation) {
+        while let event = await events.next() {
             if case .threadSync(fixture.firstID, .failed) = event { break }
         }
         await nextCatchUp(&events, threadID: fixture.firstID)
@@ -1034,7 +1033,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
 
         replacement.fail()
         var failure: String?
-        while let event = await events.next(isolation: #isolation) {
+        while let event = await events.next() {
             guard case let .threadSync(id, .failed(message)) = event,
                   id == fixture.firstID else { continue }
             failure = message
@@ -1047,14 +1046,14 @@ final class NativeThreadCatchUpTests: XCTestCase {
     private func nextHeldRead(
         _ iterator: inout AsyncStream<CatchUpHTTPRead>.Iterator
     ) async throws -> CatchUpHTTPRead {
-        let read = await iterator.next(isolation: #isolation)
+        let read = await iterator.next()
         return try XCTUnwrap(read)
     }
 
     private func nextCatchUp(
         _ iterator: inout AsyncStream<FeatureEvent>.Iterator, threadID: String
     ) async {
-        while let event = await iterator.next(isolation: #isolation) {
+        while let event = await iterator.next() {
             if case .threadSync(threadID, .catchingUp) = event { return }
             if case .threadSync(threadID, .live) = event {
                 XCTFail("The thread became live before its required snapshot was complete.")
@@ -1067,7 +1066,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
     private func nextThreadRequest(
         _ iterator: inout AsyncStream<CatchUpRequest>.Iterator
     ) async throws -> CatchUpRequest {
-        while let request = await iterator.next(isolation: #isolation) {
+        while let request = await iterator.next() {
             if request.tag == RPCMethod.subscribeThread.rawValue { return request }
         }
         throw CancellationError()
@@ -1076,7 +1075,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
     private func nextSyncState(
         _ iterator: inout AsyncStream<FeatureEvent>.Iterator, threadID: String
     ) async -> FeatureThreadSyncState? {
-        while let event = await iterator.next(isolation: #isolation) {
+        while let event = await iterator.next() {
             if case let .threadSync(id, state) = event, id == threadID, let state {
                 return state
             }
@@ -1089,7 +1088,7 @@ final class NativeThreadCatchUpTests: XCTestCase {
         _ iterator: inout AsyncStream<FeatureEvent>.Iterator, threadID: String
     ) async -> [String] {
         var messages: [String] = []
-        while let event = await iterator.next(isolation: #isolation) {
+        while let event = await iterator.next() {
             switch event {
             case let .detail(detail), let .detailDelta(detail, _):
                 if detail.thread.id == threadID { messages = detail.messages.map(\.text) }

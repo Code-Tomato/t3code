@@ -1,9 +1,11 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Option from "effect/Option";
@@ -57,6 +59,91 @@ describe("DesktopUpdates", () => {
       "Desktop update install action failed unexpectedly.",
     );
   });
+
+  describe("getAutoUpdateDisabledReason", () => {
+    const linuxPackaged = {
+      isDevelopment: false,
+      isPackaged: true,
+      platform: "linux" as const,
+      disabledByEnv: false,
+      hasUpdateFeedConfig: true,
+    };
+
+    it("tells Linux package installs how to update by package-type marker", () => {
+      const reasonFor = (linuxPackageType: string | null) =>
+        DesktopUpdates.getAutoUpdateDisabledReason({ ...linuxPackaged, linuxPackageType });
+
+      assert.equal(
+        reasonFor("deb"),
+        "T3 Code was installed with apt. Update it with: sudo apt update && sudo apt upgrade",
+      );
+      assert.equal(
+        reasonFor("rpm"),
+        "T3 Code was installed with dnf. Update it with: sudo dnf upgrade",
+      );
+      assert.equal(
+        reasonFor("pacman"),
+        "T3 Code was installed from the AUR. Update it with your AUR helper, for example: yay -Syu",
+      );
+      assert.equal(
+        reasonFor("snap"),
+        "T3 Code was installed by your system package manager. Update it with that package manager.",
+      );
+      assert.equal(
+        reasonFor(null),
+        "Automatic updates on Linux require running the AppImage build.",
+      );
+    });
+
+    it("ignores the marker when running as an AppImage or when an earlier reason applies", () => {
+      assert.isNull(
+        DesktopUpdates.getAutoUpdateDisabledReason({
+          ...linuxPackaged,
+          linuxPackageType: "deb",
+          appImage: "/tmp/T3-Code.AppImage",
+        }),
+      );
+      assert.equal(
+        DesktopUpdates.getAutoUpdateDisabledReason({
+          ...linuxPackaged,
+          linuxPackageType: "deb",
+          disabledByEnv: true,
+        }),
+        "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.",
+      );
+    });
+  });
+
+  it.effect("reads the package-type marker and exposes the reason in the disabled state", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const resourcesPath = yield* fileSystem.makeTempDirectoryScoped();
+      yield* fileSystem.writeFileString(`${resourcesPath}/package-type`, "deb\n");
+      const harness = makeHarness({ platform: "linux", resourcesPath });
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const updates = yield* DesktopUpdates.DesktopUpdates;
+          yield* updates.configure;
+
+          const expected =
+            "T3 Code was installed with apt. Update it with: sudo apt update && sudo apt upgrade";
+          const state = yield* updates.getState;
+          assert.equal(state.enabled, false);
+          assert.equal(state.status, "disabled");
+          assert.equal(state.message, expected);
+          assert.equal(harness.sentStates.at(-1)?.message, expected);
+          // Remote requests and the app menu read this instead of the state.
+          assert.equal(Option.getOrNull(yield* updates.disabledReason), expected);
+          assert.equal(harness.listenerCount(), 0);
+
+          const nightly = yield* updates.setChannel("nightly");
+          assert.equal(nightly.status, "disabled");
+          assert.equal(nightly.message, expected);
+        }),
+      ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+    }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
+  );
 
   it.effect("configures the updater and runs startup checks on the test clock", () => {
     const harness = makeHarness();

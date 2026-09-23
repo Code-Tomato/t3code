@@ -71,6 +71,9 @@ package() {
   cp -a --no-preserve=ownership "$srcdir/squashfs-root/." "$pkgdir/opt/$pkgname/"
   chmod -R u=rwX,go=rX "$pkgdir/opt/$pkgname"
   chmod 4755 "$pkgdir/opt/$pkgname/chrome-sandbox"
+  # electron-updater package-type marker; the app reads it to explain how this install gets updates.
+  printf 'pacman\n' > "$pkgdir/opt/$pkgname/resources/package-type"
+  chmod 644 "$pkgdir/opt/$pkgname/resources/package-type"
 
   install -Dm755 /dev/stdin "$pkgdir/usr/bin/t3code-nightly" <<'EOF'
 #!/bin/sh

@@ -149,7 +149,9 @@ function SidebarUpdateControl() {
       : "Update available"
     : showCheckIcon
       ? "Checking for updates…"
-      : "Check for updates";
+      : state?.status === "disabled"
+        ? getDesktopUpdateButtonTooltip(state)
+        : "Check for updates";
   const disabled = showCheckIcon
     ? true
     : showUpdateDetails

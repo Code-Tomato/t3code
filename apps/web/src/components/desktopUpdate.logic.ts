@@ -94,6 +94,11 @@ export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string
     }
     return state.message ?? "Update failed";
   }
+  if (state.status === "disabled") {
+    // The main process puts the disabled reason in `message`, for example how
+    // a Linux package install gets updates.
+    return state.message ?? "Automatic updates are off.";
+  }
   return "Up to date";
 }
 

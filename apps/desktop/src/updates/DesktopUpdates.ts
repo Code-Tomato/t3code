@@ -210,15 +210,19 @@ function parseAppUpdateYml(raw: string): Effect.Effect<Option.Option<AppUpdateYm
   );
 }
 
+/** Idle state when updates run, or a disabled state that carries the reason
+    in `message` so clients can show it instead of "up to date". */
 function createBaseUpdateState(
   channel: DesktopUpdateChannel,
-  enabled: boolean,
+  disabledReason: Option.Option<string>,
   environment: DesktopEnvironment.DesktopEnvironment["Service"],
 ): DesktopUpdateState {
+  const enabled = Option.isNone(disabledReason);
   return {
     ...createInitialDesktopUpdateState(environment.appVersion, environment.runtimeInfo, channel),
     enabled,
     status: enabled ? "idle" : "disabled",
+    message: Option.getOrNull(disabledReason),
   };
 }
 
@@ -244,11 +248,36 @@ function shouldBroadcastDownloadProgress(
   return nextStep !== previousStep || nextPercent === 100;
 }
 
-function getAutoUpdateDisabledReason(args: {
+/**
+ * How a Linux install that is not running as an AppImage gets updates. The
+ * marker is the electron-builder `package-type` file next to the app
+ * resources; the deb and rpm builds write it, and the AUR PKGBUILDs write
+ * `pacman`. No marker means an extracted AppImage or an unknown layout.
+ */
+function getLinuxPackageUpdateReason(packageType: string | null): string {
+  switch (packageType) {
+    case null:
+      return "Automatic updates on Linux require running the AppImage build.";
+    case "deb":
+      return "T3 Code was installed with apt. Update it with: sudo apt update && sudo apt upgrade";
+    case "rpm":
+      return "T3 Code was installed with dnf. Update it with: sudo dnf upgrade";
+    case "pacman":
+      return "T3 Code was installed from the AUR. Update it with your AUR helper, for example: yay -Syu";
+    default:
+      return "T3 Code was installed by your system package manager. Update it with that package manager.";
+  }
+}
+
+/** Why automatic updates are off, or null when they can run. Reasons are
+    checked in priority order; `linuxPackageType` only matters on Linux
+    without `APPIMAGE`. Exported for tests. */
+export function getAutoUpdateDisabledReason(args: {
   isDevelopment: boolean;
   isPackaged: boolean;
   platform: NodeJS.Platform;
   appImage?: string | undefined;
+  linuxPackageType: string | null;
   disabledByEnv: boolean;
   hasUpdateFeedConfig: boolean;
 }): string | null {
@@ -262,7 +291,7 @@ function getAutoUpdateDisabledReason(args: {
     return "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.";
   }
   if (args.platform === "linux" && !args.appImage) {
-    return "Automatic updates on Linux require running the AppImage build.";
+    return getLinuxPackageUpdateReason(args.linuxPackageType);
   }
   return null;
 }
@@ -335,14 +364,29 @@ export const make = Effect.gen(function* () {
     Effect.map((appUpdateYmlConfig) => Option.isSome(appUpdateYmlConfig) || config.mockUpdates),
   );
 
+  // Only Linux package installs carry the marker. A missing, unreadable, or
+  // blank file means no marker.
+  const readLinuxPackageType: Effect.Effect<Option.Option<string>> =
+    environment.platform === "linux" && environment.isPackaged
+      ? fileSystem
+          .readFileString(environment.path.join(environment.resourcesPath, "package-type"))
+          .pipe(
+            Effect.map((raw) => raw.trim()),
+            Effect.option,
+            Effect.map(Option.filter((packageType) => packageType.length > 0)),
+          )
+      : Effect.succeedNone;
+
   const resolveDisabledReason = Effect.gen(function* () {
     const hasFeedConfig = yield* hasUpdateFeedConfig;
+    const linuxPackageType = yield* readLinuxPackageType;
     return Option.fromNullishOr(
       getAutoUpdateDisabledReason({
         isDevelopment: environment.isDevelopment,
         isPackaged: environment.isPackaged,
         platform: environment.platform,
         appImage: Option.getOrUndefined(config.appImagePath),
+        linuxPackageType: Option.getOrNull(linuxPackageType),
         disabledByEnv: config.disableAutoUpdate,
         hasUpdateFeedConfig: hasFeedConfig,
       }),
@@ -388,8 +432,6 @@ export const make = Effect.gen(function* () {
       fullChangelog: allowsPrerelease,
     });
   });
-
-  const shouldEnableAutoUpdates = resolveDisabledReason.pipe(Effect.map(Option.isNone));
 
   const checkForUpdates = Effect.fn("desktop.updates.checkForUpdates")(function* (
     reason: string,
@@ -878,9 +920,9 @@ export const make = Effect.gen(function* () {
       }
 
       const settings = yield* desktopSettings.get;
-      const enabled = yield* shouldEnableAutoUpdates;
-      yield* setState(createBaseUpdateState(settings.updateChannel, enabled, environment));
-      if (!enabled) {
+      const disabledReason = yield* resolveDisabledReason;
+      yield* setState(createBaseUpdateState(settings.updateChannel, disabledReason, environment));
+      if (Option.isSome(disabledReason)) {
         return;
       }
       yield* Ref.set(updaterConfiguredRef, true);
@@ -949,10 +991,10 @@ export const make = Effect.gen(function* () {
             ),
           );
 
-        const enabled = yield* shouldEnableAutoUpdates;
-        yield* setState(createBaseUpdateState(nextChannel, enabled, environment));
+        const disabledReason = yield* resolveDisabledReason;
+        yield* setState(createBaseUpdateState(nextChannel, disabledReason, environment));
 
-        if (!enabled || !(yield* Ref.get(updaterConfiguredRef))) {
+        if (Option.isSome(disabledReason) || !(yield* Ref.get(updaterConfiguredRef))) {
           return yield* Ref.get(updateStateRef);
         }
 

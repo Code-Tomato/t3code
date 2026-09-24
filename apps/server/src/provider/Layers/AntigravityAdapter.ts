@@ -488,6 +488,7 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
           raw: { source: "acp.jsonrpc", method: "session/request_permission", payload: rawPayload },
         });
         const answer = yield* Deferred.await(response);
+        context.questions.delete(requestId);
         yield* emit({
           type: "user-input.resolved",
           ...(yield* stamp),
@@ -498,7 +499,26 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
           payload: { answers: answer.answers },
         });
         return answer.result;
-      }).pipe(Effect.ensuring(Effect.sync(() => context.questions.delete(requestId))));
+      }).pipe(
+        // The agent can drop the question (a harness timeout or cancelled
+        // turn interrupts this handler). Close it so the card and composer
+        // do not wait on an answer nobody can receive.
+        Effect.onInterrupt(() =>
+          Effect.gen(function* () {
+            if (!context.questions.delete(requestId)) return;
+            yield* emit({
+              type: "user-input.resolved",
+              ...(yield* stamp),
+              provider: PROVIDER,
+              threadId: context.threadId,
+              turnId,
+              requestId: runtimeRequestId,
+              payload: { answers: {} },
+            });
+          }),
+        ),
+        Effect.ensuring(Effect.sync(() => context.questions.delete(requestId))),
+      );
     }
 
     const response = yield* Deferred.make<{
@@ -535,6 +555,7 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
         }),
       );
       const answer = yield* Deferred.await(response);
+      context.approvals.delete(requestId);
       yield* emit(
         makeAcpRequestResolvedEvent({
           stamp: yield* stamp,
@@ -547,7 +568,25 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
         }),
       );
       return answer.result;
-    }).pipe(Effect.ensuring(Effect.sync(() => context.approvals.delete(requestId))));
+    }).pipe(
+      Effect.onInterrupt(() =>
+        Effect.gen(function* () {
+          if (!context.approvals.delete(requestId)) return;
+          yield* emit(
+            makeAcpRequestResolvedEvent({
+              stamp: yield* stamp,
+              provider: PROVIDER,
+              threadId: context.threadId,
+              turnId,
+              requestId: runtimeRequestId,
+              permissionRequest,
+              decision: "cancel",
+            }),
+          );
+        }),
+      ),
+      Effect.ensuring(Effect.sync(() => context.approvals.delete(requestId))),
+    );
   });
 
   const handleEvent = Effect.fn("AntigravityAdapter.handleEvent")(function* (
@@ -1183,7 +1222,7 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
         return yield* new ProviderAdapterRequestError({
           provider: PROVIDER,
           method: "session/request_permission",
-          detail: "This approval request is no longer pending.",
+          detail: `Unknown pending approval request: ${requestId}`,
         });
       }
       const optionId =
@@ -1215,7 +1254,7 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
         return yield* new ProviderAdapterRequestError({
           provider: PROVIDER,
           method: "session/request_permission",
-          detail: "This question is no longer pending.",
+          detail: `Unknown pending user-input request: ${requestId}`,
         });
       }
       const result = makeAntigravityUserInputResponse(pending.request, answers);

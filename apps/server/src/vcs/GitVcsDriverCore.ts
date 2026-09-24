@@ -1,3 +1,5 @@
+// @effect-diagnostics nodeBuiltinImport:off - FileSystem stat exposes rounded Dates, not exact index timestamp seconds.
+import * as NodeFSP from "node:fs/promises";
 import * as Cache from "effect/Cache";
 import * as Data from "effect/Data";
 import * as Crypto from "effect/Crypto";
@@ -2361,12 +2363,21 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     });
     const indexExists = yield* fileSystem.exists(indexPath);
     if (indexExists) {
-      const { mtime } = yield* fileSystem.stat(indexPath);
+      const { mtimeNs } = yield* Effect.tryPromise({
+        try: () => NodeFSP.stat(indexPath, { bigint: true }),
+        catch: (cause) =>
+          new GitCommandError({
+            operation: "GitVcsDriver.prepareReviewIndex",
+            cwd,
+            command: "stat index",
+            detail: "Could not read the review index timestamp.",
+            cause,
+          }),
+      });
       yield* fileSystem.copyFile(indexPath, tempIndexPath);
-      // A newer copy timestamp hides racily clean edits. Round down before Git reads or rewrites it.
-      const indexTime = Option.isSome(mtime)
-        ? Math.max(0, Math.floor((mtime.value.getTime() - 1) / 1000))
-        : 0;
+      // Keep Git's racy check without shifting the timestamp into the previous
+      // second. Integer nanoseconds avoid Date rounding up across a second.
+      const indexTime = Math.max(0, Number(mtimeNs / 1_000_000_000n));
       yield* fileSystem.utimes(tempIndexPath, indexTime, indexTime);
     }
     const env = { GIT_INDEX_FILE: tempIndexPath } satisfies NodeJS.ProcessEnv;

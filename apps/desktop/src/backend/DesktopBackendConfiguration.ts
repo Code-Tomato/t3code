@@ -550,7 +550,15 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
 
     return {
       executablePath: process.execPath,
-      args: [environment.backendEntryPath, "--bootstrap-fd", "3"],
+      // `--require` rather than NODE_COMPILE_CACHE, so the cache setting does not
+      // leak into the provider and terminal processes the backend starts.
+      args: [
+        "--require",
+        environment.compileCachePath,
+        environment.backendEntryPath,
+        "--bootstrap-fd",
+        "3",
+      ],
       entryPath: environment.backendEntryPath,
       cwd: environment.backendCwd,
       env: {

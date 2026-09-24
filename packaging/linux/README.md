@@ -12,7 +12,7 @@ AppImage, like the [AUR packages](../aur).
 ## What a package installs
 
 - The app in `/opt/t3code` (or `/opt/t3code-nightly`), started by
-  `/usr/bin/t3code`. `chrome-sandbox` is setuid root, so the app starts with
+  `/usr/bin/t3code` (or `/usr/bin/t3code-nightly`). `chrome-sandbox` is setuid root, so the app starts with
   the Chromium sandbox on hosts that restrict user namespaces, such as
   Ubuntu 24.04.
 - A desktop entry and icons.

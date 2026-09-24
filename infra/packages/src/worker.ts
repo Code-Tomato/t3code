@@ -17,6 +17,15 @@ const POOL_PATH = /\/pool\/(v[0-9A-Za-z.-]+)\/([0-9A-Za-z._+~-]+\.(?:deb|rpm))$/
 // to the newest signed metadata without refetching on every request.
 const INDEX_CACHE_CONTROL = "public, max-age=300";
 
+// Malformed percent-encoding is a missing file, not a server error.
+function decodeKey(pathname: string): string | null {
+  try {
+    return decodeURIComponent(pathname.slice(1));
+  } catch {
+    return null;
+  }
+}
+
 function indexHeaders(object: R2Object): Headers {
   const headers = new Headers({ "cache-control": INDEX_CACHE_CONTROL, etag: object.httpEtag });
   object.writeHttpMetadata(headers);
@@ -39,8 +48,8 @@ export default {
     const asset = releaseAssetUrl(url.pathname);
     if (asset) return Response.redirect(asset, 302);
 
-    const key = decodeURIComponent(url.pathname.slice(1));
-    if (key === "" || key.endsWith("/") || key.includes("..")) {
+    const key = decodeKey(url.pathname);
+    if (key === null || key === "" || key.endsWith("/") || key.includes("..")) {
       return new Response("Not found\n", { status: 404 });
     }
     if (request.method === "HEAD") {

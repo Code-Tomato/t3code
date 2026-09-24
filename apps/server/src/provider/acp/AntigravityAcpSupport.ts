@@ -392,7 +392,7 @@ export function describeAntigravityStartupFailure(error: unknown): string | unde
   if (!isAcpProcessExitedError(error)) return undefined;
   const stderr = error.stderr ?? "";
   if (error.signal === "SIGILL" || error.code === WINDOWS_ILLEGAL_INSTRUCTION) {
-    return "Antigravity crashed with an illegal CPU instruction. Google's runtime needs a CPU with AVX2, which this machine does not have.";
+    return "Antigravity crashed with an illegal CPU instruction. Google's runtime needs a CPU with AVX2; run it on a machine that supports AVX2.";
   }
   if (/AF_INET6|enforce_kernel_ipv6_support/u.test(stderr)) {
     return "Antigravity needs IPv6 sockets, which this kernel has disabled. On WSL, remove ipv6.disable=1 from .wslconfig and run wsl --shutdown.";

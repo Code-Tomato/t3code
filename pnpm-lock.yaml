@@ -434,8 +434,8 @@ importers:
         specifier: 0.86.3
         version: 0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.16)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@6.0.6)
       react-native-enriched-markdown:
-        specifier: file:./deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-pill-review-v2.tgz
-        version: file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-pill-review-v2.tgz(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.16)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@6.0.6))(react@19.2.3)
+        specifier: file:./deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-main-compat-v1.tgz
+        version: file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-main-compat-v1.tgz(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.16)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@6.0.6))(react@19.2.3)
       react-native-gesture-handler:
         specifier: ~2.32.0
         version: 2.32.0(patch_hash=0579f8e4dad02bf3183d95b02620358412983c36f9bda7425dc8bcb9643b5ce2)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.16)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@6.0.6))(react@19.2.3)
@@ -9310,8 +9310,8 @@ packages:
       '@types/react': '>=18'
       react: '>=18'
 
-  react-native-enriched-markdown@file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-pill-review-v2.tgz:
-    resolution: {integrity: sha512-bITGf5r52aJuv1LDjRchbaU5bi2mYw1qIIHJGw9MRqqfzOkTbqRW1su9YDAyH0LVW5GUTTGUZ50Rl6fuWiZpkw==, tarball: file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-pill-review-v2.tgz}
+  react-native-enriched-markdown@file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-main-compat-v1.tgz:
+    resolution: {integrity: sha512-u5tU9M53S0G1kLDNqGEJfBsO3o1f6kKLARyZ+djFaB+jfpP6gwREAvpIpo+hP0xTi/383GO/ea05SZ3qB73WCQ==, tarball: file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-main-compat-v1.tgz}
     version: 1.1.0-nightly-20260918-bb2b0942a
     peerDependencies:
       katex: '>=0.16.0'
@@ -20291,7 +20291,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  react-native-enriched-markdown@file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-pill-review-v2.tgz(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.16)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@6.0.6))(react@19.2.3):
+  react-native-enriched-markdown@file:apps/mobile/deps/react-native-enriched-markdown-1.1.0-nightly-20260918-bb2b0942a-main-compat-v1.tgz(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.16)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@6.0.6))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-native: 0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.16)(bufferutil@4.1.0)(react@19.2.3)(utf-8-validate@6.0.6)

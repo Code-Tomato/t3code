@@ -535,10 +535,6 @@ If the OTLP URLs are unset, local tracing still works and metrics stay in-proces
 
 ### Logfire
 
-For the standalone JavaScript agent comparison demo, see
-[examples/logfire-agent](../../examples/logfire-agent/README.md). It emits GenAI
-agent, model, and tool spans; checkpoint tracing alone does not populate the Agents view.
-
 For a US development project, set the trace endpoint to
 `https://logfire-us.pydantic.dev/v1/traces`, the metric endpoint to
 `https://logfire-us.pydantic.dev/v1/metrics`, and `T3CODE_OTLP_PROTOCOL=http/protobuf`.

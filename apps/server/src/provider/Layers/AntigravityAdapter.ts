@@ -488,16 +488,20 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
           raw: { source: "acp.jsonrpc", method: "session/request_permission", payload: rawPayload },
         });
         const answer = yield* Deferred.await(response);
-        context.questions.delete(requestId);
-        yield* emit({
-          type: "user-input.resolved",
-          ...(yield* stamp),
-          provider: PROVIDER,
-          threadId: context.threadId,
-          turnId,
-          requestId: runtimeRequestId,
-          payload: { answers: answer.answers },
-        });
+        // Once answered, the interrupt path must not see the entry, and the
+        // resolution must still be published.
+        yield* Effect.gen(function* () {
+          context.questions.delete(requestId);
+          yield* emit({
+            type: "user-input.resolved",
+            ...(yield* stamp),
+            provider: PROVIDER,
+            threadId: context.threadId,
+            turnId,
+            requestId: runtimeRequestId,
+            payload: { answers: answer.answers },
+          });
+        }).pipe(Effect.uninterruptible);
         return answer.result;
       }).pipe(
         // The agent can drop the question (a harness timeout or cancelled
@@ -555,18 +559,20 @@ export const makeAntigravityAdapter = Effect.fn("makeAntigravityAdapter")(functi
         }),
       );
       const answer = yield* Deferred.await(response);
-      context.approvals.delete(requestId);
-      yield* emit(
-        makeAcpRequestResolvedEvent({
-          stamp: yield* stamp,
-          provider: PROVIDER,
-          threadId: context.threadId,
-          turnId,
-          requestId: runtimeRequestId,
-          permissionRequest,
-          decision: answer.decision,
-        }),
-      );
+      yield* Effect.gen(function* () {
+        context.approvals.delete(requestId);
+        yield* emit(
+          makeAcpRequestResolvedEvent({
+            stamp: yield* stamp,
+            provider: PROVIDER,
+            threadId: context.threadId,
+            turnId,
+            requestId: runtimeRequestId,
+            permissionRequest,
+            decision: answer.decision,
+          }),
+        );
+      }).pipe(Effect.uninterruptible);
       return answer.result;
     }).pipe(
       Effect.onInterrupt(() =>

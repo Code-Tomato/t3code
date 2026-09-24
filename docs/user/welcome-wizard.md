@@ -79,7 +79,7 @@ Completed conversations are not imported again. You can continue without the
 remaining history.
 
 To import conversations after setup, such as ones you started in a terminal, pick the
-project in Settings and select **Import sessions** on its **Project** page.
+project in Settings and select **Import** in the **Import sessions** row on its **Project** page.
 
 You can continue without configuring agents or importing projects, or return to an earlier step
 using the setup progress bar. Navigation pauses while an import is running.

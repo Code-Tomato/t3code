@@ -282,7 +282,9 @@ function ProjectDetail({
     setIsImportingSessions(true);
     let importedCount = 0;
     let skippedCount = 0;
+    let succeededCount = 0;
     try {
+      // One offline checkout must not block the others.
       for (const member of group.memberProjects) {
         const result = await importSessions({
           environmentId: member.environmentId,
@@ -290,17 +292,21 @@ function ProjectDetail({
         });
         if (result._tag === "Failure") {
           reportFailure(
-            "Failed to import sessions",
+            group.memberProjects.length > 1
+              ? `Failed to import sessions on ${member.environmentLabel ?? "the current environment"}`
+              : "Failed to import sessions",
             mapAtomCommandResult(result, () => undefined),
           );
-          return;
+          continue;
         }
+        succeededCount += 1;
         importedCount += result.value.importedCount;
         skippedCount += result.value.skippedCount;
       }
     } finally {
       setIsImportingSessions(false);
     }
+    if (succeededCount === 0) return;
     toastManager.add({
       type: skippedCount > 0 ? "warning" : "success",
       title: skippedCount > 0 ? "Some sessions could not be imported" : "Sessions imported",

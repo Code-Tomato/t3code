@@ -156,7 +156,9 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "project-overview",
     title: "Project overview",
     to: "/settings/projects",
-    searchTerms: ["name icon emoji image checkout remove delete"],
+    searchTerms: [
+      "name icon emoji image checkout remove delete import sessions history claude codex",
+    ],
   },
   {
     id: "default-model",
